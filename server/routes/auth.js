@@ -345,11 +345,36 @@ router.get('/google/callback',
 // @access  Private
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
-    const { name } = req.body;
+    const { 
+      name, 
+      phone, 
+      address, 
+      city, 
+      zipCode, 
+      preferences 
+    } = req.body;
     
     const user = await User.findById(req.user._id);
     
+    // Update basic information
     if (name) user.name = name.trim();
+    if (phone !== undefined) user.phone = phone;
+    if (address !== undefined) user.address = address.trim();
+    if (city !== undefined) user.city = city.trim();
+    if (zipCode !== undefined) user.zipCode = zipCode.trim();
+    
+    // Update preferences
+    if (preferences) {
+      if (preferences.emailNotifications !== undefined) {
+        user.preferences.emailNotifications = preferences.emailNotifications;
+      }
+      if (preferences.smsNotifications !== undefined) {
+        user.preferences.smsNotifications = preferences.smsNotifications;
+      }
+      if (preferences.pushNotifications !== undefined) {
+        user.preferences.pushNotifications = preferences.pushNotifications;
+      }
+    }
     
     await user.save();
     

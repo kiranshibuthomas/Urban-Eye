@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiUsers, 
   FiFileText, 
@@ -13,125 +13,134 @@ import {
   FiUserCheck,
   FiTrendingUp,
   FiFilter,
-  FiUser
+  FiUser,
+  FiPlus,
+  FiSearch,
+  FiMoreVertical,
+  FiEdit3,
+  FiTrash2,
+  FiDownload,
+  FiRefreshCw,
+  FiBarChart3,
+  FiActivity,
+  FiTarget,
+  FiShield,
+  FiZap,
+  FiMessageSquare,
+  FiBell,
+  FiSettings,
+  FiGrid,
+  FiList,
+  FiLogOut,
+  FiChevronDown
 } from 'react-icons/fi';
-import DashboardLayout from '../components/DashboardLayout';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import ModernStatCard from '../components/ModernStatCard';
+import ModernComplaintCard from '../components/ModernComplaintCard';
+import ModernStaffCard from '../components/ModernStaffCard';
+import ModernSearchFilter from '../components/ModernSearchFilter';
+import ModernQuickActions from '../components/ModernQuickActions';
+import ModernRecentActivity from '../components/ModernRecentActivity';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [viewMode, setViewMode] = useState('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilters, setSelectedFilters] = useState({
+    status: '',
+    priority: '',
+    category: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [stats, setStats] = useState({
+    totalComplaints: 0,
+    pending: 0,
+    inProgress: 0,
+    resolved: 0,
+    totalUsers: 0,
+    activeStaff: 0,
+    avgResolutionTime: '',
+    satisfactionRate: ''
+  });
+  const [allComplaints, setAllComplaints] = useState([]);
+  const [staffMembers, setStaffMembers] = useState([]);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-  // Mock data for demonstration
-  const stats = {
-    totalComplaints: 156,
-    pending: 23,
-    inProgress: 45,
-    resolved: 88,
-    totalUsers: 1240,
-    activeStaff: 12
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
   };
 
-  const allComplaints = [
-    {
-      id: 1,
-      title: "Broken streetlight on Main St",
-      status: "pending",
-      date: "2024-01-15",
-      category: "Infrastructure",
-      location: "Main Street, Block A",
-      citizen: "John Doe",
-      priority: "medium",
-      assignedTo: null
-    },
-    {
-      id: 2,
-      title: "Pothole near city center",
-      status: "in-progress",
-      date: "2024-01-12",
-      category: "Roads",
-      location: "City Center Avenue",
-      citizen: "Jane Smith",
-      priority: "high",
-      assignedTo: "Mike Johnson"
-    },
-    {
-      id: 3,
-      title: "Garbage collection missed",
-      status: "resolved",
-      date: "2024-01-10",
-      category: "Sanitation",
-      location: "Residential Area B",
-      citizen: "Bob Wilson",
-      priority: "low",
-      assignedTo: "Sarah Davis"
-    },
-    {
-      id: 4,
-      title: "Water leak in public park",
-      status: "pending",
-      date: "2024-01-14",
-      category: "Utilities",
-      location: "Central Park",
-      citizen: "Alice Brown",
-      priority: "urgent",
-      assignedTo: null
-    }
-  ];
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuOpen && !event.target.closest('.user-menu-dropdown')) {
+        setUserMenuOpen(false);
+      }
+    };
 
-  const staffMembers = [
-    { id: 1, name: "Mike Johnson", role: "Field Engineer", active: true, assignments: 5 },
-    { id: 2, name: "Sarah Davis", role: "Sanitation Supervisor", active: true, assignments: 3 },
-    { id: 3, name: "Tom Wilson", role: "Infrastructure Specialist", active: false, assignments: 0 },
-    { id: 4, name: "Lisa Chen", role: "Environmental Officer", active: true, assignments: 2 }
-  ];
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [userMenuOpen]);
 
-  const sidebarActions = [
-    {
-      label: 'Overview',
-      icon: FiTrendingUp,
-      onClick: () => setActiveTab('overview')
-    },
-    {
-      label: 'All Complaints',
-      icon: FiFileText,
-      onClick: () => setActiveTab('complaints')
-    },
-    {
-      label: 'Manage Staff',
-      icon: FiUsers,
-      onClick: () => setActiveTab('staff')
-    },
-    {
-      label: 'Send Alerts',
-      icon: FiSend,
-      onClick: () => setActiveTab('alerts')
-    }
-  ];
+  // Fetch dashboard data on component mount
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setIsLoading(true);
+      try {
+        // TODO: Replace with actual API calls
+        // const statsResponse = await fetch('/api/admin/stats');
+        // const complaintsResponse = await fetch('/api/admin/complaints');
+        // const staffResponse = await fetch('/api/admin/staff');
+        
+        // For now, keeping empty data
+        // setStats(await statsResponse.json());
+        // setAllComplaints(await complaintsResponse.json());
+        // setStaffMembers(await staffResponse.json());
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+
+
+
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'in-progress':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'resolved':
-        return 'bg-green-100 text-green-800';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'urgent':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-50 text-red-700 border-red-200';
       case 'high':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-orange-50 text-orange-700 border-orange-200';
       case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'low':
-        return 'bg-green-100 text-green-800';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
 
@@ -140,7 +149,7 @@ const AdminDashboard = () => {
       case 'pending':
         return <FiClock className="h-4 w-4" />;
       case 'in-progress':
-        return <FiAlertCircle className="h-4 w-4" />;
+        return <FiActivity className="h-4 w-4" />;
       case 'resolved':
         return <FiCheckCircle className="h-4 w-4" />;
       default:
@@ -148,153 +157,130 @@ const AdminDashboard = () => {
     }
   };
 
+  // Using ModernStatCard component instead of inline StatCard
+
   const OverviewTab = () => (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="card"
-        >
-          <div className="flex items-center">
-            <div className="p-2 bg-primary-100 rounded-lg">
-              <FiFileText className="h-6 w-6 text-primary-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Complaints</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalComplaints}</p>
-            </div>
+    <div className="space-y-8">
+      {/* Enhanced Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <ModernStatCard
+          icon={FiFileText}
+          title="Total Complaints"
+          value={stats.totalComplaints > 0 ? stats.totalComplaints.toLocaleString() : '0'}
+          change={0}
+          color="bg-gradient-to-br from-blue-500 to-blue-600"
+          delay={0.1}
+        />
+        <ModernStatCard
+          icon={FiClock}
+          title="Pending"
+          value={stats.pending > 0 ? stats.pending : '0'}
+          change={0}
+          color="bg-gradient-to-br from-amber-500 to-amber-600"
+          delay={0.2}
+        />
+        <ModernStatCard
+          icon={FiActivity}
+          title="In Progress"
+          value={stats.inProgress > 0 ? stats.inProgress : '0'}
+          change={0}
+          color="bg-gradient-to-br from-indigo-500 to-indigo-600"
+          delay={0.3}
+        />
+        <ModernStatCard
+          icon={FiCheckCircle}
+          title="Resolved"
+          value={stats.resolved > 0 ? stats.resolved.toLocaleString() : '0'}
+          change={0}
+          color="bg-gradient-to-br from-emerald-500 to-emerald-600"
+          delay={0.4}
+        />
           </div>
-        </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="card"
-        >
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <FiClock className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
-            </div>
-          </div>
-        </motion.div>
+      {/* Performance Metrics */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <ModernRecentActivity
+          complaints={allComplaints}
+          getStatusColor={getStatusColor}
+          getPriorityColor={getPriorityColor}
+          getStatusIcon={getStatusIcon}
+        />
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="card"
-        >
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FiAlertCircle className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">In Progress</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.inProgress}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="card"
-        >
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <FiCheckCircle className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Resolved</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.resolved}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="card"
-        >
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <FiUsers className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Users</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="card"
-        >
-          <div className="flex items-center">
-            <div className="p-2 bg-indigo-100 rounded-lg">
-              <FiUserCheck className="h-6 w-6 text-indigo-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Active Staff</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.activeStaff}</p>
-            </div>
-          </div>
-        </motion.div>
+        <ModernQuickActions />
       </div>
 
-      {/* Priority Complaints */}
+      {/* Priority Complaints Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7 }}
-        className="card"
+        className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
       >
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">High Priority Complaints</h3>
-        <div className="space-y-4">
-          {allComplaints.filter(c => c.priority === 'urgent' || c.priority === 'high').map((complaint, index) => (
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">High Priority Complaints</h3>
+            <div className="flex items-center space-x-2">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                {allComplaints.filter(c => c.priority === 'urgent' || c.priority === 'high').length || 0} Active
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {allComplaints.filter(c => c.priority === 'urgent' || c.priority === 'high').length > 0 ? (
+            allComplaints.filter(c => c.priority === 'urgent' || c.priority === 'high').map((complaint, index) => (
             <motion.div
               key={complaint.id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.8 + index * 0.1 }}
-              className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg"
+              className="p-6 hover:bg-gray-50 transition-colors duration-200"
             >
+              <div className="flex items-center justify-between">
               <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
                 <h4 className="font-medium text-gray-900">{complaint.title}</h4>
-                <div className="flex items-center mt-1 text-sm text-gray-600">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(complaint.priority)}`}>
+                      {complaint.priority.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600 space-x-4">
+                    <span className="flex items-center">
                   <FiMapPin className="h-4 w-4 mr-1" />
-                  <span className="mr-4">{complaint.location}</span>
-                  <span className="mr-4">By: {complaint.citizen}</span>
+                      {complaint.location}
+                    </span>
+                    <span className="flex items-center">
+                      <FiUser className="h-4 w-4 mr-1" />
+                      {complaint.citizen}
+                    </span>
+                    <span className="flex items-center">
                   <FiCalendar className="h-4 w-4 mr-1" />
-                  <span>{new Date(complaint.date).toLocaleDateString()}</span>
+                      {new Date(complaint.date).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(complaint.status)}`}>
+                    {complaint.status.replace('-', ' ')}
+                </span>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
+                  >
+                  Assign
+                  </motion.button>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(complaint.priority)}`}>
-                  {complaint.priority.toUpperCase()}
-                </span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(complaint.status)}`}>
-                  {complaint.status.replace('-', ' ').toUpperCase()}
-                </span>
-                <button className="text-primary-600 hover:text-primary-700 text-sm font-medium">
-                  Assign
-                </button>
-              </div>
             </motion.div>
-          ))}
+          ))
+          ) : (
+            <div className="p-6 text-center text-gray-500">
+              <FiFileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">No high priority complaints</p>
+              <p className="text-sm">All complaints are being handled efficiently</p>
+            </div>
+          )}
         </div>
       </motion.div>
     </div>
@@ -306,82 +292,36 @@ const AdminDashboard = () => {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">All Complaints</h3>
-        <div className="flex space-x-2">
-          <select className="form-input w-auto">
-            <option value="">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="in-progress">In Progress</option>
-            <option value="resolved">Resolved</option>
-          </select>
-          <select className="form-input w-auto">
-            <option value="">All Categories</option>
-            <option value="infrastructure">Infrastructure</option>
-            <option value="roads">Roads</option>
-            <option value="sanitation">Sanitation</option>
-            <option value="utilities">Utilities</option>
-          </select>
-          <button className="btn-secondary flex items-center">
-            <FiFilter className="h-4 w-4 mr-2" />
-            More Filters
-          </button>
-        </div>
-      </div>
+      {/* Enhanced Header with Search and Filters */}
+      <ModernSearchFilter
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedFilters={selectedFilters}
+        setSelectedFilters={setSelectedFilters}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+      />
 
-      <div className="grid gap-6">
-        {allComplaints.map((complaint, index) => (
-          <motion.div
+      {/* Complaints Grid/List */}
+      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
+        {allComplaints.length > 0 ? (
+          allComplaints.map((complaint, index) => (
+            <ModernComplaintCard
             key={complaint.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="card hover:shadow-md transition-shadow duration-200"
-          >
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-lg font-medium text-gray-900">{complaint.title}</h4>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(complaint.priority)}`}>
-                    {complaint.priority.toUpperCase()}
-                  </span>
+              complaint={complaint}
+              getStatusColor={getStatusColor}
+              getPriorityColor={getPriorityColor}
+              getStatusIcon={getStatusIcon}
+              index={index}
+            />
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12">
+            <FiFileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No complaints found</h3>
+            <p className="text-gray-500">Complaints will appear here when citizens submit them</p>
                 </div>
-                <div className="flex items-center text-sm text-gray-600 mb-2">
-                  <FiMapPin className="h-4 w-4 mr-1" />
-                  <span className="mr-4">{complaint.location}</span>
-                  <span className="px-2 py-1 bg-gray-100 rounded text-xs font-medium mr-4">
-                    {complaint.category}
-                  </span>
-                  <span className="text-gray-500">By: {complaint.citizen}</span>
-                </div>
-                <div className="flex items-center text-sm text-gray-500">
-                  <FiCalendar className="h-4 w-4 mr-1" />
-                  <span className="mr-4">Submitted: {new Date(complaint.date).toLocaleDateString()}</span>
-                  {complaint.assignedTo && (
-                    <span>Assigned to: {complaint.assignedTo}</span>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-col items-end space-y-2">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(complaint.status)}`}>
-                  {getStatusIcon(complaint.status)}
-                  <span className="ml-1 capitalize">{complaint.status.replace('-', ' ')}</span>
-                </span>
-                <div className="flex space-x-2">
-                  <button className="text-primary-600 hover:text-primary-700 text-sm font-medium">
-                    View
-                  </button>
-                  <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                    Assign
-                  </button>
-                  <button className="text-green-600 hover:text-green-700 text-sm font-medium">
-                    Update
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+        )}
       </div>
     </motion.div>
   );
@@ -392,54 +332,36 @@ const AdminDashboard = () => {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">Staff Management</h3>
-        <button className="btn-primary">
-          Add New Staff
-        </button>
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+          <h3 className="text-xl font-semibold text-gray-900">Staff Management</h3>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center space-x-2"
+          >
+            <FiPlus className="h-4 w-4" />
+            <span>Add New Staff</span>
+          </motion.button>
+        </div>
       </div>
 
       <div className="grid gap-6">
-        {staffMembers.map((staff, index) => (
-          <motion.div
+        {staffMembers.length > 0 ? (
+          staffMembers.map((staff, index) => (
+            <ModernStaffCard
             key={staff.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="card hover:shadow-md transition-shadow duration-200"
-          >
-            <div className="flex justify-between items-center">
-              <div className="flex items-center">
-                <div className="h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center">
-                  <FiUser className="h-6 w-6 text-gray-600" />
+              staff={staff}
+              index={index}
+            />
+          ))
+        ) : (
+          <div className="text-center py-12">
+            <FiUsers className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No staff members found</h3>
+            <p className="text-gray-500">Staff members will appear here when they are added</p>
                 </div>
-                <div className="ml-4">
-                  <h4 className="font-medium text-gray-900">{staff.name}</h4>
-                  <p className="text-sm text-gray-600">{staff.role}</p>
-                  <p className="text-sm text-gray-500">Active assignments: {staff.assignments}</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  staff.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                }`}>
-                  {staff.active ? 'Active' : 'Inactive'}
-                </span>
-                <div className="flex space-x-2">
-                  <button className="text-primary-600 hover:text-primary-700 text-sm font-medium">
-                    View
-                  </button>
-                  <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                    Edit
-                  </button>
-                  <button className="text-gray-600 hover:text-gray-700 text-sm font-medium">
-                    {staff.active ? 'Deactivate' : 'Activate'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+        )}
       </div>
     </motion.div>
   );
@@ -448,13 +370,19 @@ const AdminDashboard = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="card max-w-2xl"
+      className="max-w-4xl mx-auto"
     >
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">Send Emergency Alert</h3>
-      <form className="space-y-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-100">
+          <h3 className="text-xl font-semibold text-gray-900">Send Emergency Alert</h3>
+          <p className="text-sm text-gray-600 mt-1">Send notifications to citizens and staff members</p>
+        </div>
+        
+        <form className="p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="form-label">Alert Type</label>
-          <select className="form-input">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Alert Type</label>
+              <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
             <option value="">Select alert type</option>
             <option value="emergency">Emergency</option>
             <option value="maintenance">Maintenance</option>
@@ -464,48 +392,50 @@ const AdminDashboard = () => {
         </div>
 
         <div>
-          <label className="form-label">Alert Title</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Priority Level</label>
+              <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Alert Title</label>
           <input
             type="text"
-            className="form-input"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
             placeholder="Brief title for the alert"
           />
         </div>
 
         <div>
-          <label className="form-label">Message</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
           <textarea
             rows={4}
-            className="form-input"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
             placeholder="Enter the alert message..."
           />
         </div>
 
         <div>
-          <label className="form-label">Target Audience</label>
-          <select className="form-input">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Target Audience</label>
+            <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
             <option value="all">All Citizens</option>
             <option value="area">Specific Area</option>
             <option value="role">Specific Role</option>
           </select>
         </div>
 
-        <div>
-          <label className="form-label">Priority Level</label>
-          <select className="form-input">
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="critical">Critical</option>
-          </select>
-        </div>
-
+          <div className="space-y-4">
         <div className="flex items-center">
           <input
             type="checkbox"
-            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
           />
-          <label className="ml-2 block text-sm text-gray-900">
+              <label className="ml-3 block text-sm text-gray-900">
             Send SMS notifications
           </label>
         </div>
@@ -513,22 +443,45 @@ const AdminDashboard = () => {
         <div className="flex items-center">
           <input
             type="checkbox"
-            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
           />
-          <label className="ml-2 block text-sm text-gray-900">
+              <label className="ml-3 block text-sm text-gray-900">
             Send email notifications
           </label>
         </div>
 
-        <div className="flex justify-end space-x-4">
-          <button type="button" className="btn-secondary">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label className="ml-3 block text-sm text-gray-900">
+                Send push notifications
+              </label>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-4 pt-6 border-t border-gray-100">
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium"
+            >
             Save as Draft
-          </button>
-          <button type="submit" className="btn-primary">
-            Send Alert Now
-          </button>
+            </motion.button>
+            <motion.button
+              type="submit"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center space-x-2"
+            >
+              <FiSend className="h-4 w-4" />
+              <span>Send Alert Now</span>
+            </motion.button>
         </div>
       </form>
+      </div>
     </motion.div>
   );
 
@@ -548,12 +501,127 @@ const AdminDashboard = () => {
   };
 
   return (
-    <DashboardLayout
-      title="Admin Dashboard"
-      actions={sidebarActions}
-    >
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+              <p className="text-sm text-gray-600 mt-1">Manage complaints, staff, and system alerts</p>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              {/* Tab Navigation */}
+              <div className="flex items-center space-x-1 bg-gray-100 p-1 rounded-lg">
+                {[
+                  { key: 'overview', label: 'Overview', icon: FiTrendingUp },
+                  { key: 'complaints', label: 'Complaints', icon: FiFileText },
+                  { key: 'staff', label: 'Staff', icon: FiUsers },
+                  { key: 'alerts', label: 'Alerts', icon: FiSend }
+                ].map((tab) => (
+                  <motion.button
+                    key={tab.key}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                      activeTab === tab.key
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <tab.icon className="h-4 w-4" />
+                    <span>{tab.label}</span>
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* User Menu Dropdown */}
+              <div className="relative user-menu-dropdown">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-100 transition-all duration-200"
+                >
+                  <div className="h-8 w-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                    <FiUser className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-gray-900">{user?.name || 'Admin'}</p>
+                    <p className="text-xs text-gray-500">Administrator</p>
+                  </div>
+                  <FiChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                </motion.button>
+
+                {/* Dropdown Menu */}
+                <AnimatePresence>
+                  {userMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-200/50 py-2 z-50"
+                    >
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <p className="text-sm font-medium text-gray-900">{user?.name || 'Admin'}</p>
+                        <p className="text-xs text-gray-500">{user?.email || 'admin@urboneye.com'}</p>
+                      </div>
+                      
+                      <div className="py-1">
+                        <button
+                          type="button"
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-200"
+                        >
+                          <FiUser className="h-4 w-4 mr-3" />
+                          Profile
+                        </button>
+                        <button
+                          type="button"
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-200"
+                        >
+                          <FiSettings className="h-4 w-4 mr-3" />
+                          Settings
+                        </button>
+                      </div>
+                      
+                      <div className="border-t border-gray-100 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleLogout}
+                          className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center transition-colors duration-200"
+                        >
+                          <FiLogOut className="h-4 w-4 mr-3" />
+                          Sign Out
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+                    {/* Main Content */}
+              <main className="px-6 py-8">
+                {isLoading ? (
+                  <div className="flex items-center justify-center min-h-96">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <p className="text-gray-600">Loading dashboard data...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <AnimatePresence mode="wait">
       {renderContent()}
-    </DashboardLayout>
+                  </AnimatePresence>
+                )}
+              </main>
+    </div>
   );
 };
 

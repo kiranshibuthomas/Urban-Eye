@@ -58,18 +58,47 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     trim: true,
-         validate: {
-       validator: function(phone) {
-         if (!phone) return true; // Optional field
-         
-         // Remove all non-digit characters
-         const digitsOnly = phone.replace(/[^\d]/g, '');
-         
-         // Check if we have exactly 10 digits
-         return digitsOnly.length === 10 && /^\d{10}$/.test(digitsOnly);
-       },
-       message: 'Phone number must be exactly 10 digits'
-     }
+    validate: {
+      validator: function(phone) {
+        if (!phone) return true; // Optional field
+        
+        // Remove all non-digit characters
+        const digitsOnly = phone.replace(/[^\d]/g, '');
+        
+        // Check if we have exactly 10 digits
+        return digitsOnly.length === 10 && /^\d{10}$/.test(digitsOnly);
+      },
+      message: 'Phone number must be exactly 10 digits'
+    }
+  },
+  address: {
+    type: String,
+    trim: true,
+    maxlength: [200, 'Address cannot be more than 200 characters']
+  },
+  city: {
+    type: String,
+    trim: true,
+    maxlength: [50, 'City cannot be more than 50 characters']
+  },
+  zipCode: {
+    type: String,
+    trim: true,
+    maxlength: [10, 'ZIP code cannot be more than 10 characters']
+  },
+  preferences: {
+    emailNotifications: {
+      type: Boolean,
+      default: true
+    },
+    smsNotifications: {
+      type: Boolean,
+      default: false
+    },
+    pushNotifications: {
+      type: Boolean,
+      default: true
+    }
   },
   lastLogin: {
     type: Date,
