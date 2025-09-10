@@ -12,6 +12,9 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import CitizenDashboard from './pages/CitizenDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import ReportIssue from './pages/ReportIssue';
+import ReportsHistory from './pages/ReportsHistory';
+import ComplaintDetail from './pages/ComplaintDetail';
 import EmailVerification from './components/EmailVerification';
 
 // Component to handle role-based default redirects
@@ -64,10 +67,31 @@ function AppRoutes() {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/report-issue" 
+          element={
+            <ProtectedRoute requiredRole="citizen">
+              <ReportIssue />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/reports-history" 
+          element={
+            <ProtectedRoute requiredRole="citizen">
+              <ReportsHistory />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/complaint/:id" 
+          element={
+            <ProtectedRoute>
+              <ComplaintDetail />
+            </ProtectedRoute>
+          } 
+        />
 
-        
-
-        
         {/* Default redirect */}
         <Route path="/" element={<DefaultRedirect />} />
         

@@ -306,6 +306,84 @@ router.get('/google', passport.authenticate('google', {
   scope: ['profile', 'email']
 }));
 
+// @route   POST /api/auth/google
+// @desc    Google OAuth login for mobile
+// @access  Public
+router.post('/google', async (req, res) => {
+  try {
+    const { googleToken } = req.body;
+
+    if (!googleToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google token is required'
+      });
+    }
+
+    // Verify the Google token (in a real app, you'd use Google's API to verify)
+    // For now, we'll create a mock user or find existing user
+    // In production, you should verify the token with Google's API
+    
+    // Mock Google user data (replace with actual Google API verification)
+    const mockGoogleUser = {
+      id: 'google_' + Date.now(),
+      email: 'user@gmail.com',
+      name: 'Google User',
+      picture: 'https://via.placeholder.com/150'
+    };
+
+    // Check if user already exists
+    let user = await User.findOne({ 
+      $or: [
+        { email: mockGoogleUser.email },
+        { googleId: mockGoogleUser.id }
+      ]
+    });
+
+    if (!user) {
+      // Create new user
+      user = new User({
+        name: mockGoogleUser.name,
+        email: mockGoogleUser.email,
+        googleId: mockGoogleUser.id,
+        isEmailVerified: true, // Google users are pre-verified
+        role: 'citizen'
+      });
+      await user.save();
+    } else {
+      // Update existing user with Google ID if not set
+      if (!user.googleId) {
+        user.googleId = mockGoogleUser.id;
+        user.isEmailVerified = true;
+        await user.save();
+      }
+    }
+
+    // Generate token
+    const token = generateToken(user._id);
+    
+    // Set cookie
+    setTokenCookie(res, token);
+
+    // Return user data
+    const userProfile = user.getPublicProfile();
+
+    res.json({
+      success: true,
+      message: 'Google login successful',
+      token,
+      user: userProfile
+    });
+
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during Google login'
+    });
+  }
+});
+
 // @route   GET /api/auth/google/callback
 // @desc    Google OAuth callback
 // @access  Public

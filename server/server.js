@@ -4,10 +4,14 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const passport = require('passport');
+const path = require('path');
 require('dotenv').config({ path: './config.env' });
 
 // Import routes
 const authRoutes = require('./routes/auth');
+const complaintRoutes = require('./routes/complaints');
+const statsRoutes = require('./routes/stats');
+const servicesRoutes = require('./routes/services');
 
 // Import passport configuration
 require('./config/passport');
@@ -51,6 +55,12 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/urbaneye'
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/complaints', complaintRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/services', servicesRoutes);
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Test route
 app.get('/api/test', (req, res) => {

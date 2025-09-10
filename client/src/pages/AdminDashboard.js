@@ -42,6 +42,7 @@ import ModernStaffCard from '../components/ModernStaffCard';
 import ModernSearchFilter from '../components/ModernSearchFilter';
 import ModernQuickActions from '../components/ModernQuickActions';
 import ModernRecentActivity from '../components/ModernRecentActivity';
+import AdminComplaintManagement from './AdminComplaintManagement';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -490,7 +491,7 @@ const AdminDashboard = () => {
       case 'overview':
         return <OverviewTab />;
       case 'complaints':
-        return <ComplaintsTab />;
+        return <AdminComplaintManagement />;
       case 'staff':
         return <StaffTab />;
       case 'alerts':

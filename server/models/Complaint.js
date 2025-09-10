@@ -1,0 +1,352 @@
+const mongoose = require('mongoose');
+
+const complaintSchema = new mongoose.Schema({
+  // Basic complaint information
+  title: {
+    type: String,
+    required: [true, 'Title is required'],
+    trim: true,
+    maxlength: [100, 'Title cannot be more than 100 characters']
+  },
+  description: {
+    type: String,
+    required: [true, 'Description is required'],
+    trim: true,
+    maxlength: [1000, 'Description cannot be more than 1000 characters']
+  },
+  category: {
+    type: String,
+    required: [true, 'Category is required'],
+    enum: [
+      'road_issues',
+      'water_supply',
+      'electricity',
+      'waste_management',
+      'public_transport',
+      'parks_recreation',
+      'street_lighting',
+      'drainage',
+      'noise_pollution',
+      'air_pollution',
+      'safety_security',
+      'other'
+    ],
+    default: 'other'
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium'
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'in_progress', 'resolved', 'rejected', 'closed'],
+    default: 'pending'
+  },
+
+  // User information
+  citizen: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  citizenName: {
+    type: String,
+    required: true
+  },
+  citizenEmail: {
+    type: String,
+    required: true
+  },
+  citizenPhone: {
+    type: String,
+    trim: true
+  },
+
+  // Location information
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      required: true,
+      validate: {
+        validator: function(coords) {
+          return coords.length === 2 && 
+                 coords[0] >= -180 && coords[0] <= 180 && // longitude
+                 coords[1] >= -90 && coords[1] <= 90;     // latitude
+        },
+        message: 'Invalid coordinates'
+      }
+    }
+  },
+  address: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: [200, 'Address cannot be more than 200 characters']
+  },
+  city: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: [50, 'City cannot be more than 50 characters']
+  },
+  pincode: {
+    type: String,
+    trim: true,
+    maxlength: [10, 'Pincode cannot be more than 10 characters']
+  },
+
+  // Media attachments
+  images: [{
+    url: {
+      type: String,
+      required: true
+    },
+    filename: {
+      type: String,
+      required: true
+    },
+    originalName: {
+      type: String,
+      required: true
+    },
+    size: {
+      type: Number,
+      required: true
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
+  // Admin handling
+  assignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  assignedAt: {
+    type: Date
+  },
+  adminNotes: [{
+    note: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [500, 'Note cannot be more than 500 characters']
+    },
+    addedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    addedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
+  // Resolution information
+  resolvedAt: {
+    type: Date
+  },
+  resolutionNotes: {
+    type: String,
+    trim: true,
+    maxlength: [1000, 'Resolution notes cannot be more than 1000 characters']
+  },
+  resolutionImages: [{
+    url: {
+      type: String,
+      required: true
+    },
+    filename: {
+      type: String,
+      required: true
+    },
+    originalName: {
+      type: String,
+      required: true
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
+  // Citizen feedback
+  citizenRating: {
+    type: Number,
+    min: 1,
+    max: 5
+  },
+  citizenFeedback: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Feedback cannot be more than 500 characters']
+  },
+
+  // System fields
+  isPublic: {
+    type: Boolean,
+    default: true
+  },
+  isAnonymous: {
+    type: Boolean,
+    default: false
+  },
+  viewCount: {
+    type: Number,
+    default: 0
+  },
+  upvotes: {
+    type: Number,
+    default: 0
+  },
+  downvotes: {
+    type: Number,
+    default: 0
+  },
+
+  // Timestamps
+  submittedAt: {
+    type: Date,
+    default: Date.now
+  },
+  lastUpdated: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true
+});
+
+// Indexes for better query performance
+complaintSchema.index({ citizen: 1 });
+complaintSchema.index({ status: 1 });
+complaintSchema.index({ category: 1 });
+complaintSchema.index({ priority: 1 });
+complaintSchema.index({ assignedTo: 1 });
+complaintSchema.index({ submittedAt: -1 });
+complaintSchema.index({ location: '2dsphere' }); // Geospatial index
+
+// Virtual for complaint ID (short format)
+complaintSchema.virtual('complaintId').get(function() {
+  return `URB-${this._id.toString().slice(-8).toUpperCase()}`;
+});
+
+// Virtual for time since submission
+complaintSchema.virtual('timeSinceSubmission').get(function() {
+  const now = new Date();
+  const diff = now - this.submittedAt;
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  
+  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+  return 'Just now';
+});
+
+// Virtual for status color
+complaintSchema.virtual('statusColor').get(function() {
+  const colors = {
+    pending: 'yellow',
+    in_progress: 'blue',
+    resolved: 'green',
+    rejected: 'red',
+    closed: 'gray'
+  };
+  return colors[this.status] || 'gray';
+});
+
+// Virtual for priority color
+complaintSchema.virtual('priorityColor').get(function() {
+  const colors = {
+    low: 'green',
+    medium: 'yellow',
+    high: 'orange',
+    urgent: 'red'
+  };
+  return colors[this.priority] || 'gray';
+});
+
+// Method to update last updated timestamp
+complaintSchema.methods.updateTimestamp = function() {
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Method to add admin note
+complaintSchema.methods.addAdminNote = function(note, adminId) {
+  this.adminNotes.push({
+    note,
+    addedBy: adminId,
+    addedAt: new Date()
+  });
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Method to assign to admin
+complaintSchema.methods.assignToAdmin = function(adminId) {
+  this.assignedTo = adminId;
+  this.assignedAt = new Date();
+  this.status = 'in_progress';
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Method to resolve complaint
+complaintSchema.methods.resolveComplaint = function(resolutionNotes, adminId) {
+  this.status = 'resolved';
+  this.resolvedAt = new Date();
+  this.resolutionNotes = resolutionNotes;
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Static method to get complaints by location
+complaintSchema.statics.getComplaintsByLocation = function(longitude, latitude, radiusInKm = 5) {
+  return this.find({
+    location: {
+      $near: {
+        $geometry: {
+          type: 'Point',
+          coordinates: [longitude, latitude]
+        },
+        $maxDistance: radiusInKm * 1000 // Convert km to meters
+      }
+    }
+  });
+};
+
+// Static method to get statistics
+complaintSchema.statics.getStatistics = function() {
+  return this.aggregate([
+    {
+      $group: {
+        _id: null,
+        total: { $sum: 1 },
+        pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+        inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] } },
+        resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
+        rejected: { $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] } },
+        closed: { $sum: { $cond: [{ $eq: ['$status', 'closed'] }, 1, 0] } }
+      }
+    }
+  ]);
+};
+
+// Ensure virtual fields are serialized
+complaintSchema.set('toJSON', { virtuals: true });
+complaintSchema.set('toObject', { virtuals: true });
+
+module.exports = mongoose.model('Complaint', complaintSchema);
+

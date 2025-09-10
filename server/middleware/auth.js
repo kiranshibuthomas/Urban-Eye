@@ -99,6 +99,27 @@ const authorizeRoles = (...roles) => {
   };
 };
 
+// Require specific role (simplified version)
+const requireRole = (role) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required.'
+      });
+    }
+
+    if (req.user.role !== role) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied. Required role: ${role}`
+      });
+    }
+
+    next();
+  };
+};
+
 // Optional authentication (doesn't fail if no token)
 const optionalAuth = async (req, res, next) => {
   try {
@@ -152,6 +173,7 @@ module.exports = {
   generateToken,
   authenticateToken,
   authorizeRoles,
+  requireRole,
   optionalAuth,
   setTokenCookie,
   clearTokenCookie

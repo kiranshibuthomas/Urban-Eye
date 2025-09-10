@@ -1,307 +1,283 @@
-# UrbanEye - Smart City Complaint Management System
+# UrbanEye - Smart City Management System
 
-A comprehensive MERN stack web application for managing urban complaints with role-based authentication, Google OAuth integration, and modern UI/UX.
+A comprehensive smart city management platform with both web and mobile applications for citizens and administrators to report, track, and manage city issues.
+
+## 🏗️ Project Architecture
+
+```
+UrbanEye/
+├── client/                 # React Web Application
+├── server/                 # Node.js/Express Backend
+├── UrbanEyeMobile/         # React Native Mobile App
+├── shared/                 # Shared Business Logic & Types
+└── docs/                   # Documentation
+```
 
 ## 🚀 Features
 
-### Authentication & Authorization
-- **JWT-based authentication** with secure session management
-- **Google OAuth 2.0** integration for seamless sign-in/sign-up
-- **Role-based access control** (Citizen/Admin)
-- **Password hashing** with bcrypt for security
-- **Remember Me** functionality for extended sessions
+### 🔐 Authentication & User Management
+- Secure user registration and login
+- Role-based access control (Citizen/Admin)
+- Email verification system
+- Password reset functionality
+- JWT token-based authentication
 
-### User Roles
-
-#### 👤 Citizen Features
-- Submit complaints with photos and priority levels
+### 📱 Citizen Features
+- Report city issues with photos and location
+- Track complaint status in real-time
 - View personal complaint history
-- Track complaint status (Pending, In Progress, Resolved)
-- Receive alerts and notifications
+- Receive notifications on updates
+- Modern, responsive dashboard
 
-#### 👨‍💼 Admin Features
-- View and manage all complaints system-wide
-- Assign tasks to staff members
-- Send emergency alerts to citizens
-- Manage staff accounts and permissions
-- Advanced filtering and search capabilities
+### 👨‍💼 Admin Features
+- Comprehensive complaint management
+- Staff assignment and tracking
+- Analytics and reporting
+- Bulk operations
+- Advanced filtering and search
 
-### Technical Features
-- **Responsive design** with Tailwind CSS
-- **Smooth animations** powered by Framer Motion
-- **Real-time notifications** with React Hot Toast
-- **Protected routes** with role-based redirects
-- **Modern UI components** with clean, professional design
+### 📊 Dashboard & Analytics
+- Real-time statistics
+- Interactive charts and graphs
+- Performance metrics
+- Trend analysis
+- Export capabilities
 
 ## 🛠️ Tech Stack
 
-### Backend
-- **Node.js** - Runtime environment
-- **Express.js** - Web framework
-- **MongoDB** - Database
-- **Mongoose** - ODM for MongoDB
-- **JWT** - Authentication tokens
-- **Passport.js** - Authentication middleware
-- **bcryptjs** - Password hashing
-
-### Frontend
-- **React 18** - UI library
-- **React Router DOM** - Client-side routing
-- **Tailwind CSS** - Utility-first CSS framework
-- **Framer Motion** - Animation library
+### Web Application (client/)
+- **React 18** - Modern UI framework
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first styling
+- **React Router** - Client-side routing
+- **React Query** - Server state management
 - **Axios** - HTTP client
 - **React Hot Toast** - Notifications
 
-## 📋 Prerequisites
+### Mobile Application (UrbanEyeMobile/)
+- **React Native** - Cross-platform mobile development
+- **TypeScript** - Type-safe development
+- **React Navigation** - Screen navigation
+- **AsyncStorage** - Local data persistence
+- **React Native Elements** - UI components
 
-Before running this application, make sure you have the following installed:
+### Backend (server/)
+- **Node.js** - Runtime environment
+- **Express.js** - Web framework
+- **MongoDB** - NoSQL database
+- **Mongoose** - ODM for MongoDB
+- **JWT** - Authentication
+- **Passport.js** - Authentication middleware
+- **Multer** - File upload handling
 
-- **Node.js** (v16 or higher)
-- **MongoDB** (local installation or MongoDB Atlas)
-- **npm** or **yarn** package manager
+### Shared (shared/)
+- **TypeScript** - Shared type definitions
+- **Axios** - HTTP client configuration
+- **API Services** - Reusable business logic
 
-## ⚙️ Installation & Setup
+## 📱 Mobile App Features
 
-### 1. Navigate to Project Directory
-```bash
-cd urbaneye
+### Native Mobile Experience
+- Cross-platform (iOS & Android)
+- Offline capability
+- Push notifications
+- Camera integration
+- GPS location services
+- Native performance
+
+### User Interface
+- Modern, intuitive design
+- Touch-optimized interactions
+- Responsive layouts
+- Loading states
+- Error handling
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js (v16 or higher)
+- MongoDB
+- React Native CLI (for mobile development)
+- Android Studio (for Android development)
+- Xcode (for iOS development, macOS only)
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd UrbanEye
+   ```
+
+2. **Install dependencies**
+   ```bash
+   # Install web app dependencies
+   cd client && npm install && cd ..
+   
+   # Install server dependencies
+   cd server && npm install && cd ..
+   
+   # Install mobile app dependencies
+   cd UrbanEyeMobile && npm install && cd ..
+   ```
+
+3. **Set up environment variables**
+   
+   Create `.env` files in the respective directories:
+   
+   **server/.env:**
+   ```env
+   MONGODB_URI=mongodb://localhost:27017/urbaneye
+   JWT_SECRET=your-jwt-secret
+   PORT=5000
+   ```
+   
+   **client/.env:**
+   ```env
+   REACT_APP_API_URL=http://localhost:5000/api
+   ```
+   
+   **UrbanEyeMobile/.env:**
+   ```env
+   API_URL=http://localhost:5000/api
+   ```
+
+4. **Start the development servers**
+
+   **Backend:**
+   ```bash
+   cd server && npm run dev
+   ```
+   
+   **Web App:**
+   ```bash
+   cd client && npm start
+   ```
+   
+   **Mobile App:**
+   ```bash
+   cd UrbanEyeMobile
+   npx react-native start
+   # In another terminal:
+   npx react-native run-android  # or run-ios
+   ```
+
+## 📁 Project Structure
+
+### Web Application (client/)
+```
+src/
+├── components/          # Reusable UI components
+├── pages/              # Page components
+├── context/            # React Context providers
+├── hooks/              # Custom React hooks
+├── utils/              # Utility functions
+└── styles/             # Global styles
 ```
 
-### 2. Install Dependencies
-
-#### Install All Dependencies (Recommended)
-```bash
-npm run install-all
+### Mobile Application (UrbanEyeMobile/)
+```
+src/
+├── components/          # Reusable UI components
+├── screens/            # Screen components
+├── context/            # React Context providers
+├── services/           # API services
+└── utils/              # Utility functions
 ```
 
-#### Or Install Separately
-```bash
-# Backend dependencies
-npm run install-server
-
-# Frontend dependencies
-npm run install-client
+### Backend (server/)
+```
+├── config/             # Configuration files
+├── middleware/         # Express middleware
+├── models/             # MongoDB models
+├── routes/             # API routes
+├── controllers/        # Route controllers
+└── utils/              # Utility functions
 ```
 
-### 3. Backend Setup
-
-#### Environment Configuration
-1. Navigate to server folder and copy `config.env` to `.env`:
-```bash
-cd server
-cp config.env .env
+### Shared (shared/)
 ```
-2. Update the values in `.env`:
-```env
-# Database Configuration
-MONGODB_URI=mongodb://localhost:27017/urbaneye
-
-# JWT Configuration
-JWT_SECRET=your_super_secure_jwt_secret_key_here
-JWT_EXPIRE=7d
-
-# Google OAuth Configuration (Get from Google Cloud Console)
-GOOGLE_CLIENT_ID=your_google_client_id_here
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-
-# Server Configuration
-PORT=5000
-NODE_ENV=development
-
-# Frontend URL
-CLIENT_URL=http://localhost:3000
+├── types/              # TypeScript type definitions
+├── services/           # Shared API services
+└── utils/              # Shared utility functions
 ```
 
-#### Google OAuth Setup
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing one
-3. Enable Google+ API
-4. Create OAuth 2.0 credentials
-5. Add authorized redirect URIs:
-   - `http://localhost:5000/api/auth/google/callback`
-6. Copy Client ID and Client Secret to your `.env` file
+## 🔧 Development
 
-### 4. Frontend Setup (Optional Configuration)
+### Code Style
+- ESLint and Prettier for code formatting
+- TypeScript for type safety
+- Consistent naming conventions
+- Component-based architecture
 
-#### Environment Configuration
-Create `client/.env` file for custom API URL:
+### Testing
+- Unit tests with Jest
+- Integration tests
+- E2E tests with Cypress (web)
+- React Native Testing Library (mobile)
+
+### State Management
+- React Context for global state
+- Local state with useState/useReducer
+- Server state with React Query (web)
+- AsyncStorage for persistence (mobile)
+
+## 📦 Building for Production
+
+### Web Application
 ```bash
 cd client
-echo "REACT_APP_API_URL=http://localhost:5000/api" > .env
-```
-
-### 5. Database Setup
-
-#### Start MongoDB
-- **Local MongoDB**: Ensure MongoDB service is running
-- **MongoDB Atlas**: Use the connection string in your `.env` file
-
-The application will automatically create the database and collections on first run.
-
-## 🚀 Running the Application
-
-### Development Mode (Recommended)
-
-#### Start Both Client and Server Concurrently
-```bash
-# From root directory
-npm run dev
-```
-This will start both the backend server (port 5000) and frontend development server (port 3000) simultaneously.
-
-#### Or Start Separately
-
-#### Start Backend Server Only
-```bash
-npm run server
-```
-
-#### Start Frontend Only
-```bash
-npm run client
-```
-
-### Production Mode
-
-#### Build Frontend
-```bash
 npm run build
 ```
 
-#### Start Production Server
+### Mobile Application
+
+**Android:**
 ```bash
+cd UrbanEyeMobile/android
+./gradlew assembleRelease
+```
+
+**iOS:**
+```bash
+cd UrbanEyeMobile/ios
+xcodebuild -workspace UrbanEyeMobile.xcworkspace -scheme UrbanEyeMobile -configuration Release archive
+```
+
+### Backend
+```bash
+cd server
+npm run build
 npm start
 ```
 
-## 📱 Usage
+## 🔒 Security Features
 
-### Accessing the Application
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000/api
+- JWT token authentication
+- Password hashing with bcrypt
+- Input validation and sanitization
+- CORS configuration
+- Rate limiting
+- Helmet.js security headers
 
-### Default User Roles
-1. **Citizens**: Can register and select "Citizen" role
-2. **Admins**: Can register and select "Admin" role
+## 📊 API Documentation
 
-### Testing Google OAuth
-1. Click "Sign in with Google" on login/register page
-2. Complete Google authentication
-3. User will be redirected based on their role
+The API follows RESTful conventions and includes:
 
-## 🔗 API Endpoints
+- Authentication endpoints
+- Complaint management
+- User management
+- Dashboard statistics
+- File uploads
+- Notifications
 
-### Authentication Routes
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `GET /api/auth/me` - Get current user
-- `GET /api/auth/google` - Google OAuth login
-- `GET /api/auth/google/callback` - Google OAuth callback
+## 🤝 Contributing
 
-### Protected Routes
-- `PUT /api/auth/profile` - Update user profile
-- `PUT /api/auth/change-password` - Change password
-
-## 🎨 UI Components
-
-### Pages
-- **Login Page** - Email/password and Google sign-in
-- **Register Page** - User registration with role selection
-- **Citizen Dashboard** - Complaint management for citizens
-- **Admin Dashboard** - Administrative controls and oversight
-
-### Features
-- **Responsive Design** - Works on all device sizes
-- **Dark/Light Theme Support** - Modern color scheme
-- **Loading Animations** - Smooth user experience
-- **Form Validation** - Client and server-side validation
-- **Error Handling** - Comprehensive error management
-
-## 🔐 Security Features
-
-- **JWT Token Security** - Secure authentication tokens
-- **Password Hashing** - bcrypt with salt rounds
-- **CORS Protection** - Cross-origin request security
-- **Input Validation** - Mongoose schema validation
-- **Rate Limiting** - (Can be added for production)
-- **HTTPS Ready** - Production deployment ready
-
-## 🚦 Project Structure
-
-```
-urbaneye/
-├── README.md
-├── package.json             # Root package.json with scripts
-├── client/                  # React frontend
-│   ├── package.json
-│   ├── public/
-│   │   └── index.html
-│   ├── src/
-│   │   ├── components/      # Reusable components
-│   │   ├── context/         # React context (Auth)
-│   │   ├── pages/           # Page components
-│   │   ├── App.js           # Main app component
-│   │   └── index.js         # React entry point
-│   └── tailwind.config.js   # Tailwind configuration
-└── server/                  # Express backend
-    ├── package.json
-    ├── server.js            # Express server entry point
-    ├── config.env           # Environment variables template
-    ├── config/
-    │   └── passport.js      # Passport.js configuration
-    ├── middleware/
-    │   └── auth.js          # Authentication middleware
-    ├── models/
-    │   └── User.js          # User model
-    └── routes/
-        └── auth.js          # Authentication routes
-```
-
-## 🛡️ Environment Variables
-
-### Required Variables
-- `MONGODB_URI` - MongoDB connection string
-- `JWT_SECRET` - JWT signing secret
-- `GOOGLE_CLIENT_ID` - Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
-
-### Optional Variables
-- `PORT` - Server port (default: 5000)
-- `NODE_ENV` - Environment (development/production)
-- `JWT_EXPIRE` - JWT expiration time (default: 7d)
-- `CLIENT_URL` - Frontend URL (default: http://localhost:3000)
-
-## 🧪 Testing
-
-### Manual Testing
-1. Register as a citizen and admin
-2. Test Google OAuth flow
-3. Test role-based redirects
-4. Test protected routes
-5. Test logout functionality
-
-### Future Enhancements
-- Unit tests with Jest
-- Integration tests with Supertest
-- E2E tests with Cypress
-
-## 🚀 Deployment
-
-### Frontend Deployment (Netlify/Vercel)
-1. Build the frontend: `cd client && npm run build`
-2. Deploy the `build` folder
-3. Set environment variables in hosting platform
-
-### Backend Deployment (Heroku/Railway/DigitalOcean)
-1. Set production environment variables
-2. Ensure MongoDB Atlas connection
-3. Update Google OAuth redirect URIs
-4. Deploy with `npm start`
-
-### Docker Deployment (Optional)
-Create Dockerfile for containerized deployment.
-
-
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ## 📄 License
 
@@ -310,20 +286,30 @@ This project is licensed under the MIT License.
 ## 🆘 Support
 
 For support and questions:
+- Create an issue in the repository
+- Contact the development team
 - Check the documentation
-- Review the code comments
 
-## 🔄 Future Roadmap
+## 🗺️ Roadmap
 
-- [ ] Real-time notifications with WebSockets
-- [ ] Mobile app with React Native
-- [ ] Advanced analytics dashboard
-- [ ] File upload to cloud storage
-- [ ] Email notification system
-- [ ] Advanced search and filtering
-- [ ] Geolocation integration
-- [ ] Multi-language support
+### Phase 1 (Current)
+- ✅ Basic authentication
+- ✅ Complaint reporting
+- ✅ Dashboard views
+- ✅ Mobile app foundation
+
+### Phase 2 (Planned)
+- 🔄 Advanced analytics
+- 🔄 Real-time notifications
+- 🔄 Offline functionality
+- 🔄 Push notifications
+
+### Phase 3 (Future)
+- 📋 AI-powered issue classification
+- 📋 Predictive maintenance
+- 📋 Integration with city systems
+- 📋 Advanced reporting tools
 
 ---
 
-**Built with ❤️ using the MERN stack**
+**UrbanEye** - Making cities smarter, one issue at a time! 🏙️✨
