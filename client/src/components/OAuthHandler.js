@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 const OAuthHandler = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { checkAuthStatus } = useAuth();
+  const { checkAuthStatus, user } = useAuth();
   const hasProcessedAuth = useRef(false);
   const lastProcessedUrl = useRef('');
 
@@ -64,6 +64,19 @@ const OAuthHandler = () => {
     }, 5000);
 
   }, [location.search, location.pathname, checkAuthStatus, navigate]);
+
+  // Handle redirect after OAuth authentication
+  useEffect(() => {
+    if (user && hasProcessedAuth.current) {
+      // Redirect based on user role after OAuth success
+      const redirectPath = user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard';
+      navigate(redirectPath, { replace: true });
+      
+      // Reset the flag
+      hasProcessedAuth.current = false;
+      lastProcessedUrl.current = '';
+    }
+  }, [user, navigate]);
 
   return null; // This component doesn't render anything
 };

@@ -31,7 +31,7 @@ const ModernRecentActivity = ({ complaints, getStatusColor, getPriorityColor, ge
               </div>
               <div>
                 <h4 className="font-medium text-gray-900 dark:text-white">{complaint.title}</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-300">{complaint.location}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">{complaint.address || 'Location not specified'}</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">

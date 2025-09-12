@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const ModernStatCard = ({ icon: Icon, title, value, change, color, delay = 0 }) => (
+const ModernStatCard = ({ icon: Icon, title, value, change, color, delay = 0, isLive = false }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -12,7 +12,15 @@ const ModernStatCard = ({ icon: Icon, title, value, change, color, delay = 0 }) 
     <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300">
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
+          <div className="flex items-center space-x-2 mb-1">
+            <p className="text-sm font-medium text-gray-600">{title}</p>
+            {isLive && (
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-green-600 font-medium">LIVE</span>
+              </div>
+            )}
+          </div>
           <p className="text-3xl font-bold text-gray-900 mb-2">{value}</p>
           {change && (
             <div className="flex items-center">

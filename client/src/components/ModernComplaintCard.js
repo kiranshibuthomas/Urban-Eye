@@ -36,7 +36,7 @@ const ModernComplaintCard = ({
           <div className="flex items-center text-sm text-gray-500 space-x-4 mb-3">
             <span className="flex items-center">
               <FiMapPin className="h-4 w-4 mr-1 text-primary-500" />
-              {complaint.location}
+              {complaint.address || 'Location not specified'}
             </span>
             <span className="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium">
               {complaint.category}

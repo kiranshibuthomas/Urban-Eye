@@ -48,11 +48,21 @@ const ComplaintDetail = () => {
   const loadGoogleMapsScript = () => {
     if (window.google) return; // Already loaded
 
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY'}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
+    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+    
+    // Only load Google Maps if API key is properly configured
+    if (apiKey && apiKey !== 'your_google_maps_api_key_here' && apiKey !== 'YOUR_API_KEY') {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onerror = () => {
+        console.warn('Failed to load Google Maps API. Interactive maps will not be available.');
+      };
+      document.head.appendChild(script);
+    } else {
+      console.warn('Google Maps API key not configured. Interactive maps will not be available.');
+    }
   };
 
   const fetchComplaint = async () => {

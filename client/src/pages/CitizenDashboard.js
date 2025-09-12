@@ -69,6 +69,10 @@ const CitizenDashboard = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
+  // Debug: Log user data to see what's available
+  console.log('CitizenDashboard - User data:', user);
+  console.log('CitizenDashboard - User avatar:', user?.avatar);
+
   // Set animation flag after initial render
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -215,7 +219,7 @@ const CitizenDashboard = () => {
           color: "from-emerald-500 to-teal-500",
           bgColor: "from-emerald-50 to-teal-50",
           textColor: "text-emerald-600",
-          action: "setActiveSection('tracking')"
+          action: "navigate('/reports-history')"
         },
         {
           title: "City Services",
@@ -304,6 +308,8 @@ const CitizenDashboard = () => {
   const executeAction = (actionString) => {
     if (actionString === "navigate('/report-issue')") {
       navigate('/report-issue');
+    } else if (actionString === "navigate('/reports-history')") {
+      navigate('/reports-history');
     } else if (actionString === "setActiveSection('tracking')") {
       setActiveSection('tracking');
     } else if (actionString === "setActiveSection('services')") {
@@ -347,6 +353,15 @@ const CitizenDashboard = () => {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  // Handle hover-based dropdown behavior
+  const handleMouseEnter = () => {
+    setUserMenuOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    setUserMenuOpen(false);
   };
 
   const scrollToSection = (sectionId) => {
@@ -445,19 +460,31 @@ const CitizenDashboard = () => {
                 <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
               </button>
               
-          <div className="relative">
+          <div 
+            className="relative group"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center space-x-4 p-3 rounded-xl hover:bg-[#CAD2C5]/20 transition-all duration-200"
                 >
-                  <div className="h-10 w-10 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-xl flex items-center justify-center">
-                    <FiUser className="h-5 w-5 text-white" />
+                  <div className="h-10 w-10 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-xl flex items-center justify-center overflow-hidden">
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user.name}
+                        className="h-10 w-10 rounded-xl object-cover"
+                      />
+                    ) : (
+                      <FiUser className="h-5 w-5 text-white" />
+                    )}
                   </div>
                   <div className="hidden sm:block text-left">
                     <p className="text-base font-medium text-gray-900">{user?.name}</p>
                     <p className="text-sm text-gray-500">Citizen</p>
               </div>
-                  <FiChevronDown className="h-5 w-5 text-gray-500" />
+                  <FiChevronDown className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
                 
                 <AnimatePresence>
@@ -467,15 +494,18 @@ const CitizenDashboard = () => {
         animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 z-50"
+                      onMouseEnter={handleMouseEnter}
+                      onMouseLeave={handleMouseLeave}
                     >
             <button
                         type="button" 
+                        onClick={() => navigate('/profile')}
                         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
             >
                         <FiUser className="h-4 w-4 mr-3" />
                         Profile
             </button>
-                      <button type="button" className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center">
+                      <button type="button" onClick={() => navigate('/settings')} className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center">
                         <FiSettings className="h-4 w-4 mr-3" />
                         Settings
                       </button>
@@ -851,7 +881,7 @@ const CitizenDashboard = () => {
                             <div className="flex items-center space-x-4 text-sm text-gray-600">
                               <div className="flex items-center">
                                 <FiMapPin className="w-4 h-4 mr-1" />
-                                {complaint.location}
+                                {complaint.address || 'Location not specified'}
           </div>
             <div className="flex items-center">
                                 <FiCalendar className="w-4 h-4 mr-1" />

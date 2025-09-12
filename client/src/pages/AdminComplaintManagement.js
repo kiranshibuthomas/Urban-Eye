@@ -186,16 +186,16 @@ const AdminComplaintManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Complaint Management</h1>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Complaint Management</h1>
           <p className="text-gray-600">Manage and track all reported issues</p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -283,7 +283,7 @@ const AdminComplaintManagement = () => {
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
               <div className="relative">
@@ -355,12 +355,17 @@ const AdminComplaintManagement = () => {
         </div>
 
         {/* Complaints List */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex-1">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Complaints ({complaints.length})</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Complaints ({complaints.length})</h2>
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <span>Showing {complaints.length} results</span>
+              </div>
+            </div>
           </div>
 
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-200 max-h-[calc(100vh-400px)] overflow-y-auto">
             {complaints.map((complaint, index) => (
               <motion.div
                 key={complaint._id}
@@ -369,43 +374,46 @@ const AdminComplaintManagement = () => {
                 transition={{ delay: index * 0.05 }}
                 className="p-6 hover:bg-gray-50 transition-colors duration-200"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center mb-2">
-                      <span className="text-2xl mr-3">{getCategoryIcon(complaint.category)}</span>
-                      <h3 className="text-lg font-semibold text-gray-900">{complaint.title}</h3>
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start mb-3">
+                      <span className="text-2xl mr-3 flex-shrink-0">{getCategoryIcon(complaint.category)}</span>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 truncate">{complaint.title}</h3>
+                        <p className="text-gray-600 mt-1 line-clamp-2">{complaint.description}</p>
+                      </div>
                     </div>
                     
-                    <p className="text-gray-600 mb-3 line-clamp-2">{complaint.description}</p>
-                    
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-gray-500">
                       <div className="flex items-center">
-                        <FiMapPin className="h-4 w-4 mr-1" />
-                        {complaint.address}, {complaint.city}
+                        <FiMapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                        <span className="truncate">{complaint.address}, {complaint.city}</span>
                       </div>
                       <div className="flex items-center">
-                        <FiCalendar className="h-4 w-4 mr-1" />
-                        {formatDate(complaint.submittedAt)}
+                        <FiCalendar className="h-4 w-4 mr-2 flex-shrink-0" />
+                        <span>{formatDate(complaint.submittedAt)}</span>
                       </div>
                       <div className="flex items-center">
-                        <FiUser className="h-4 w-4 mr-1" />
-                        {complaint.citizenName}
+                        <FiUser className="h-4 w-4 mr-2 flex-shrink-0" />
+                        <span className="truncate">{complaint.citizenName}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-3 ml-6">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(complaint.status)}`}>
-                      {complaint.status.replace('_', ' ')}
-                    </span>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getPriorityColor(complaint.priority)}`}>
-                      {complaint.priority}
-                    </span>
+                  <div className="flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-end space-y-2 sm:space-y-0 sm:space-x-3 lg:space-x-0 lg:space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(complaint.status)}`}>
+                        {complaint.status.replace('_', ' ')}
+                      </span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getPriorityColor(complaint.priority)}`}>
+                        {complaint.priority}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
+                <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => navigate(`/complaint/${complaint._id}`)}
                       className="flex items-center px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors duration-200"
@@ -422,7 +430,7 @@ const AdminComplaintManagement = () => {
                     </button>
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {complaint.status === 'pending' && (
                       <>
                         <button
@@ -430,7 +438,8 @@ const AdminComplaintManagement = () => {
                           className="flex items-center px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors duration-200"
                         >
                           <FiEdit className="h-4 w-4 mr-1" />
-                          Start Work
+                          <span className="hidden sm:inline">Start Work</span>
+                          <span className="sm:hidden">Start</span>
                         </button>
                         <button
                           onClick={() => updateComplaintStatus(complaint._id, 'rejected')}

@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FiX, FiMapPin, FiNavigation } from 'react-icons/fi';
+import { FiX, FiMapPin, FiNavigation, FiExternalLink } from 'react-icons/fi';
 
 const GoogleMapModal = ({ isOpen, onClose, latitude, longitude, address, title }) => {
   const mapRef = useRef(null);
   const [map, setMap] = useState(null);
   const [marker, setMarker] = useState(null);
   const [directionsUrl, setDirectionsUrl] = useState('');
+  const [googleMapsAvailable, setGoogleMapsAvailable] = useState(false);
+  const [mapError, setMapError] = useState(false);
 
   useEffect(() => {
     if (isOpen && latitude && longitude) {
@@ -13,8 +15,15 @@ const GoogleMapModal = ({ isOpen, onClose, latitude, longitude, address, title }
       const directions = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
       setDirectionsUrl(directions);
 
-      // Initialize Google Maps
-      initializeMap();
+      // Check if Google Maps is available
+      if (window.google && window.google.maps) {
+        setGoogleMapsAvailable(true);
+        setMapError(false);
+        initializeMap();
+      } else {
+        setGoogleMapsAvailable(false);
+        setMapError(true);
+      }
     }
   }, [isOpen, latitude, longitude]);
 
@@ -115,28 +124,59 @@ const GoogleMapModal = ({ isOpen, onClose, latitude, longitude, address, title }
 
         {/* Map Container */}
         <div className="relative">
-          <div
-            ref={mapRef}
-            className="w-full h-96"
-            style={{ minHeight: '400px' }}
-          />
-          
-          {/* Map Controls Overlay */}
-          <div className="absolute top-4 right-4 flex flex-col space-y-2">
-            <button
-              onClick={handleDirections}
-              className="bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg shadow-md border border-gray-200 flex items-center space-x-2 transition-colors duration-200"
-            >
-              <FiNavigation className="h-4 w-4" />
-              <span className="text-sm font-medium">Directions</span>
-            </button>
-            <button
-              onClick={handleCopyCoordinates}
-              className="bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg shadow-md border border-gray-200 text-sm font-medium transition-colors duration-200"
-            >
-              Copy Coords
-            </button>
-          </div>
+          {googleMapsAvailable ? (
+            <>
+              <div
+                ref={mapRef}
+                className="w-full h-96"
+                style={{ minHeight: '400px' }}
+              />
+              
+              {/* Map Controls Overlay */}
+              <div className="absolute top-4 right-4 flex flex-col space-y-2">
+                <button
+                  onClick={handleDirections}
+                  className="bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg shadow-md border border-gray-200 flex items-center space-x-2 transition-colors duration-200"
+                >
+                  <FiNavigation className="h-4 w-4" />
+                  <span className="text-sm font-medium">Directions</span>
+                </button>
+                <button
+                  onClick={handleCopyCoordinates}
+                  className="bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg shadow-md border border-gray-200 text-sm font-medium transition-colors duration-200"
+                >
+                  Copy Coords
+                </button>
+              </div>
+            </>
+          ) : (
+            /* Fallback when Google Maps is not available */
+            <div className="w-full h-96 bg-gray-100 flex flex-col items-center justify-center" style={{ minHeight: '400px' }}>
+              <div className="text-center p-8">
+                <FiMapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">Interactive Map Unavailable</h3>
+                <p className="text-gray-500 mb-4">
+                  Google Maps API key is not configured. You can still view the location using external maps.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    onClick={handleDirections}
+                    className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                  >
+                    <FiExternalLink className="h-4 w-4 mr-2" />
+                    Open in Google Maps
+                  </button>
+                  <button
+                    onClick={handleCopyCoordinates}
+                    className="flex items-center justify-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
+                  >
+                    <FiMapPin className="h-4 w-4 mr-2" />
+                    Copy Coordinates
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

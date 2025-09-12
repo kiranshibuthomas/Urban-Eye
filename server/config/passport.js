@@ -47,9 +47,17 @@ passport.use(new GoogleStrategy({
     if (emailUser) {
       // Link Google account to existing email account
       emailUser.googleId = profile.id;
-      emailUser.avatar = profile.photos[0]?.value || '';
+      // Handle Google profile photo URL
+      let avatarUrl = '';
+      if (profile.photos && profile.photos[0] && profile.photos[0].value) {
+        avatarUrl = profile.photos[0].value;
+        // Ensure the URL is accessible (remove size restrictions)
+        avatarUrl = avatarUrl.replace(/=s\d+-c$/, '=s400-c');
+      }
+      emailUser.avatar = avatarUrl;
       emailUser.isEmailVerified = true;
       emailUser.lastLogin = new Date();
+      console.log('Linking existing user with Google - Avatar URL:', profile.photos[0]?.value);
       await emailUser.save();
       return done(null, emailUser);
     }
@@ -59,12 +67,21 @@ passport.use(new GoogleStrategy({
       googleId: profile.id,
       name: profile.displayName,
       email: profile.emails[0].value,
-      avatar: profile.photos[0]?.value || '',
+      avatar: (() => {
+        let avatarUrl = '';
+        if (profile.photos && profile.photos[0] && profile.photos[0].value) {
+          avatarUrl = profile.photos[0].value;
+          // Ensure the URL is accessible (remove size restrictions)
+          avatarUrl = avatarUrl.replace(/=s\d+-c$/, '=s400-c');
+        }
+        return avatarUrl;
+      })(),
       isEmailVerified: true,
       role: 'citizen', // Default role for Google sign-ups
       lastLogin: new Date()
     });
 
+    console.log('Creating new Google user - Avatar URL:', profile.photos[0]?.value);
     await newUser.save();
     return done(null, newUser);
 

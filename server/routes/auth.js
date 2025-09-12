@@ -285,16 +285,141 @@ router.post('/logout', (req, res) => {
 router.get('/me', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
+    const publicProfile = user.getPublicProfile();
+    
+    console.log('Auth /me endpoint - User avatar:', publicProfile.avatar);
+    console.log('Auth /me endpoint - Full user profile:', publicProfile);
     
     res.json({
       success: true,
-      user: user.getPublicProfile()
+      user: publicProfile
     });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
+    });
+  }
+});
+
+// @route   PUT /api/auth/profile
+// @desc    Update user profile
+// @access  Private
+router.put('/profile', authenticateToken, async (req, res) => {
+  try {
+    const { name, phone, address, city, zipCode } = req.body;
+    const userId = req.user._id;
+
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Validate name if provided
+    if (name !== undefined) {
+      if (!name || name.trim().length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: 'Name must be at least 2 characters long'
+        });
+      }
+      if (name.trim().length > 50) {
+        return res.status(400).json({
+          success: false,
+          message: 'Name cannot exceed 50 characters'
+        });
+      }
+      if (!/^[a-zA-Z\s]+$/.test(name.trim())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Name can only contain letters and spaces'
+        });
+      }
+      user.name = name.trim();
+    }
+
+    // Validate phone if provided
+    if (phone !== undefined) {
+      if (phone) {
+        // Remove all non-digit characters
+        const digitsOnly = phone.replace(/[^\d]/g, '');
+        
+        // Check if we have exactly 10 digits
+        if (digitsOnly.length !== 10 || !/^\d{10}$/.test(digitsOnly)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Phone number must be exactly 10 digits'
+          });
+        }
+        user.phone = phone.trim();
+      } else {
+        user.phone = undefined;
+      }
+    }
+
+    // Validate address if provided
+    if (address !== undefined) {
+      if (address && address.trim().length > 200) {
+        return res.status(400).json({
+          success: false,
+          message: 'Address cannot exceed 200 characters'
+        });
+      }
+      user.address = address ? address.trim() : undefined;
+    }
+
+    // Validate city if provided
+    if (city !== undefined) {
+      if (city && city.trim().length > 50) {
+        return res.status(400).json({
+          success: false,
+          message: 'City cannot exceed 50 characters'
+        });
+      }
+      user.city = city ? city.trim() : undefined;
+    }
+
+    // Validate zipCode if provided
+    if (zipCode !== undefined) {
+      if (zipCode && zipCode.trim().length > 10) {
+        return res.status(400).json({
+          success: false,
+          message: 'ZIP code cannot exceed 10 characters'
+        });
+      }
+      user.zipCode = zipCode ? zipCode.trim() : undefined;
+    }
+
+    // Save the updated user
+    await user.save();
+
+    // Return updated user data
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: user.getPublicProfile()
+    });
+
+  } catch (error) {
+    console.error('Profile update error:', error);
+    
+    // Handle mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(', ')
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error during profile update'
     });
   }
 });

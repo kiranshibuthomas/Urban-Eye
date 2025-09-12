@@ -370,7 +370,7 @@ const AdminDashboard = () => {
                   </div>
                   <div>
                     <h4 className="font-medium text-gray-900">{complaint.title}</h4>
-                    <p className="text-sm text-gray-600">{complaint.location}</p>
+                    <p className="text-sm text-gray-600">{complaint.address || 'Location not specified'}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
@@ -453,7 +453,7 @@ const AdminDashboard = () => {
                   <div className="flex items-center text-sm text-gray-600 space-x-4">
                     <span className="flex items-center">
                       <FiMapPin className="h-4 w-4 mr-1" />
-                      {complaint.location}
+                      {complaint.address || 'Location not specified'}
                     </span>
                     <span className="flex items-center">
                       <FiUser className="h-4 w-4 mr-1" />
@@ -585,7 +585,7 @@ const AdminDashboard = () => {
                 <div className="flex items-center text-sm text-gray-500 space-x-4 mb-3">
                   <span className="flex items-center">
                     <FiMapPin className="h-4 w-4 mr-1" />
-                    {complaint.location}
+                    {complaint.address || 'Location not specified'}
                   </span>
                   <span className="px-2 py-1 bg-gray-100 rounded text-xs font-medium">
                     {complaint.category}

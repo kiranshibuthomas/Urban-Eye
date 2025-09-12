@@ -15,6 +15,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import ReportIssue from './pages/ReportIssue';
 import ReportsHistory from './pages/ReportsHistory';
 import ComplaintDetail from './pages/ComplaintDetail';
+import SettingsPage from './pages/SettingsPage';
+import ProfilePage from './pages/ProfilePage';
 import EmailVerification from './components/EmailVerification';
 
 // Component to handle role-based default redirects
@@ -88,6 +90,22 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <ComplaintDetail />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings" 
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
             </ProtectedRoute>
           } 
         />
