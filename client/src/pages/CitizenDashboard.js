@@ -69,9 +69,6 @@ const CitizenDashboard = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
-  // Debug: Log user data to see what's available
-  console.log('CitizenDashboard - User data:', user);
-  console.log('CitizenDashboard - User avatar:', user?.avatar);
 
   // Set animation flag after initial render
   useEffect(() => {

@@ -35,8 +35,12 @@ passport.use(new GoogleStrategy({
     let existingUser = await User.findOne({ googleId: profile.id });
     
     if (existingUser) {
-      // Update last login
+      // Update last login and refresh profile photo
       existingUser.lastLogin = new Date();
+      // Always update the Google profile photo URL on each login
+      if (profile.photos && profile.photos[0] && profile.photos[0].value) {
+        existingUser.googlePhotoUrl = profile.photos[0].value.replace(/=s\d+-c$/, '=s400-c');
+      }
       await existingUser.save();
       return done(null, existingUser);
     }
@@ -47,17 +51,12 @@ passport.use(new GoogleStrategy({
     if (emailUser) {
       // Link Google account to existing email account
       emailUser.googleId = profile.id;
-      // Handle Google profile photo URL
-      let avatarUrl = '';
+      // Store Google profile photo URL
       if (profile.photos && profile.photos[0] && profile.photos[0].value) {
-        avatarUrl = profile.photos[0].value;
-        // Ensure the URL is accessible (remove size restrictions)
-        avatarUrl = avatarUrl.replace(/=s\d+-c$/, '=s400-c');
+        emailUser.googlePhotoUrl = profile.photos[0].value.replace(/=s\d+-c$/, '=s400-c');
       }
-      emailUser.avatar = avatarUrl;
       emailUser.isEmailVerified = true;
       emailUser.lastLogin = new Date();
-      console.log('Linking existing user with Google - Avatar URL:', profile.photos[0]?.value);
       await emailUser.save();
       return done(null, emailUser);
     }
@@ -67,21 +66,18 @@ passport.use(new GoogleStrategy({
       googleId: profile.id,
       name: profile.displayName,
       email: profile.emails[0].value,
-      avatar: (() => {
-        let avatarUrl = '';
+      // Store Google profile photo URL
+      googlePhotoUrl: (() => {
         if (profile.photos && profile.photos[0] && profile.photos[0].value) {
-          avatarUrl = profile.photos[0].value;
-          // Ensure the URL is accessible (remove size restrictions)
-          avatarUrl = avatarUrl.replace(/=s\d+-c$/, '=s400-c');
+          return profile.photos[0].value.replace(/=s\d+-c$/, '=s400-c');
         }
-        return avatarUrl;
+        return null;
       })(),
       isEmailVerified: true,
       role: 'citizen', // Default role for Google sign-ups
       lastLogin: new Date()
     });
 
-    console.log('Creating new Google user - Avatar URL:', profile.photos[0]?.value);
     await newUser.save();
     return done(null, newUser);
 

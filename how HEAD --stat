@@ -1,0 +1,26 @@
+[33mcommit 5778aa4a26d16548d587c2c5b961417b9e70b71e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Fri Sep 12 09:36:41 2025 +0530
+
+    Fix map visual bug, update UI for admin and report pages, fix dropdown bug in header, implement live stats update
+
+GOOGLE_MAPS_SETUP.md
+client/src/App.js
+client/src/components/GoogleMapModal.js
+client/src/components/ModernComplaintCard.js
+client/src/components/ModernRecentActivity.js
+client/src/components/ModernStatCard.js
+client/src/components/OAuthHandler.js
+client/src/pages/AdminComplaintManagement.js
+client/src/pages/AdminDashboard.js
+client/src/pages/AdminDashboardNew.js
+client/src/pages/CitizenDashboard.js
+client/src/pages/ComplaintDetail.js
+client/src/pages/ProfilePage.js
+client/src/pages/ReportIssue.js
+client/src/pages/ReportsHistory.js
+client/src/pages/SettingsPage.js
+server/config/passport.js
+server/routes/auth.js
+server/routes/stats.js
+server/uploads/complaints/bb36f9cc-fcea-41c7-b592-7c9f7352eec8-1757580981528.png

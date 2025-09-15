@@ -97,6 +97,7 @@ const ProfilePage = () => {
     }
   };
 
+
   const handleCancel = () => {
     setFormData({
       name: user?.name || '',
@@ -112,18 +113,6 @@ const ProfilePage = () => {
   // For admin users, show read-only profile (no editing)
   const isAdmin = user?.role === 'admin';
 
-  // Debug: Log user data to see what's available
-  console.log('ProfilePage - User data:', user);
-  console.log('ProfilePage - User avatar:', user?.avatar);
-  
-  // Test if avatar URL is valid
-  if (user?.avatar) {
-    console.log('ProfilePage - Testing avatar URL:', user.avatar);
-    const img = new Image();
-    img.onload = () => console.log('ProfilePage - Avatar image loaded successfully');
-    img.onerror = () => console.log('ProfilePage - Avatar image failed to load');
-    img.src = user.avatar;
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#CAD2C5]/30 via-[#84A98C]/20 to-[#52796F]/30">
@@ -200,7 +189,6 @@ const ProfilePage = () => {
                       alt={user.name}
                       className="h-10 w-10 rounded-xl object-cover"
                       onError={(e) => {
-                        console.log('Avatar image failed to load, showing fallback');
                         e.target.style.display = 'none';
                         e.target.nextSibling.style.display = 'flex';
                       }}
@@ -289,7 +277,6 @@ const ProfilePage = () => {
                         alt={user.name}
                         className="h-24 w-24 rounded-2xl object-cover"
                         onError={(e) => {
-                          console.log('Main avatar image failed to load, showing fallback');
                           e.target.style.display = 'none';
                           e.target.nextSibling.style.display = 'flex';
                         }}

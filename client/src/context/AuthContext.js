@@ -179,9 +179,17 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       const message = error.response?.data?.message || 'Login failed';
+      const requiresEmailVerification = error.response?.data?.requiresEmailVerification;
+      
       dispatch({ type: AuthActionTypes.SET_ERROR, payload: message });
-      toast.error(message);
-      return { success: false, error: message };
+      
+      if (requiresEmailVerification) {
+        // Don't show error toast for email verification, let the UI handle it
+        return { success: false, error: message, requiresEmailVerification: true };
+      } else {
+        toast.error(message);
+        return { success: false, error: message };
+      }
     }
   };
 

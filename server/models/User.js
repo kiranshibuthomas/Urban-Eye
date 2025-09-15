@@ -39,9 +39,9 @@ const userSchema = new mongoose.Schema({
     sparse: true, // Allows multiple documents without this field
     unique: true
   },
-  avatar: {
+  googlePhotoUrl: {
     type: String,
-    default: ''
+    default: null
   },
   isEmailVerified: {
     type: Boolean,
@@ -142,6 +142,32 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
+// Instance method to get live avatar URL
+userSchema.methods.getLiveAvatarUrl = function() {
+  // For Google OAuth users, prioritize the stored Google photo
+  if (this.googleId && this.googlePhotoUrl) {
+    // Make sure it's not the invalid placeholder
+    if (this.googlePhotoUrl !== 'https://lh3.googleusercontent.com/a/default-user=s400') {
+      // Try to fix the Google photo URL to make it more accessible
+      let googleUrl = this.googlePhotoUrl;
+      
+      // Ensure the URL has proper size parameter and is public
+      if (googleUrl.includes('googleusercontent.com')) {
+        // Remove any existing size parameters and add s400-c for better compatibility
+        googleUrl = googleUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400-c';
+      }
+      
+      return googleUrl;
+    }
+  }
+  
+  // For all other users, use initials-based avatar service (better than Gravatar for new users)
+  const initials = this.name ? this.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U';
+  const colors = ['FF6B6B', '4ECDC4', '45B7D1', '96CEB4', 'FFEAA7', 'DDA0DD', '98D8C8', 'F7DC6F'];
+  const colorIndex = this.email ? this.email.charCodeAt(0) % colors.length : 0;
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&size=400&background=${colors[colorIndex]}&color=fff&bold=true`;
+};
+
 // Instance method to get public profile
 userSchema.methods.getPublicProfile = function() {
   const userObject = this.toObject();
@@ -149,6 +175,10 @@ userSchema.methods.getPublicProfile = function() {
   delete userObject.__v;
   delete userObject.emailVerificationToken;
   delete userObject.emailVerificationExpires;
+  
+  // Add live avatar URL
+  userObject.avatar = this.getLiveAvatarUrl();
+  
   return userObject;
 };
 

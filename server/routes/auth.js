@@ -8,6 +8,7 @@ const {
   setTokenCookie, 
   clearTokenCookie 
 } = require('../middleware/auth');
+const { sendEmailVerification, sendEmailVerified } = require('../services/emailService');
 
 const router = express.Router();
 
@@ -140,23 +141,21 @@ router.post('/register', async (req, res) => {
     
     await user.save();
 
-    // Generate token
-    const token = generateToken(user._id);
-    
-    // Set cookie
-    setTokenCookie(res, token);
+    // Send verification email
+    try {
+      await sendEmailVerification(user, verificationToken);
+      console.log('Verification email sent to:', user.email);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // Don't fail registration if email fails, but log it
+    }
 
     // Return user data (without password)
     const userProfile = user.getPublicProfile();
 
-    // TODO: Send verification email here
-    // For now, we'll just log the token
-    console.log('Email verification token:', verificationToken);
-
     res.status(201).json({
       success: true,
       message: 'User registered successfully. Please check your email to verify your account.',
-      token,
       user: userProfile,
       requiresEmailVerification: true
     });
@@ -217,6 +216,15 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Account has been deactivated'
+      });
+    }
+
+    // Check if email is verified
+    if (!user.isEmailVerified) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please verify your email address before logging in. Check your inbox for a verification email.',
+        requiresEmailVerification: true
       });
     }
 
@@ -287,8 +295,6 @@ router.get('/me', authenticateToken, async (req, res) => {
     const user = await User.findById(req.user._id).select('-password');
     const publicProfile = user.getPublicProfile();
     
-    console.log('Auth /me endpoint - User avatar:', publicProfile.avatar);
-    console.log('Auth /me endpoint - Full user profile:', publicProfile);
     
     res.json({
       success: true,
@@ -454,7 +460,7 @@ router.post('/google', async (req, res) => {
       id: 'google_' + Date.now(),
       email: 'user@gmail.com',
       name: 'Google User',
-      picture: 'https://via.placeholder.com/150'
+      picture: 'https://lh3.googleusercontent.com/a/default-user=s400'
     };
 
     // Check if user already exists
@@ -471,6 +477,7 @@ router.post('/google', async (req, res) => {
         name: mockGoogleUser.name,
         email: mockGoogleUser.email,
         googleId: mockGoogleUser.id,
+        googlePhotoUrl: mockGoogleUser.picture,
         isEmailVerified: true, // Google users are pre-verified
         role: 'citizen'
       });
@@ -479,6 +486,7 @@ router.post('/google', async (req, res) => {
       // Update existing user with Google ID if not set
       if (!user.googleId) {
         user.googleId = mockGoogleUser.id;
+        user.googlePhotoUrl = mockGoogleUser.picture;
         user.isEmailVerified = true;
         await user.save();
       }
@@ -638,6 +646,15 @@ router.get('/verify-email/:token', async (req, res) => {
 
     await user.save();
 
+    // Send confirmation email
+    try {
+      await sendEmailVerified(user);
+      console.log('Verification confirmation email sent to:', user.email);
+    } catch (emailError) {
+      console.error('Failed to send verification confirmation email:', emailError);
+      // Don't fail verification if email fails
+    }
+
     res.json({
       success: true,
       message: 'Email verified successfully'
@@ -670,8 +687,17 @@ router.post('/resend-verification', authenticateToken, async (req, res) => {
     const verificationToken = user.generateEmailVerificationToken();
     await user.save();
 
-    // TODO: Send verification email here
-    console.log('New email verification token:', verificationToken);
+    // Send verification email
+    try {
+      await sendEmailVerification(user, verificationToken);
+      console.log('Verification email resent to:', user.email);
+    } catch (emailError) {
+      console.error('Failed to resend verification email:', emailError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email. Please try again later.'
+      });
+    }
 
     res.json({
       success: true,
@@ -683,6 +709,48 @@ router.post('/resend-verification', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error during resend verification'
+    });
+  }
+});
+
+// @route   POST /api/auth/refresh-google-avatar
+// @desc    Refresh Google profile photo for existing users
+// @access  Private
+router.post('/refresh-google-avatar', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    if (!user.googleId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User is not a Google account'
+      });
+    }
+    
+    // Clear any invalid URLs to force fallback to Gravatar
+    user.googlePhotoUrl = null;
+    await user.save();
+    
+    const publicProfile = user.getPublicProfile();
+    
+    res.json({
+      success: true,
+      message: 'Avatar refreshed successfully',
+      user: publicProfile
+    });
+    
+  } catch (error) {
+    console.error('Refresh Google avatar error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during avatar refresh'
     });
   }
 });

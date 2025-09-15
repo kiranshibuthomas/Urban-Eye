@@ -17,7 +17,7 @@ import ReportsHistory from './pages/ReportsHistory';
 import ComplaintDetail from './pages/ComplaintDetail';
 import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage';
-import EmailVerification from './components/EmailVerification';
+import EmailVerification from './pages/EmailVerification';
 
 // Component to handle role-based default redirects
 const DefaultRedirect = () => {

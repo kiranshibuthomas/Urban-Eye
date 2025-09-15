@@ -110,16 +110,21 @@ const DashboardLayout = ({ children, title, actions }) => {
           <div className="p-6 border-b border-gray-200/50 dark:border-gray-700/50">
             <div className="flex items-center p-4 bg-gradient-to-r from-primary-50 to-teal-50 rounded-2xl">
               <div className="relative">
-                <div className="h-12 w-12 bg-gradient-to-r from-primary-500 to-teal-500 rounded-full flex items-center justify-center ring-4 ring-white shadow-lg">
+                <div className="h-12 w-12 bg-gradient-to-r from-primary-500 to-teal-500 rounded-full flex items-center justify-center ring-4 ring-white shadow-lg overflow-hidden">
                   {user?.avatar ? (
                     <img
                       src={user.avatar}
                       alt={user.name}
                       className="h-12 w-12 rounded-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
                     />
-                  ) : (
+                  ) : null}
+                  <div className={`h-12 w-12 rounded-full flex items-center justify-center ${user?.avatar ? 'hidden' : 'flex'}`}>
                     <FiUser className="h-6 w-6 text-white" />
-                  )}
+                  </div>
                 </div>
                 <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-teal-400 rounded-full border-2 border-white"></div>
               </div>
@@ -229,16 +234,21 @@ const DashboardLayout = ({ children, title, actions }) => {
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
                   >
-                    <div className="h-10 w-10 bg-gradient-to-r from-primary-500 to-teal-500 rounded-full flex items-center justify-center ring-2 ring-primary-100">
+                    <div className="h-10 w-10 bg-gradient-to-r from-primary-500 to-teal-500 rounded-full flex items-center justify-center ring-2 ring-primary-100 overflow-hidden">
                       {user?.avatar ? (
                         <img
                           src={user.avatar}
                           alt={user.name}
                           className="h-10 w-10 rounded-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
                         />
-                      ) : (
+                      ) : null}
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center ${user?.avatar ? 'hidden' : 'flex'}`}>
                         <FiUser className="h-5 w-5 text-white" />
-                      )}
+                      </div>
                     </div>
                     <FiChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
                   </motion.button>
@@ -255,16 +265,21 @@ const DashboardLayout = ({ children, title, actions }) => {
                       {/* User info */}
                       <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
                         <div className="flex items-center space-x-3">
-                          <div className="h-12 w-12 bg-gradient-to-r from-primary-500 to-teal-500 rounded-full flex items-center justify-center">
+                          <div className="h-12 w-12 bg-gradient-to-r from-primary-500 to-teal-500 rounded-full flex items-center justify-center overflow-hidden">
                             {user?.avatar ? (
                               <img
                                 src={user.avatar}
                                 alt={user.name}
                                 className="h-12 w-12 rounded-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
                               />
-                            ) : (
+                            ) : null}
+                            <div className={`h-12 w-12 rounded-full flex items-center justify-center ${user?.avatar ? 'hidden' : 'flex'}`}>
                               <FiUser className="h-6 w-6 text-white" />
-                            )}
+                            </div>
                           </div>
                                                       <div>
                               <p className="font-semibold text-gray-900 dark:text-white">{user?.name}</p>

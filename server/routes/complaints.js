@@ -6,6 +6,13 @@ const { v4: uuidv4 } = require('uuid');
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const {
+  sendComplaintSubmittedEmail,
+  sendComplaintInProgressEmail,
+  sendComplaintResolvedEmail,
+  sendComplaintRejectedEmail,
+  sendComplaintClosedEmail
+} = require('../services/emailService');
 
 const router = express.Router();
 
@@ -127,7 +134,16 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
     await complaint.save();
 
     // Populate citizen information for response
-    await complaint.populate('citizen', 'name email phone');
+    await complaint.populate('citizen', 'name email phone preferences');
+
+    // Send email notification to user
+    try {
+      await sendComplaintSubmittedEmail(complaint, user);
+      console.log('Complaint submission email sent to:', user.email);
+    } catch (emailError) {
+      console.error('Failed to send complaint submission email:', emailError);
+      // Don't fail the request if email fails
+    }
 
     res.status(201).json({
       success: true,
@@ -384,6 +400,9 @@ router.put('/:id/status', authenticateToken, requireRole('admin'), async (req, r
       });
     }
 
+    // Store previous status for email notification
+    const previousStatus = complaint.status;
+
     // Update status
     complaint.status = status;
     complaint.lastUpdated = new Date();
@@ -397,6 +416,31 @@ router.put('/:id/status', authenticateToken, requireRole('admin'), async (req, r
     }
 
     await complaint.save();
+
+    // Populate citizen information for email
+    await complaint.populate('citizen', 'name email preferences');
+
+    // Send email notification based on status change
+    try {
+      const user = complaint.citizen;
+      
+      if (status === 'in_progress' && previousStatus !== 'in_progress') {
+        await sendComplaintInProgressEmail(complaint, user, req.user.name);
+        console.log('Complaint in progress email sent to:', user.email);
+      } else if (status === 'resolved' && previousStatus !== 'resolved') {
+        await sendComplaintResolvedEmail(complaint, user, resolutionNotes);
+        console.log('Complaint resolved email sent to:', user.email);
+      } else if (status === 'rejected' && previousStatus !== 'rejected') {
+        await sendComplaintRejectedEmail(complaint, user, resolutionNotes);
+        console.log('Complaint rejected email sent to:', user.email);
+      } else if (status === 'closed' && previousStatus !== 'closed') {
+        await sendComplaintClosedEmail(complaint, user);
+        console.log('Complaint closed email sent to:', user.email);
+      }
+    } catch (emailError) {
+      console.error('Failed to send status update email:', emailError);
+      // Don't fail the request if email fails
+    }
 
     res.json({
       success: true,
@@ -446,6 +490,19 @@ router.put('/:id/assign', authenticateToken, requireRole('admin'), async (req, r
 
     // Assign complaint
     await complaint.assignToAdmin(assignedTo);
+
+    // Populate citizen information for email
+    await complaint.populate('citizen', 'name email preferences');
+
+    // Send email notification for assignment (which changes status to in_progress)
+    try {
+      const user = complaint.citizen;
+      await sendComplaintInProgressEmail(complaint, user, admin.name);
+      console.log('Complaint assignment email sent to:', user.email);
+    } catch (emailError) {
+      console.error('Failed to send assignment email:', emailError);
+      // Don't fail the request if email fails
+    }
 
     res.json({
       success: true,

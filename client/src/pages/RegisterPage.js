@@ -241,8 +241,19 @@ const RegisterPage = () => {
       });
 
       if (result.success) {
-        const redirectPath = result.user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard';
-        navigate(redirectPath, { replace: true });
+        if (result.requiresEmailVerification) {
+          // Show success message and redirect to login
+          toast.success('Registration successful! Please check your email to verify your account.');
+          navigate('/login', { 
+            state: { 
+              message: 'Registration successful! Please check your email to verify your account before logging in.' 
+            }
+          });
+        } else {
+          // Direct login (for Google users)
+          const redirectPath = result.user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard';
+          navigate(redirectPath, { replace: true });
+        }
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -379,19 +390,6 @@ const RegisterPage = () => {
             />
           </div>
 
-          {/* Role Selection */}
-          <div>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-primary-100 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-white transition-all duration-200"
-            >
-              <option value="citizen">👤 Citizen Account</option>
-              <option value="admin">🏛️ Admin Account</option>
-            </select>
-          </div>
 
           {/* Password Field */}
           <div>

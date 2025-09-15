@@ -150,7 +150,7 @@ const optionalAuth = async (req, res, next) => {
 // Set authentication cookie
 const setTokenCookie = (res, token) => {
   const options = {
-    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    expires: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict'
