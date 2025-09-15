@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: urbaneye-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        fromDatabase:
+          name: urbaneye-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        value: https://urbaneye-frontend.onrender.com
+      - key: EMAIL_USER
+        value: your-email@gmail.com
+      - key: EMAIL_PASS
+        value: your-app-password
+      - key: EMAIL_FROM
+        value: UrbanEye <noreply@urbaneye.com>
+      - key: GOOGLE_CLIENT_ID
+        value: your-google-client-id
+      - key: GOOGLE_CLIENT_SECRET
+        value: your-google-client-secret
+
+databases:
+  - name: urbaneye-db
+    plan: free
