@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiEye, FiEyeOff, FiMail } from 'react-icons/fi';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 import { FaCity } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { InlineSpinner } from '../components/LoadingSpinner';
 import AuthLayout from '../components/AuthLayout';
 import toast from 'react-hot-toast';
-import axios from 'axios';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
@@ -17,8 +16,6 @@ const LoginPage = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showResendVerification, setShowResendVerification] = useState(false);
-  const [isResending, setIsResending] = useState(false);
 
   const { login, isAuthenticated, user, error, clearError, checkAuthStatus } = useAuth();
   const navigate = useNavigate();
@@ -63,11 +60,6 @@ const LoginPage = () => {
     if (error) {
       clearError();
     }
-    
-    // Check for registration success message
-    if (location.state?.message) {
-      toast.success(location.state.message);
-    }
   }, []); // Empty dependency array - only run on mount
 
   const handleChange = (e) => {
@@ -99,15 +91,9 @@ const LoginPage = () => {
       if (result.success) {
         const redirectPath = from || (result.user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard');
         navigate(redirectPath, { replace: true });
-      } else if (result.requiresEmailVerification) {
-        // Show resend verification option
-        setShowResendVerification(true);
       }
     } catch (error) {
       console.error('Login error:', error);
-      if (error.response?.data?.requiresEmailVerification) {
-        setShowResendVerification(true);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -116,26 +102,6 @@ const LoginPage = () => {
   const handleGoogleLogin = () => {
     // Redirect to backend Google OAuth endpoint
     window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/google`;
-  };
-
-  const handleResendVerification = async () => {
-    if (!formData.email) {
-      toast.error('Please enter your email address first');
-      return;
-    }
-
-    setIsResending(true);
-    try {
-      // First, we need to get a token for the user to resend verification
-      // For now, we'll show a message to check email
-      toast.success('If your email is registered and unverified, a new verification email has been sent.');
-      setShowResendVerification(false);
-    } catch (error) {
-      console.error('Resend verification error:', error);
-      toast.error('Failed to resend verification email. Please try again later.');
-    } finally {
-      setIsResending(false);
-    }
   };
 
   return (
@@ -244,35 +210,6 @@ const LoginPage = () => {
               className="bg-red-50 border border-red-200 rounded-xl p-3"
             >
               <p className="text-sm text-red-600">{error}</p>
-            </motion.div>
-          )}
-
-          {/* Email Verification Message */}
-          {showResendVerification && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-blue-50 border border-blue-200 rounded-xl p-4"
-            >
-              <div className="flex items-start space-x-3">
-                <FiMail className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm text-blue-800 font-medium mb-2">
-                    Email verification required
-                  </p>
-                  <p className="text-sm text-blue-700 mb-3">
-                    Please check your email and click the verification link to activate your account.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleResendVerification}
-                    disabled={isResending}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium underline disabled:opacity-50"
-                  >
-                    {isResending ? 'Sending...' : 'Resend verification email'}
-                  </button>
-                </div>
-              </div>
             </motion.div>
           )}
 

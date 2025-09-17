@@ -27,133 +27,6 @@ const createTransporter = () => {
 
 // Email templates
 const emailTemplates = {
-  emailVerification: (user, verificationToken) => ({
-    subject: 'Verify Your UrbanEye Account',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Verify Your Account</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .verification-box { background: white; padding: 30px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; text-align: center; }
-          .btn { display: inline-block; padding: 15px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; }
-          .btn:hover { background: #5a6fd8; }
-          .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-          .warning { background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🏛️ UrbanEye</h1>
-            <h2>Welcome to UrbanEye!</h2>
-          </div>
-          <div class="content">
-            <p>Dear ${user.name},</p>
-            <p>Thank you for registering with UrbanEye! We're excited to have you join our community of engaged citizens.</p>
-            
-            <div class="verification-box">
-              <h3>🔐 Verify Your Email Address</h3>
-              <p>To complete your registration and start using UrbanEye, please verify your email address by clicking the button below:</p>
-              
-              <a href="${process.env.CLIENT_URL}/verify-email/${verificationToken}" class="btn">Verify My Account</a>
-              
-              <p style="margin-top: 20px; font-size: 14px; color: #666;">
-                If the button doesn't work, copy and paste this link into your browser:<br>
-                <a href="${process.env.CLIENT_URL}/verify-email/${verificationToken}" style="color: #667eea; word-break: break-all;">
-                  ${process.env.CLIENT_URL}/verify-email/${verificationToken}
-                </a>
-              </p>
-            </div>
-            
-            <div class="warning">
-              <strong>⚠️ Important:</strong> This verification link will expire in 24 hours. If you don't verify your account within this time, you'll need to register again.
-            </div>
-            
-            <p>Once verified, you'll be able to:</p>
-            <ul>
-              <li>📝 Report civic issues in your area</li>
-              <li>📊 Track the status of your complaints</li>
-              <li>🏆 Contribute to improving your community</li>
-              <li>📱 Access all UrbanEye features</li>
-            </ul>
-            
-            <p>If you didn't create an account with UrbanEye, please ignore this email.</p>
-            
-            <div class="footer">
-              <p>Best regards,<br>The UrbanEye Team</p>
-              <p>This is an automated message. Please do not reply to this email.</p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
-  }),
-
-  emailVerified: (user) => ({
-    subject: 'Account Verified Successfully - Welcome to UrbanEye!',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Account Verified</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .success-box { background: white; padding: 30px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #56ab2f; text-align: center; }
-          .btn { display: inline-block; padding: 15px 30px; background: #56ab2f; color: white; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; }
-          .btn:hover { background: #4a9a2a; }
-          .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🏛️ UrbanEye</h1>
-            <h2>✅ Account Verified Successfully!</h2>
-          </div>
-          <div class="content">
-            <p>Dear ${user.name},</p>
-            <p>Congratulations! Your UrbanEye account has been successfully verified.</p>
-            
-            <div class="success-box">
-              <h3>🎉 Welcome to UrbanEye!</h3>
-              <p>Your account is now active and you can start using all the features of UrbanEye.</p>
-              
-              <a href="${process.env.CLIENT_URL}/citizen-dashboard" class="btn">Go to Dashboard</a>
-            </div>
-            
-            <p>You can now:</p>
-            <ul>
-              <li>📝 Report civic issues in your area</li>
-              <li>📊 Track the status of your complaints</li>
-              <li>🏆 Contribute to improving your community</li>
-              <li>📱 Access all UrbanEye features</li>
-            </ul>
-            
-            <p>Thank you for joining UrbanEye and helping us build a better community together!</p>
-            
-            <div class="footer">
-              <p>Best regards,<br>The UrbanEye Team</p>
-              <p>This is an automated message. Please do not reply to this email.</p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
-  }),
   complaintSubmitted: (complaint, user) => ({
     subject: `Complaint Submitted Successfully - ${complaint.complaintId}`,
     html: `
@@ -412,6 +285,125 @@ const emailTemplates = {
     `
   }),
 
+  passwordResetOTP: (user, otp) => ({
+    subject: 'UrbanEye - Password Reset Code',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Password Reset</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .otp-container { background: white; padding: 30px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #ef4444; }
+          .otp-code { font-size: 32px; font-weight: bold; color: #ef4444; letter-spacing: 8px; margin: 20px 0; }
+          .warning { background: #fef2f2; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444; }
+          .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🏛️ UrbanEye</h1>
+            <h2>Password Reset Request</h2>
+          </div>
+          <div class="content">
+            <p>Dear ${user.name},</p>
+            <p>We received a request to reset your password for your UrbanEye account. Use the code below to verify your identity and reset your password:</p>
+            
+            <div class="otp-container">
+              <h3>Your Password Reset Code</h3>
+              <div class="otp-code">${otp}</div>
+              <p><strong>This code will expire in 10 minutes.</strong></p>
+            </div>
+            
+            <div class="warning">
+              <p><strong>⚠️ Security Notice:</strong></p>
+              <ul style="text-align: left; margin: 10px 0;">
+                <li>Never share this code with anyone</li>
+                <li>UrbanEye will never ask for your password reset code</li>
+                <li>If you didn't request this password reset, please ignore this email</li>
+                <li>Your password will remain unchanged until you complete the reset process</li>
+              </ul>
+            </div>
+            
+            <p>Enter this code in the password reset page to create a new password for your account.</p>
+            
+            <div class="footer">
+              <p>Best regards,<br>The UrbanEye Team</p>
+              <p>This is an automated message. Please do not reply to this email.</p>
+              <p>If you have any questions, please contact our support team.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  }),
+
+  otpVerification: (user, otp) => ({
+    subject: 'UrbanEye - Email Verification Code',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Email Verification</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .otp-container { background: white; padding: 30px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #10b981; }
+          .otp-code { font-size: 32px; font-weight: bold; color: #10b981; letter-spacing: 8px; margin: 20px 0; }
+          .warning { background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107; }
+          .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🏛️ UrbanEye</h1>
+            <h2>Email Verification</h2>
+          </div>
+          <div class="content">
+            <p>Dear ${user.name},</p>
+            <p>Thank you for registering with UrbanEye! To complete your account setup, please verify your email address using the code below:</p>
+            
+            <div class="otp-container">
+              <h3>Your Verification Code</h3>
+              <div class="otp-code">${otp}</div>
+              <p><strong>This code will expire in 10 minutes.</strong></p>
+            </div>
+            
+            <div class="warning">
+              <p><strong>⚠️ Security Notice:</strong></p>
+              <ul style="text-align: left; margin: 10px 0;">
+                <li>Never share this code with anyone</li>
+                <li>UrbanEye will never ask for your verification code</li>
+                <li>If you didn't request this code, please ignore this email</li>
+              </ul>
+            </div>
+            
+            <p>Enter this code in the verification page to complete your registration and start using UrbanEye.</p>
+            
+            <div class="footer">
+              <p>Best regards,<br>The UrbanEye Team</p>
+              <p>This is an automated message. Please do not reply to this email.</p>
+              <p>If you have any questions, please contact our support team.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  }),
+
   complaintClosed: (complaint, user) => ({
     subject: `Complaint Closed - ${complaint.complaintId}`,
     html: `
@@ -542,13 +534,13 @@ const sendComplaintClosedEmail = async (complaint, user) => {
   return await sendEmail(user.email, template.subject, template.html);
 };
 
-const sendEmailVerification = async (user, verificationToken) => {
-  const template = emailTemplates.emailVerification(user, verificationToken);
+const sendOTPVerificationEmail = async (user, otp) => {
+  const template = emailTemplates.otpVerification(user, otp);
   return await sendEmail(user.email, template.subject, template.html);
 };
 
-const sendEmailVerified = async (user) => {
-  const template = emailTemplates.emailVerified(user);
+const sendPasswordResetOTPEmail = async (user, otp) => {
+  const template = emailTemplates.passwordResetOTP(user, otp);
   return await sendEmail(user.email, template.subject, template.html);
 };
 
@@ -559,6 +551,6 @@ module.exports = {
   sendComplaintResolvedEmail,
   sendComplaintRejectedEmail,
   sendComplaintClosedEmail,
-  sendEmailVerification,
-  sendEmailVerified
+  sendOTPVerificationEmail,
+  sendPasswordResetOTPEmail
 };

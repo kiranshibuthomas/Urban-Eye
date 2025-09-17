@@ -23,6 +23,11 @@ const RegisterPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [emailValidation, setEmailValidation] = useState({
+    isChecking: false,
+    exists: false,
+    message: ''
+  });
   const [passwordStrength, setPasswordStrength] = useState({
     score: 0,
     feedback: []
@@ -30,6 +35,71 @@ const RegisterPage = () => {
 
   const { register, isAuthenticated, user, error, clearError } = useAuth();
   const navigate = useNavigate();
+
+  // Debounced email checking
+  const checkEmailExists = (() => {
+    let timeoutId;
+    return async (email) => {
+      // Clear previous timeout
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      // Clear previous validation state
+      setEmailValidation({
+        isChecking: false,
+        exists: false,
+        message: ''
+      });
+
+      // Don't check if email is empty or invalid format
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return;
+      }
+
+      // Debounce the API call
+      timeoutId = setTimeout(async () => {
+        // Set checking state
+        setEmailValidation(prev => ({
+          ...prev,
+          isChecking: true
+        }));
+
+        try {
+          const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/check-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: email.toLowerCase().trim() })
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            setEmailValidation({
+              isChecking: false,
+              exists: data.exists,
+              message: data.message
+            });
+          } else {
+            setEmailValidation({
+              isChecking: false,
+              exists: false,
+              message: data.message || 'Error checking email'
+            });
+          }
+        } catch (error) {
+          console.error('Email check error:', error);
+          setEmailValidation({
+            isChecking: false,
+            exists: false,
+            message: 'Error checking email availability'
+          });
+        }
+      }, 500); // 500ms debounce
+    };
+  })();
 
   useEffect(() => {
     // Redirect if already authenticated
@@ -51,6 +121,7 @@ const RegisterPage = () => {
 
   useEffect(() => {
     validateField('email', formData.email);
+    checkEmailExists(formData.email);
   }, [formData.email]);
 
   useEffect(() => {
@@ -91,6 +162,8 @@ const RegisterPage = () => {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (!emailRegex.test(value)) {
             errors.email = 'Please enter a valid email address';
+          } else if (emailValidation.exists) {
+            errors.email = 'Email already exists';
           } else {
             delete errors.email;
           }
@@ -212,6 +285,12 @@ const RegisterPage = () => {
       return false;
     }
 
+    // Check if email already exists
+    if (emailValidation.exists) {
+      toast.error('Email already exists. Please use a different email address.');
+      return false;
+    }
+
     // Additional checks
     if (passwordStrength.score < 3) {
       toast.error('Please choose a stronger password');
@@ -241,16 +320,14 @@ const RegisterPage = () => {
       });
 
       if (result.success) {
-        if (result.requiresEmailVerification) {
-          // Show success message and redirect to login
-          toast.success('Registration successful! Please check your email to verify your account.');
-          navigate('/login', { 
-            state: { 
-              message: 'Registration successful! Please check your email to verify your account before logging in.' 
-            }
+        if (result.requiresOTPVerification) {
+          // Redirect to OTP verification page
+          navigate('/verify-otp', { 
+            state: { email: result.email },
+            replace: true 
           });
         } else {
-          // Direct login (for Google users)
+          // Direct login (for Google OAuth users)
           const redirectPath = result.user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard';
           navigate(redirectPath, { replace: true });
         }
@@ -363,20 +440,30 @@ const RegisterPage = () => {
                 value={formData.email}
                 onChange={handleChange}
                 className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-primary-100 border-0 rounded-xl focus:outline-none focus:ring-2 focus:bg-white transition-all duration-200 pr-10 ${
-                  isFieldValid('email') ? 'focus:ring-accent-500' : 
-                  isFieldInvalid('email') ? 'focus:ring-red-500' : 'focus:ring-accent-500'
+                  isFieldValid('email') && !emailValidation.exists ? 'focus:ring-accent-500' : 
+                  isFieldInvalid('email') || emailValidation.exists ? 'focus:ring-red-500' : 'focus:ring-accent-500'
                 }`}
                 placeholder="Email"
               />
-              {isFieldValid('email') && (
+              {emailValidation.isChecking && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-accent-500"></div>
+                </div>
+              )}
+              {!emailValidation.isChecking && isFieldValid('email') && !emailValidation.exists && (
                 <FiCheck className="absolute right-3 top-1/2 transform -translate-y-1/2 text-accent-500 w-5 h-5" />
               )}
-              {isFieldInvalid('email') && (
+              {!emailValidation.isChecking && (isFieldInvalid('email') || emailValidation.exists) && (
                 <FiX className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />
               )}
             </div>
             {validationErrors.email && (
               <p className="text-red-500 text-sm mt-1">{validationErrors.email}</p>
+            )}
+            {!validationErrors.email && emailValidation.message && !emailValidation.isChecking && (
+              <p className={`text-sm mt-1 ${emailValidation.exists ? 'text-red-500' : 'text-green-600'}`}>
+                {emailValidation.message}
+              </p>
             )}
           </div>
 
@@ -509,7 +596,7 @@ const RegisterPage = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isLoading || Object.keys(validationErrors).length > 0 || passwordStrength.score < 3}
+            disabled={isLoading || Object.keys(validationErrors).length > 0 || passwordStrength.score < 3 || emailValidation.exists}
             className="w-full bg-gradient-to-r from-teal-600 to-teal-700 hover:from-accent-500 hover:to-accent-600 text-white font-semibold py-2.5 sm:py-3 px-4 rounded-full transition-all duration-200 flex items-center justify-center mt-4 sm:mt-6 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (

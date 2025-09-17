@@ -189,8 +189,12 @@ const ProfilePage = () => {
                       alt={user.name}
                       className="h-10 w-10 rounded-xl object-cover"
                       onError={(e) => {
+                        console.error('Profile header avatar failed to load:', user.avatar);
                         e.target.style.display = 'none';
                         e.target.nextSibling.style.display = 'flex';
+                      }}
+                      onLoad={() => {
+                        console.log('Profile header avatar loaded successfully:', user.avatar);
                       }}
                     />
                   ) : null}
@@ -277,8 +281,12 @@ const ProfilePage = () => {
                         alt={user.name}
                         className="h-24 w-24 rounded-2xl object-cover"
                         onError={(e) => {
+                          console.error('Profile main avatar failed to load:', user.avatar);
                           e.target.style.display = 'none';
                           e.target.nextSibling.style.display = 'flex';
+                        }}
+                        onLoad={() => {
+                          console.log('Profile main avatar loaded successfully:', user.avatar);
                         }}
                       />
                     ) : null}

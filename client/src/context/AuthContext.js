@@ -179,17 +179,9 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       const message = error.response?.data?.message || 'Login failed';
-      const requiresEmailVerification = error.response?.data?.requiresEmailVerification;
-      
       dispatch({ type: AuthActionTypes.SET_ERROR, payload: message });
-      
-      if (requiresEmailVerification) {
-        // Don't show error toast for email verification, let the UI handle it
-        return { success: false, error: message, requiresEmailVerification: true };
-      } else {
-        toast.error(message);
-        return { success: false, error: message };
-      }
+      toast.error(message);
+      return { success: false, error: message };
     }
   };
 
@@ -201,7 +193,58 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post('/auth/register', userData);
       
       if (response.data.success) {
-        const { token, user, requiresEmailVerification, message } = response.data;
+        const { token, user, requiresEmailVerification, requiresOTPVerification, email, message } = response.data;
+        
+        // Only log in user if no verification is required (e.g., Google OAuth)
+        if (!requiresEmailVerification && !requiresOTPVerification) {
+          // Store token in localStorage
+          localStorage.setItem('token', token);
+          
+          // Set token in axios headers
+          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          
+          dispatch({
+            type: AuthActionTypes.LOGIN_SUCCESS,
+            payload: { user, token }
+          });
+          
+          toast.success('Registration successful!');
+        } else {
+          // For verification flows, don't log in yet
+          dispatch({ type: AuthActionTypes.SET_LOADING, payload: false });
+          
+          if (requiresOTPVerification) {
+            toast.success(message || 'Registration successful! Please check your email for OTP verification.');
+          } else if (requiresEmailVerification) {
+            toast.success(message || 'Registration successful! Please check your email to verify your account.');
+          }
+        }
+        
+        return { 
+          success: true, 
+          user, 
+          requiresEmailVerification, 
+          requiresOTPVerification,
+          email 
+        };
+      }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Registration failed';
+      dispatch({ type: AuthActionTypes.SET_ERROR, payload: message });
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const verifyOTP = async (email, otp) => {
+    try {
+      dispatch({ type: AuthActionTypes.SET_LOADING, payload: true });
+      dispatch({ type: AuthActionTypes.CLEAR_ERROR });
+
+      const response = await axios.post('/auth/verify-otp', { email, otp });
+      
+      if (response.data.success) {
+        const { token, user } = response.data;
         
         // Store token in localStorage
         localStorage.setItem('token', token);
@@ -213,20 +256,16 @@ export const AuthProvider = ({ children }) => {
           type: AuthActionTypes.LOGIN_SUCCESS,
           payload: { user, token }
         });
-
-        if (requiresEmailVerification) {
-          toast.success(message || 'Registration successful! Please check your email to verify your account.');
-        } else {
-          toast.success('Registration successful!');
-        }
         
-        return { success: true, user, requiresEmailVerification };
+        toast.success('Email verified successfully!');
+        return { success: true, user };
       }
     } catch (error) {
-      const message = error.response?.data?.message || 'Registration failed';
+      const message = error.response?.data?.message || 'OTP verification failed';
       dispatch({ type: AuthActionTypes.SET_ERROR, payload: message });
-      toast.error(message);
       return { success: false, error: message };
+    } finally {
+      dispatch({ type: AuthActionTypes.SET_LOADING, payload: false });
     }
   };
 
@@ -288,6 +327,7 @@ export const AuthProvider = ({ children }) => {
     ...state,
     login,
     register,
+    verifyOTP,
     logout,
     updateUser,
     clearError,

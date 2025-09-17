@@ -10,6 +10,10 @@ import OAuthHandler from './components/OAuthHandler';
 // Import pages
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import OTPVerificationPage from './pages/OTPVerificationPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import PasswordResetOTPPage from './pages/PasswordResetOTPPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import CitizenDashboard from './pages/CitizenDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import ReportIssue from './pages/ReportIssue';
@@ -17,7 +21,7 @@ import ReportsHistory from './pages/ReportsHistory';
 import ComplaintDetail from './pages/ComplaintDetail';
 import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage';
-import EmailVerification from './pages/EmailVerification';
+import EmailVerification from './components/EmailVerification';
 
 // Component to handle role-based default redirects
 const DefaultRedirect = () => {
@@ -50,6 +54,10 @@ function AppRoutes() {
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-otp" element={<OTPVerificationPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/verify-password-reset-otp" element={<PasswordResetOTPPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email/:token" element={<EmailVerification />} />
         
         {/* Protected routes */}

@@ -55,6 +55,32 @@ const userSchema = new mongoose.Schema({
     type: Date,
     select: false
   },
+  otpCode: {
+    type: String,
+    select: false
+  },
+  otpExpires: {
+    type: Date,
+    select: false
+  },
+  otpAttempts: {
+    type: Number,
+    default: 0,
+    select: false
+  },
+  passwordResetOTP: {
+    type: String,
+    select: false
+  },
+  passwordResetExpires: {
+    type: Date,
+    select: false
+  },
+  passwordResetAttempts: {
+    type: Number,
+    default: 0,
+    select: false
+  },
   phone: {
     type: String,
     trim: true,
@@ -216,6 +242,91 @@ userSchema.methods.verifyEmail = function(token) {
   this.emailVerificationExpires = undefined;
   
   return true;
+};
+
+// Instance method to generate OTP
+userSchema.methods.generateOTP = function() {
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  this.otpCode = otp;
+  this.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  this.otpAttempts = 0;
+  
+  return otp;
+};
+
+// Instance method to verify OTP
+userSchema.methods.verifyOTP = function(otp) {
+  // Check if OTP exists and hasn't expired
+  if (!this.otpCode || !this.otpExpires) {
+    return { success: false, message: 'No OTP found' };
+  }
+  
+  if (this.otpExpires < Date.now()) {
+    return { success: false, message: 'OTP has expired' };
+  }
+  
+  // Check attempt limit (max 3 attempts)
+  if (this.otpAttempts >= 3) {
+    return { success: false, message: 'Too many failed attempts. Please request a new OTP.' };
+  }
+  
+  // Verify OTP
+  if (this.otpCode !== otp) {
+    this.otpAttempts += 1;
+    return { success: false, message: 'Invalid OTP' };
+  }
+  
+  // OTP is correct - verify email and clear OTP
+  this.isEmailVerified = true;
+  this.otpCode = undefined;
+  this.otpExpires = undefined;
+  this.otpAttempts = 0;
+  
+  return { success: true, message: 'Email verified successfully' };
+};
+
+// Instance method to generate password reset OTP
+userSchema.methods.generatePasswordResetOTP = function() {
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  this.passwordResetOTP = otp;
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  this.passwordResetAttempts = 0;
+  
+  return otp;
+};
+
+// Instance method to verify password reset OTP
+userSchema.methods.verifyPasswordResetOTP = function(otp) {
+  // Check if OTP exists and hasn't expired
+  if (!this.passwordResetOTP || !this.passwordResetExpires) {
+    return { success: false, message: 'No password reset OTP found' };
+  }
+  
+  if (this.passwordResetExpires < Date.now()) {
+    return { success: false, message: 'Password reset OTP has expired' };
+  }
+  
+  // Check attempt limit (max 3 attempts)
+  if (this.passwordResetAttempts >= 3) {
+    return { success: false, message: 'Too many failed attempts. Please request a new OTP.' };
+  }
+  
+  // Verify OTP
+  if (this.passwordResetOTP !== otp) {
+    this.passwordResetAttempts += 1;
+    return { success: false, message: 'Invalid OTP' };
+  }
+  
+  // OTP is correct - clear OTP and allow password reset
+  this.passwordResetOTP = undefined;
+  this.passwordResetExpires = undefined;
+  this.passwordResetAttempts = 0;
+  
+  return { success: true, message: 'OTP verified successfully' };
 };
 
 // Static method to find user by email or googleId

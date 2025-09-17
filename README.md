@@ -1,6 +1,6 @@
 # UrbanEye - Smart City Management System
 
-A comprehensive smart city management platform with both web and mobile applications for citizens and administrators to report, track, and manage city issues. Features email verification system for secure user registration.
+A comprehensive smart city management platform with both web and mobile applications for citizens and administrators to report, track, and manage city issues.
 
 ## 🏗️ Project Architecture
 
@@ -17,12 +17,10 @@ UrbanEye/
 
 ### 🔐 Authentication & User Management
 - Secure user registration and login
-- **Email verification system** - New users must verify email before login
 - Role-based access control (Citizen/Admin)
-- Google OAuth integration
+- Email verification system
 - Password reset functionality
 - JWT token-based authentication
-- Dynamic avatar system (Google Photos, Gravatar, UI-Avatars)
 
 ### 📱 Citizen Features
 - Report city issues with photos and location
@@ -99,7 +97,6 @@ UrbanEye/
 ### Prerequisites
 - Node.js (v16 or higher)
 - MongoDB
-- Gmail account for email functionality
 - React Native CLI (for mobile development)
 - Android Studio (for Android development)
 - Xcode (for iOS development, macOS only)
@@ -108,8 +105,8 @@ UrbanEye/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/kiranshibuthomas/testproject.git
-   cd testproject
+   git clone <repository-url>
+   cd UrbanEye
    ```
 
 2. **Install dependencies**
@@ -133,12 +130,6 @@ UrbanEye/
    MONGODB_URI=mongodb://localhost:27017/urbaneye
    JWT_SECRET=your-jwt-secret
    PORT=5000
-   CLIENT_URL=http://localhost:3000
-   EMAIL_USER=your-email@gmail.com
-   EMAIL_PASS=your-app-password
-   EMAIL_FROM=UrbanEye <noreply@urbaneye.com>
-   GOOGLE_CLIENT_ID=your-google-client-id
-   GOOGLE_CLIENT_SECRET=your-google-client-secret
    ```
    
    **client/.env:**
@@ -230,41 +221,6 @@ src/
 - Local state with useState/useReducer
 - Server state with React Query (web)
 - AsyncStorage for persistence (mobile)
-
-## 🚀 Deployment
-
-### Render.com Deployment
-
-1. **Connect Repository**: Connect your GitHub repository to Render
-2. **Create Web Service**: Create a new Web Service with these settings:
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-   - **Environment**: Node
-3. **Environment Variables**: Add the following environment variables in Render dashboard:
-   - `NODE_ENV=production`
-   - `PORT=10000`
-   - `MONGODB_URI=your-mongodb-connection-string`
-   - `JWT_SECRET=your-jwt-secret`
-   - `CLIENT_URL=https://your-frontend-url.onrender.com`
-   - `EMAIL_USER=your-email@gmail.com`
-   - `EMAIL_PASS=your-app-password`
-   - `EMAIL_FROM=UrbanEye <noreply@urbaneye.com>`
-   - `GOOGLE_CLIENT_ID=your-google-client-id`
-   - `GOOGLE_CLIENT_SECRET=your-google-client-secret`
-4. **Deploy**: Click Deploy and wait for the build to complete
-
-### Manual Deployment
-
-1. **Build the client**:
-   ```bash
-   cd client
-   npm run build
-   ```
-
-2. **Start the production server**:
-   ```bash
-   npm start
-   ```
 
 ## 📦 Building for Production
 
