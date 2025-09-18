@@ -21,6 +21,7 @@ import ReportsHistory from './pages/ReportsHistory';
 import ComplaintDetail from './pages/ComplaintDetail';
 import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage';
+import AuditLogsPage from './pages/AuditLogsPage';
 import EmailVerification from './components/EmailVerification';
 
 // Component to handle role-based default redirects
@@ -114,6 +115,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <ProfilePage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/audit-logs" 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AuditLogsPage />
             </ProtectedRoute>
           } 
         />

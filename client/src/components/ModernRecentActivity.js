@@ -19,7 +19,7 @@ const ModernRecentActivity = ({ complaints, getStatusColor, getPriorityColor, ge
       <div className="space-y-4">
         {complaints.slice(0, 4).map((complaint, index) => (
           <motion.div
-            key={complaint.id}
+            key={complaint._id || complaint.id}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.6 + index * 0.1 }}
@@ -39,7 +39,7 @@ const ModernRecentActivity = ({ complaints, getStatusColor, getPriorityColor, ge
                 {complaint.status.replace('-', ' ')}
               </span>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {new Date(complaint.date).toLocaleDateString()}
+                {new Date(complaint.submittedAt || complaint.date).toLocaleDateString()}
               </span>
             </div>
           </motion.div>

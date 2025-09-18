@@ -39,17 +39,17 @@ const ModernComplaintCard = ({
               {complaint.address || 'Location not specified'}
             </span>
             <span className="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium">
-              {complaint.category}
+              {complaint.category?.replace('_', ' ') || 'Unknown'}
             </span>
           </div>
           <div className="flex items-center text-sm text-gray-500 space-x-4">
             <span className="flex items-center">
               <FiUser className="h-4 w-4 mr-1 text-primary-500" />
-              {complaint.citizen}
+              {complaint.citizenName || complaint.citizen?.name || 'Unknown'}
             </span>
             <span className="flex items-center">
               <FiCalendar className="h-4 w-4 mr-1 text-primary-500" />
-              {new Date(complaint.date).toLocaleDateString()}
+              {new Date(complaint.submittedAt || complaint.date).toLocaleDateString()}
             </span>
           </div>
         </div>

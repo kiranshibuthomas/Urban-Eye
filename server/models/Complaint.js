@@ -40,7 +40,7 @@ const complaintSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'in_progress', 'resolved', 'rejected', 'closed'],
+    enum: ['pending', 'in_progress', 'resolved', 'rejected', 'closed', 'deleted'],
     default: 'pending'
   },
 
@@ -213,6 +213,29 @@ const complaintSchema = new mongoose.Schema({
     default: 0
   },
 
+// Soft delete fields
+isDeleted: {
+  type: Boolean,
+  default: false
+},
+deletedAt: {
+  type: Date
+},
+deletedBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User'
+},
+deletionReason: {
+  type: String,
+  trim: true,
+  maxlength: [500, 'Deletion reason cannot be more than 500 characters']
+},
+originalStatus: {
+  type: String,
+  enum: ['pending', 'in_progress', 'resolved', 'rejected', 'closed'],
+  default: 'pending'
+},
+
   // Timestamps
   submittedAt: {
     type: Date,
@@ -342,6 +365,44 @@ complaintSchema.statics.getStatistics = function() {
       }
     }
   ]);
+};
+
+// Instance method for soft delete
+complaintSchema.methods.softDelete = function(deletedBy, reason = '') {
+  // Store the original status before archiving
+  if (!this.originalStatus || this.originalStatus === 'pending') {
+    this.originalStatus = this.status;
+  }
+  
+  this.isDeleted = true;
+  this.deletedAt = new Date();
+  this.deletedBy = deletedBy;
+  this.deletionReason = reason;
+  this.status = 'deleted';
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Instance method for restore
+complaintSchema.methods.restore = function() {
+  this.isDeleted = false;
+  this.deletedAt = undefined;
+  this.deletedBy = undefined;
+  this.deletionReason = undefined;
+  // Restore to original status before archiving
+  this.status = this.originalStatus || 'pending';
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Static method to find non-deleted complaints
+complaintSchema.statics.findActive = function(query = {}) {
+  return this.find({ ...query, isDeleted: false });
+};
+
+// Static method to find deleted complaints
+complaintSchema.statics.findDeleted = function(query = {}) {
+  return this.find({ ...query, isDeleted: true });
 };
 
 // Ensure virtual fields are serialized

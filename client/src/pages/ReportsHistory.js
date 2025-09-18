@@ -27,7 +27,8 @@ import {
   FiUser,
   FiSettings,
   FiLogOut,
-  FiChevronDown
+  FiChevronDown,
+  FiTrash2
 } from 'react-icons/fi';
 import { FaCity } from 'react-icons/fa';
 
@@ -189,6 +190,13 @@ const ReportsHistory = () => {
       bgColor: 'bg-gray-50', 
       borderColor: 'border-gray-200',
       icon: FiXCircle 
+    },
+    deleted: { 
+      label: 'Archived', 
+      color: 'text-red-600', 
+      bgColor: 'bg-red-50', 
+      borderColor: 'border-red-200',
+      icon: FiTrash2 
     }
   };
 
@@ -265,7 +273,7 @@ const ReportsHistory = () => {
           const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
           return priorityOrder[b.priority] - priorityOrder[a.priority];
         case 'status':
-          const statusOrder = { pending: 1, in_progress: 2, resolved: 3, closed: 4 };
+          const statusOrder = { pending: 1, in_progress: 2, resolved: 3, closed: 4, deleted: 5 };
           return statusOrder[a.status] - statusOrder[b.status];
         default:
           return 0;
@@ -626,6 +634,7 @@ const ReportsHistory = () => {
                   <option value="in_progress">In Progress</option>
                   <option value="resolved">Resolved</option>
                   <option value="closed">Closed</option>
+                  <option value="deleted">Archived</option>
                 </select>
 
                 <select

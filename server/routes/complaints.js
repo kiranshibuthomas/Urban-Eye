@@ -5,6 +5,7 @@ const fs = require('fs').promises;
 const { v4: uuidv4 } = require('uuid');
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
+const AuditLog = require('../models/AuditLog');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const {
   sendComplaintSubmittedEmail,
@@ -196,11 +197,22 @@ router.get('/user', authenticateToken, requireRole('citizen'), async (req, res) 
       sortOrder = 'desc'
     } = req.query;
 
-    // Build filter object - only user's complaints
+    // Build filter object - only user's complaints (include deleted ones)
     const filter = {
       citizen: req.user._id
     };
 
+    // If status is specified and not 'deleted', exclude deleted complaints
+    if (status && status !== 'deleted') {
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { isDeleted: false },
+          { isDeleted: { $exists: false } }
+        ]
+      });
+    }
+    
     if (status) filter.status = status;
     if (category) filter.category = category;
     if (priority) filter.priority = priority;
@@ -323,7 +335,16 @@ router.get('/recent', authenticateToken, requireRole('citizen'), async (req, res
 // @access  Private (Admin only)
 router.get('/stats/overview', authenticateToken, requireRole('admin'), async (req, res) => {
   try {
+    // Get active complaints stats
     const stats = await Complaint.aggregate([
+      {
+        $match: {
+          $or: [
+            { isDeleted: false },
+            { isDeleted: { $exists: false } }
+          ]
+        }
+      },
       {
         $group: {
           _id: null,
@@ -332,6 +353,21 @@ router.get('/stats/overview', authenticateToken, requireRole('admin'), async (re
           inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] } },
           resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
           rejected: { $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] } }
+        }
+      }
+    ]);
+
+    // Get deleted complaints count
+    const deletedStats = await Complaint.aggregate([
+      {
+        $match: {
+          isDeleted: true
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          deleted: { $sum: 1 }
         }
       }
     ]);
@@ -347,17 +383,14 @@ router.get('/stats/overview', authenticateToken, requireRole('admin'), async (re
     ]);
 
     const result = {
-      ...(stats[0] || {
-        totalComplaints: 0,
-        pending: 0,
-        inProgress: 0,
-        resolved: 0,
-        rejected: 0
-      }),
-      ...(userStats[0] || {
-        totalUsers: 0,
-        activeStaff: 0
-      }),
+      total: stats[0]?.totalComplaints || 0,
+      pending: stats[0]?.pending || 0,
+      inProgress: stats[0]?.inProgress || 0,
+      resolved: stats[0]?.resolved || 0,
+      rejected: stats[0]?.rejected || 0,
+      deleted: deletedStats[0]?.deleted || 0,
+      totalUsers: userStats[0]?.totalUsers || 0,
+      activeStaff: userStats[0]?.activeStaff || 0,
       avgResolutionTime: '2.5 days',
       satisfactionRate: '85%'
     };
@@ -414,6 +447,17 @@ router.get('/', authenticateToken, async (req, res) => {
       ];
     }
 
+    // Exclude deleted complaints by default (unless specifically requested)
+    if (status !== 'deleted') {
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { isDeleted: false },
+          { isDeleted: { $exists: false } }
+        ]
+      });
+    }
+
     // Pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
@@ -447,6 +491,97 @@ router.get('/', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error while fetching complaints'
+    });
+  }
+});
+
+// @route   GET /api/complaints/audit-logs
+// @desc    Get audit logs for complaints (Admin only)
+// @access  Private (Admin only)
+router.get('/audit-logs', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { page = 1, limit = 50, action, entityId } = req.query;
+    
+    const filter = { entityType: 'complaint' };
+    if (action) filter.action = action;
+    if (entityId) filter.entityId = entityId;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const logs = await AuditLog.find(filter)
+      .populate('performedBy', 'name email')
+      .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await AuditLog.countDocuments(filter);
+
+    res.json({
+      success: true,
+      logs,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / parseInt(limit)),
+        total
+      }
+    });
+
+  } catch (error) {
+    console.error('Get audit logs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching audit logs'
+    });
+  }
+});
+
+// @route   DELETE /api/complaints/audit-logs/:logId
+// @desc    Delete an audit log (Admin only)
+// @access  Private (Admin only)
+router.delete('/audit-logs/:logId', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const log = await AuditLog.findById(req.params.logId);
+    
+    if (!log) {
+      return res.status(404).json({
+        success: false,
+        message: 'Audit log not found'
+      });
+    }
+
+    await AuditLog.findByIdAndDelete(req.params.logId);
+
+    res.json({
+      success: true,
+      message: 'Audit log deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete audit log error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while deleting audit log'
+    });
+  }
+});
+
+// @route   DELETE /api/complaints/audit-logs
+// @desc    Clear all audit logs (Admin only)
+// @access  Private (Admin only)
+router.delete('/audit-logs', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    await AuditLog.deleteMany({ entityType: 'complaint' });
+
+    res.json({
+      success: true,
+      message: 'All audit logs cleared successfully'
+    });
+
+  } catch (error) {
+    console.error('Clear audit logs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while clearing audit logs'
     });
   }
 });
@@ -490,6 +625,27 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error while fetching complaint'
+    });
+  }
+});
+
+// @route   GET /api/complaints/:id/audit-trail
+// @desc    Get audit trail for a specific complaint (Admin only)
+// @access  Private (Admin only)
+router.get('/:id/audit-trail', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const logs = await AuditLog.getAuditTrail('complaint', req.params.id);
+    
+    res.json({
+      success: true,
+      auditTrail: logs
+    });
+
+  } catch (error) {
+    console.error('Get audit trail error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching audit trail'
     });
   }
 });
@@ -728,11 +884,13 @@ router.get('/nearby', authenticateToken, async (req, res) => {
 });
 
 // @route   DELETE /api/complaints/:id
-// @desc    Delete a complaint
-// @access  Private (Admin only or complaint owner)
-router.delete('/:id', authenticateToken, async (req, res) => {
+// @desc    Soft delete a complaint (Admin only)
+// @access  Private (Admin only)
+router.delete('/:id', authenticateToken, requireRole('admin'), async (req, res) => {
   try {
+    const { reason } = req.body;
     const complaint = await Complaint.findById(req.params.id);
+    
     if (!complaint) {
       return res.status(404).json({
         success: false,
@@ -740,14 +898,100 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check permissions
-    const isOwner = complaint.citizen.toString() === req.user._id.toString();
-    const isAdmin = req.user.role === 'admin';
-
-    if (!isOwner && !isAdmin) {
-      return res.status(403).json({
+    if (complaint.isDeleted) {
+      return res.status(400).json({
         success: false,
-        message: 'Access denied'
+        message: 'Complaint is already deleted'
+      });
+    }
+
+    // Log the archive action before soft delete
+    await AuditLog.logAction({
+      action: 'archive',
+      entityType: 'complaint',
+      entityId: complaint._id,
+      performedBy: req.user._id,
+      performedByEmail: req.user.email,
+      reason: reason || 'No reason provided',
+      details: {
+        complaintTitle: complaint.title,
+        complaintCategory: complaint.category,
+        complaintPriority: complaint.priority,
+        complaintStatus: complaint.status,
+        citizenId: complaint.citizen,
+        citizenName: complaint.citizenName
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
+    // Soft delete the complaint
+    await complaint.softDelete(req.user._id, reason || 'Deleted by admin');
+
+    res.json({
+      success: true,
+      message: 'Complaint deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete complaint error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while deleting complaint'
+    });
+  }
+});
+
+// @route   POST /api/complaints/:id/restore
+// @desc    Restore a soft-deleted complaint (Admin only)
+// @access  Private (Admin only)
+router.post('/:id/restore', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+    
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    if (!complaint.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        message: 'Complaint is not deleted'
+      });
+    }
+
+    // Restore the complaint
+    await complaint.restore();
+
+    res.json({
+      success: true,
+      message: 'Complaint restored successfully'
+    });
+
+  } catch (error) {
+    console.error('Restore complaint error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while restoring complaint'
+    });
+  }
+});
+
+// @route   DELETE /api/complaints/:id/hard-delete
+// @desc    Permanently delete a complaint (Admin only)
+// @access  Private (Admin only)
+router.delete('/:id/hard-delete', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const complaint = await Complaint.findById(req.params.id);
+    
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
       });
     }
 
@@ -775,21 +1019,43 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       }
     }
 
+    // Log the hard delete action before deletion
+    await AuditLog.logAction({
+      action: 'hard_delete',
+      entityType: 'complaint',
+      entityId: complaint._id,
+      performedBy: req.user._id,
+      performedByEmail: req.user.email,
+      reason: reason || 'No reason provided',
+      details: {
+        complaintTitle: complaint.title,
+        complaintCategory: complaint.category,
+        complaintPriority: complaint.priority,
+        complaintStatus: complaint.status,
+        citizenId: complaint.citizen,
+        citizenName: complaint.citizenName
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
+    // Permanently delete the complaint
     await Complaint.findByIdAndDelete(req.params.id);
 
     res.json({
       success: true,
-      message: 'Complaint deleted successfully'
+      message: 'Complaint permanently deleted'
     });
 
   } catch (error) {
-    console.error('Delete complaint error:', error);
+    console.error('Hard delete complaint error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error while deleting complaint'
+      message: 'Server error while permanently deleting complaint'
     });
   }
 });
+
 
 module.exports = router;
 

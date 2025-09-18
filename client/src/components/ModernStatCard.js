@@ -13,7 +13,7 @@ const ModernStatCard = ({ icon: Icon, title, value, change, color, delay = 0, is
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-1">
-            <p className="text-sm font-medium text-gray-600">{title}</p>
+            <p className="text-base font-medium text-gray-600">{title}</p>
             {isLive && (
               <div className="flex items-center space-x-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -21,13 +21,13 @@ const ModernStatCard = ({ icon: Icon, title, value, change, color, delay = 0, is
               </div>
             )}
           </div>
-          <p className="text-3xl font-bold text-gray-900 mb-2">{value}</p>
-          {change && (
+          <p className="text-4xl font-bold text-gray-900 mb-2">{value}</p>
+          {change && change !== 0 && (
             <div className="flex items-center">
-              <span className={`text-sm font-medium ${change > 0 ? 'text-teal-600' : 'text-red-600'}`}>
+              <span className={`text-base font-medium ${change > 0 ? 'text-teal-600' : 'text-red-600'}`}>
                 {change > 0 ? '+' : ''}{change}%
               </span>
-              <span className="text-sm text-gray-500 ml-1">from last month</span>
+              <span className="text-base text-gray-500 ml-1">from last month</span>
             </div>
           )}
         </div>

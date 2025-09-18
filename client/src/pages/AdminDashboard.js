@@ -36,6 +36,7 @@ import {
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import ModernStatCard from '../components/ModernStatCard';
 import ModernComplaintCard from '../components/ModernComplaintCard';
 import ModernStaffCard from '../components/ModernStaffCard';
@@ -56,10 +57,12 @@ const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [stats, setStats] = useState({
-    totalComplaints: 0,
+    total: 0,
     pending: 0,
     inProgress: 0,
     resolved: 0,
+    rejected: 0,
+    deleted: 0,
     totalUsers: 0,
     activeStaff: 0,
     avgResolutionTime: '',
@@ -70,6 +73,7 @@ const AdminDashboard = () => {
   const [realTimeEnabled, setRealTimeEnabled] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [isBackgroundUpdating, setIsBackgroundUpdating] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -93,24 +97,24 @@ const AdminDashboard = () => {
   }, [userMenuOpen]);
 
   // Fetch dashboard data
-  const fetchDashboardData = async () => {
-    setIsLoading(true);
+  const fetchDashboardData = async (isBackground = false) => {
+    if (isBackground) {
+      setIsBackgroundUpdating(true);
+    } else {
+      setIsLoading(true);
+    }
+    
     try {
-      const token = localStorage.getItem('token');
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
-
       // Fetch stats and complaints in parallel
       const [statsResponse, complaintsResponse] = await Promise.all([
-        fetch('/api/stats/admin', { headers }),
-        fetch('/api/stats/admin/complaints', { headers })
+        fetch('/api/complaints/stats/overview', { credentials: 'include' }),
+        fetch('/api/complaints?limit=10', { credentials: 'include' })
       ]);
 
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
         if (statsData.success) {
+          console.log('Dashboard stats received:', statsData.stats);
           setStats(statsData.stats);
         }
       }
@@ -124,11 +128,30 @@ const AdminDashboard = () => {
 
       // For now, keeping empty staff data (can be implemented later)
       setStaffMembers([]);
+      
+      setLastUpdate(new Date());
+      
+      // Show subtle notification for background updates
+      if (isBackground) {
+        toast.success('Data updated', {
+          duration: 2000,
+          position: 'top-right',
+          style: {
+            background: '#10B981',
+            color: '#fff',
+            fontSize: '14px',
+          },
+        });
+      }
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
-      setIsLoading(false);
+      if (isBackground) {
+        setIsBackgroundUpdating(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -137,63 +160,49 @@ const AdminDashboard = () => {
     fetchDashboardData();
   }, []);
 
-  // Real-time stats using Server-Sent Events
+  // Smart background refresh - only when tab is active and user is idle
   useEffect(() => {
-    if (!realTimeEnabled) return;
-
-    const token = localStorage.getItem('token');
-    const eventSource = new EventSource(`/api/stats/admin/live`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
+    let interval;
+    let lastActivity = Date.now();
+    
+    const resetActivityTimer = () => {
+      lastActivity = Date.now();
+    };
+    
+    const checkAndRefresh = () => {
+      const now = Date.now();
+      const timeSinceActivity = now - lastActivity;
+      
+      // Only refresh if:
+      // 1. Tab is visible (user is on the page)
+      // 2. User has been idle for at least 2 minutes
+      // 3. No loading is in progress
+      if (document.visibilityState === 'visible' && 
+          timeSinceActivity > 120000 && 
+          !isLoading && 
+          !isBackgroundUpdating) {
+        fetchDashboardData(true); // Background update
+        lastActivity = now; // Reset activity timer after refresh
       }
+    };
+    
+    // Set up activity tracking
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    events.forEach(event => {
+      document.addEventListener(event, resetActivityTimer, true);
     });
-
-    eventSource.onopen = () => {
-      setConnectionStatus('connected');
-      console.log('Real-time stats connection established');
-    };
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'connected') {
-          setConnectionStatus('connected');
-        } else if (data.type === 'stats_update') {
-          setStats(data.stats);
-          setLastUpdate(new Date(data.timestamp));
-          setConnectionStatus('connected');
-        } else if (data.type === 'error') {
-          console.error('Stats update error:', data.message);
-          setConnectionStatus('error');
-        }
-      } catch (error) {
-        console.error('Error parsing SSE data:', error);
-      }
-    };
-
-    eventSource.onerror = (error) => {
-      console.error('SSE connection error:', error);
-      setConnectionStatus('error');
-      eventSource.close();
-    };
-
+    
+    // Check every 30 seconds
+    interval = setInterval(checkAndRefresh, 30000);
+    
     return () => {
-      eventSource.close();
-      setConnectionStatus('disconnected');
+      clearInterval(interval);
+      events.forEach(event => {
+        document.removeEventListener(event, resetActivityTimer, true);
+      });
     };
-  }, [realTimeEnabled]);
+  }, [isLoading, isBackgroundUpdating]);
 
-  // Fallback: Auto-refresh stats every 30 seconds if real-time is disabled
-  useEffect(() => {
-    if (realTimeEnabled) return;
-
-    const interval = setInterval(() => {
-      fetchDashboardData();
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, [realTimeEnabled]);
 
 
 
@@ -245,42 +254,46 @@ const AdminDashboard = () => {
   const OverviewTab = () => (
     <div className="space-y-8">
       {/* Enhanced Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <ModernStatCard
           icon={FiFileText}
           title="Total Complaints"
-          value={stats.totalComplaints > 0 ? stats.totalComplaints.toLocaleString() : '0'}
-          change={0}
+          value={stats.total > 0 ? stats.total.toLocaleString() : '0'}
           color="bg-gradient-to-br from-blue-500 to-blue-600"
           delay={0.1}
-          isLive={realTimeEnabled && connectionStatus === 'connected'}
+          isLive={true}
         />
         <ModernStatCard
           icon={FiClock}
           title="Pending"
           value={stats.pending > 0 ? stats.pending : '0'}
-          change={0}
           color="bg-gradient-to-br from-amber-500 to-amber-600"
           delay={0.2}
-          isLive={realTimeEnabled && connectionStatus === 'connected'}
+          isLive={true}
         />
         <ModernStatCard
           icon={FiActivity}
           title="In Progress"
           value={stats.inProgress > 0 ? stats.inProgress : '0'}
-          change={0}
           color="bg-gradient-to-br from-indigo-500 to-indigo-600"
           delay={0.3}
-          isLive={realTimeEnabled && connectionStatus === 'connected'}
+          isLive={true}
         />
         <ModernStatCard
           icon={FiCheckCircle}
           title="Resolved"
           value={stats.resolved > 0 ? stats.resolved.toLocaleString() : '0'}
-          change={0}
           color="bg-gradient-to-br from-emerald-500 to-emerald-600"
           delay={0.4}
-          isLive={realTimeEnabled && connectionStatus === 'connected'}
+          isLive={true}
+        />
+        <ModernStatCard
+          icon={FiAlertCircle}
+          title="Rejected"
+          value={stats.rejected > 0 ? stats.rejected : '0'}
+          color="bg-gradient-to-br from-red-500 to-red-600"
+          delay={0.5}
+          isLive={true}
         />
           </div>
 
@@ -297,42 +310,30 @@ const AdminDashboard = () => {
       </div>
 
       {/* Additional Performance Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <ModernStatCard
           icon={FiUsers}
           title="Total Users"
           value={stats.totalUsers > 0 ? stats.totalUsers.toLocaleString() : '0'}
-          change={0}
           color="bg-gradient-to-br from-purple-500 to-purple-600"
-          delay={0.5}
-          isLive={realTimeEnabled && connectionStatus === 'connected'}
+          delay={0.7}
+          isLive={true}
         />
         <ModernStatCard
           icon={FiUserCheck}
           title="Active Staff"
           value={stats.activeStaff > 0 ? stats.activeStaff : '0'}
-          change={0}
           color="bg-gradient-to-br from-green-500 to-green-600"
-          delay={0.6}
-          isLive={realTimeEnabled && connectionStatus === 'connected'}
-        />
-        <ModernStatCard
-          icon={FiClock}
-          title="Avg Resolution"
-          value={stats.avgResolutionTime || 'N/A'}
-          change={0}
-          color="bg-gradient-to-br from-orange-500 to-orange-600"
           delay={0.7}
-          isLive={realTimeEnabled && connectionStatus === 'connected'}
+          isLive={true}
         />
         <ModernStatCard
           icon={FiTrendingUp}
           title="Satisfaction"
           value={stats.satisfactionRate || '0%'}
-          change={0}
           color="bg-gradient-to-br from-pink-500 to-pink-600"
           delay={0.8}
-          isLive={realTimeEnabled && connectionStatus === 'connected'}
+          isLive={true}
         />
       </div>
 
@@ -357,7 +358,7 @@ const AdminDashboard = () => {
           {allComplaints.filter(c => c.priority === 'urgent' || c.priority === 'high').length > 0 ? (
             allComplaints.filter(c => c.priority === 'urgent' || c.priority === 'high').map((complaint, index) => (
             <motion.div
-              key={complaint.id}
+              key={complaint._id || complaint.id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.8 + index * 0.1 }}
@@ -378,11 +379,11 @@ const AdminDashboard = () => {
                     </span>
                     <span className="flex items-center">
                       <FiUser className="h-4 w-4 mr-1" />
-                      {complaint.citizen}
+                      {complaint.citizenName || complaint.citizen?.name || 'Unknown'}
                     </span>
                     <span className="flex items-center">
                   <FiCalendar className="h-4 w-4 mr-1" />
-                      {new Date(complaint.date).toLocaleDateString()}
+                      {new Date(complaint.submittedAt || complaint.date).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
@@ -435,7 +436,7 @@ const AdminDashboard = () => {
         {allComplaints.length > 0 ? (
           allComplaints.map((complaint, index) => (
             <ModernComplaintCard
-            key={complaint.id}
+            key={complaint._id || complaint.id}
               complaint={complaint}
               getStatusColor={getStatusColor}
               getPriorityColor={getPriorityColor}
@@ -636,53 +637,35 @@ const AdminDashboard = () => {
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-sm text-gray-600 mt-1">Manage complaints, staff, and system alerts</p>
+              <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+              <p className="text-base text-gray-600 mt-1">Manage complaints, staff, and system alerts</p>
             </div>
             
             <div className="flex items-center space-x-4">
-              {/* Real-time Status Indicator */}
+              {/* Smart Update Status Indicator */}
               <div className="flex items-center space-x-2">
                 <div className={`w-3 h-3 rounded-full ${
-                  connectionStatus === 'connected' ? 'bg-green-500' : 
-                  connectionStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
+                  isBackgroundUpdating ? 'bg-blue-500 animate-pulse' : 
+                  'bg-green-500'
                 }`}></div>
-                <span className="text-sm text-gray-600">
-                  {realTimeEnabled ? 'Live' : 'Manual'}
+                <span className="text-base text-gray-600">
+                  {isBackgroundUpdating ? 'Updating...' : 'Smart Sync'}
                 </span>
                 {lastUpdate && (
-                  <span className="text-xs text-gray-500">
+                  <span className="text-sm text-gray-500">
                     {new Date(lastUpdate).toLocaleTimeString()}
                   </span>
                 )}
               </div>
-
-              {/* Real-time Toggle */}
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setRealTimeEnabled(!realTimeEnabled)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors duration-200 font-medium ${
-                  realTimeEnabled 
-                    ? 'bg-green-600 text-white hover:bg-green-700' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                <div className={`w-2 h-2 rounded-full ${
-                  realTimeEnabled ? 'bg-white animate-pulse' : 'bg-gray-500'
-                }`}></div>
-                <span>{realTimeEnabled ? 'Live Updates' : 'Manual Mode'}</span>
-              </motion.button>
 
               {/* Refresh Button */}
               <motion.button
                 type="button"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={fetchDashboardData}
+                onClick={() => fetchDashboardData(false)}
                 disabled={isLoading}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FiRefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                 <span>Refresh</span>
@@ -702,7 +685,7 @@ const AdminDashboard = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setActiveTab(tab.key)}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-md text-base font-medium transition-all duration-200 ${
                       activeTab === tab.key
                         ? 'bg-white text-blue-600 shadow-sm'
                         : 'text-gray-600 hover:text-gray-900'
@@ -739,8 +722,8 @@ const AdminDashboard = () => {
                     )}
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-medium text-gray-900">{user?.name || 'Admin'}</p>
-                    <p className="text-xs text-gray-500">Administrator</p>
+                    <p className="text-base font-medium text-gray-900">{user?.name || 'Admin'}</p>
+                    <p className="text-sm text-gray-500">Administrator</p>
                   </div>
                   <FiChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
                 </motion.button>
@@ -756,20 +739,20 @@ const AdminDashboard = () => {
                       className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-200/50 py-2 z-50"
                     >
                       <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-sm font-medium text-gray-900">{user?.name || 'Admin'}</p>
+                        <p className="text-base font-medium text-gray-900">{user?.name || 'Admin'}</p>
                       </div>
                       
                       <div className="py-1">
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-200"
+                          className="w-full px-4 py-2 text-left text-base text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-200"
                         >
                           <FiUser className="h-4 w-4 mr-3" />
                           Profile
                         </button>
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-200"
+                          className="w-full px-4 py-2 text-left text-base text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-200"
                         >
                           <FiSettings className="h-4 w-4 mr-3" />
                           Settings
@@ -780,7 +763,7 @@ const AdminDashboard = () => {
                         <button
                           type="button"
                           onClick={handleLogout}
-                          className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center transition-colors duration-200"
+                          className="w-full px-4 py-2 text-left text-base text-red-600 hover:bg-red-50 flex items-center transition-colors duration-200"
                         >
                           <FiLogOut className="h-4 w-4 mr-3" />
                           Sign Out
