@@ -82,6 +82,25 @@ axios.defaults.withCredentials = true;
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
+  // Define logout function early to avoid hoisting issues
+  const logout = useCallback(async () => {
+    try {
+      // Call logout endpoint to clear server-side session/cookie
+      await axios.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear local storage and axios headers
+      localStorage.removeItem('token');
+      delete axios.defaults.headers.common['Authorization'];
+
+      // Dispatch logout action
+      dispatch({ type: AuthActionTypes.LOGOUT });
+      
+      toast.success('Logged out successfully');
+    }
+  }, []);
+
   // Set up axios interceptor for token
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -94,9 +113,11 @@ export const AuthProvider = ({ children }) => {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          // Token expired or invalid
-          logout();
-          toast.error('Session expired. Please login again.');
+          // Token expired or invalid - only show toast if not already logged out
+          if (state.isAuthenticated) {
+            logout();
+            toast.error('Session expired. Please login again.');
+          }
         }
         return Promise.reject(error);
       }
@@ -105,7 +126,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       axios.interceptors.response.eject(responseInterceptor);
     };
-  }, []);
+  }, [state.isAuthenticated, logout]);
 
   // Check if user is logged in on app start
   useEffect(() => {
@@ -269,21 +290,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
-    try {
-      // Call logout endpoint to clear server-side session/cookie
-      await axios.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      // Clear local storage and axios headers
-      localStorage.removeItem('token');
-      delete axios.defaults.headers.common['Authorization'];
-      
-      dispatch({ type: AuthActionTypes.LOGOUT });
-      toast.success('Logged out successfully');
-    }
-  };
 
   const updateUser = (userData) => {
     dispatch({ type: AuthActionTypes.UPDATE_USER, payload: userData });
@@ -323,6 +329,27 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshAvatar = useCallback(async () => {
+    try {
+      const response = await axios.get('/auth/debug-avatar');
+      if (response.data.success) {
+        const debugInfo = response.data.debug;
+        console.log('Avatar refresh debug info:', debugInfo);
+        
+        // Update user with fresh avatar URL
+        dispatch({
+          type: AuthActionTypes.UPDATE_USER,
+          payload: debugInfo.publicProfile
+        });
+        
+        return debugInfo;
+      }
+    } catch (error) {
+      console.error('Avatar refresh error:', error);
+      return null;
+    }
+  }, []);
+
   const value = {
     ...state,
     login,
@@ -333,7 +360,8 @@ export const AuthProvider = ({ children }) => {
     clearError,
     checkAuthStatus,
     verifyEmail,
-    resendVerification
+    resendVerification,
+    refreshAvatar
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

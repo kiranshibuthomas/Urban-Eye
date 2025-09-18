@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 const DashboardLayout = ({ children, title, actions }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, refreshAvatar } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const userMenuRef = useRef(null);
@@ -118,16 +118,28 @@ const DashboardLayout = ({ children, title, actions }) => {
                       className="h-12 w-12 rounded-full object-cover"
                       onError={(e) => {
                         console.error('Avatar image failed to load:', user.avatar);
+                        console.error('Error details:', e);
+                        // Hide the image and show the fallback
                         e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
+                        const fallback = e.target.nextSibling;
+                        if (fallback) {
+                          fallback.style.display = 'flex';
+                        }
                       }}
-                      onLoad={() => {
+                      onLoad={(e) => {
                         console.log('Avatar image loaded successfully:', user.avatar);
+                        // Hide the fallback when image loads successfully
+                        const fallback = e.target.nextSibling;
+                        if (fallback) {
+                          fallback.style.display = 'none';
+                        }
                       }}
                     />
                   ) : null}
                   <div className={`h-12 w-12 rounded-full flex items-center justify-center ${user?.avatar ? 'hidden' : 'flex'}`}>
-                    <FiUser className="h-6 w-6 text-white" />
+                    <span className="text-white font-semibold text-lg">
+                      {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U'}
+                    </span>
                   </div>
                 </div>
                 <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-teal-400 rounded-full border-2 border-white"></div>
@@ -135,9 +147,32 @@ const DashboardLayout = ({ children, title, actions }) => {
               <div className="ml-4 flex-1">
                 <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
                 <p className="text-xs text-gray-600">{user?.email}</p>
-                <span className="inline-flex items-center px-2 py-1 mt-1 text-xs font-medium bg-primary-100 text-primary-800 rounded-full capitalize">
-                  {user?.role}
-                </span>
+                <div className="flex items-center mt-1">
+                  <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-primary-100 text-primary-800 rounded-full capitalize">
+                    {user?.role}
+                  </span>
+                  {process.env.NODE_ENV === 'development' && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const debugInfo = await refreshAvatar();
+                          if (debugInfo) {
+                            console.log('Avatar Debug Info:', debugInfo);
+                            alert(`Avatar refreshed! Debug info logged to console. Avatar URL: ${debugInfo.generatedAvatarUrl}`);
+                          } else {
+                            alert('Failed to refresh avatar. Check console for errors.');
+                          }
+                        } catch (error) {
+                          console.error('Debug avatar error:', error);
+                          alert('Error refreshing avatar. Check console for details.');
+                        }
+                      }}
+                      className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200"
+                    >
+                      Debug Avatar
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

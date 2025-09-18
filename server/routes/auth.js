@@ -1105,6 +1105,46 @@ router.post('/refresh-google-avatar', authenticateToken, async (req, res) => {
   }
 });
 
+// @route   GET /api/auth/debug-avatar
+// @desc    Debug avatar information for current user
+// @access  Private
+router.get('/debug-avatar', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    const debugInfo = {
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      googleId: user.googleId,
+      googlePhotoUrl: user.googlePhotoUrl,
+      generatedAvatarUrl: user.getLiveAvatarUrl(),
+      publicProfile: user.getPublicProfile(),
+      hasGooglePhoto: !!(user.googleId && user.googlePhotoUrl),
+      avatarSource: user.googleId && user.googlePhotoUrl ? 'google' : 'initials'
+    };
+    
+    res.json({
+      success: true,
+      debug: debugInfo
+    });
+    
+  } catch (error) {
+    console.error('Debug avatar error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during avatar debug'
+    });
+  }
+});
+
 // @route   PUT /api/auth/change-password
 // @desc    Change user password
 // @access  Private

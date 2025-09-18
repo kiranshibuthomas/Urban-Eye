@@ -9,6 +9,7 @@ const OAuthHandler = () => {
   const { checkAuthStatus, user } = useAuth();
   const hasProcessedAuth = useRef(false);
   const lastProcessedUrl = useRef('');
+  const toastShown = useRef(false);
 
   useEffect(() => {
     const currentUrl = location.search;
@@ -36,7 +37,12 @@ const OAuthHandler = () => {
     if (authStatus === 'success' && token) {
       // Store token and trigger auth check
       localStorage.setItem('token', token);
-      toast.success('Google authentication successful!');
+      
+      // Only show toast if not already shown
+      if (!toastShown.current) {
+        toast.success('Google authentication successful!');
+        toastShown.current = true;
+      }
       
       // Clear URL params immediately and navigate
       navigate(location.pathname, { replace: true });
@@ -46,21 +52,30 @@ const OAuthHandler = () => {
         checkAuthStatus();
       }, 100);
     } else if (authStatus === 'success' && !token) {
-      toast.success('Google authentication successful!');
+      // Only show toast if not already shown
+      if (!toastShown.current) {
+        toast.success('Google authentication successful!');
+        toastShown.current = true;
+      }
       navigate(location.pathname, { replace: true });
       
       setTimeout(() => {
         checkAuthStatus();
       }, 100);
     } else if (errorParam === 'auth_failed') {
-      toast.error('Google authentication failed. Please try again.');
+      // Only show toast if not already shown
+      if (!toastShown.current) {
+        toast.error('Google authentication failed. Please try again.');
+        toastShown.current = true;
+      }
       navigate(location.pathname, { replace: true });
     }
 
-    // Reset the flag after a delay to allow for new OAuth flows
+    // Reset the flags after a delay to allow for new OAuth flows
     setTimeout(() => {
       hasProcessedAuth.current = false;
       lastProcessedUrl.current = '';
+      toastShown.current = false;
     }, 5000);
 
   }, [location.search, location.pathname, checkAuthStatus, navigate]);
@@ -72,9 +87,10 @@ const OAuthHandler = () => {
       const redirectPath = user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard';
       navigate(redirectPath, { replace: true });
       
-      // Reset the flag
+      // Reset the flags
       hasProcessedAuth.current = false;
       lastProcessedUrl.current = '';
+      toastShown.current = false;
     }
   }, [user, navigate]);
 

@@ -181,6 +181,11 @@ userSchema.methods.getLiveAvatarUrl = function() {
       if (googleUrl.includes('googleusercontent.com')) {
         // Remove any existing size parameters and add s400-c for better compatibility
         googleUrl = googleUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400-c';
+        
+        // Add additional parameters to make the image more accessible
+        if (!googleUrl.includes('?')) {
+          googleUrl += '?sz=400';
+        }
       }
       
       return googleUrl;

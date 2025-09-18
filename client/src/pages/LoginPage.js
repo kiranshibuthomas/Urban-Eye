@@ -32,28 +32,8 @@ const LoginPage = () => {
     }
   }, [isAuthenticated, user, navigate, from]);
 
-  useEffect(() => {
-    // Check for OAuth success/error in URL params
-    const urlParams = new URLSearchParams(location.search);
-    const authStatus = urlParams.get('auth');
-    const token = urlParams.get('token');
-    const errorParam = urlParams.get('error');
-
-    if (authStatus === 'success' && token) {
-      // Store token and trigger auth check
-      localStorage.setItem('token', token);
-      toast.success('Google authentication successful!');
-      
-      // Clear URL params and trigger auth check
-      window.history.replaceState({}, document.title, window.location.pathname);
-      
-      // Manually trigger auth status check
-      checkAuthStatus();
-    } else if (errorParam === 'auth_failed') {
-      toast.error('Google authentication failed. Please try again.');
-      navigate('/login', { replace: true });
-    }
-  }, [location.search, navigate, checkAuthStatus]);
+  // OAuth handling is now done by OAuthHandler component
+  // Removed duplicate OAuth handling logic to prevent duplicate toasts
 
   useEffect(() => {
     // Clear any existing errors when component mounts
