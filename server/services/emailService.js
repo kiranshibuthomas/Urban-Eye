@@ -221,7 +221,7 @@ const emailTemplates = {
   }),
 
   complaintRejected: (complaint, user, reason) => ({
-    subject: `Complaint Update - ${complaint.complaintId}`,
+    subject: `Complaint Rejected - ${complaint.complaintId}`,
     html: `
       <!DOCTYPE html>
       <html>

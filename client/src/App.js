@@ -16,6 +16,7 @@ import PasswordResetOTPPage from './pages/PasswordResetOTPPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import CitizenDashboard from './pages/CitizenDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminComplaintManagement from './pages/AdminComplaintManagement';
 import ReportIssue from './pages/ReportIssue';
 import ReportsHistory from './pages/ReportsHistory';
 import ComplaintDetail from './pages/ComplaintDetail';
@@ -75,6 +76,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredRole="admin">
               <AdminDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin-complaint-management" 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminComplaintManagement />
             </ProtectedRoute>
           } 
         />

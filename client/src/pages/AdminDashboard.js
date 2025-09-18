@@ -35,7 +35,7 @@ import {
   FiChevronDown
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import ModernStatCard from '../components/ModernStatCard';
 import ModernComplaintCard from '../components/ModernComplaintCard';
@@ -46,7 +46,11 @@ import ModernRecentActivity from '../components/ModernRecentActivity';
 import AdminComplaintManagement from './AdminComplaintManagement';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    // Get tab from URL params, default to 'overview'
+    return searchParams.get('tab') || 'overview';
+  });
   const [viewMode, setViewMode] = useState('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState({
@@ -76,6 +80,14 @@ const AdminDashboard = () => {
   const [isBackgroundUpdating, setIsBackgroundUpdating] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Sync activeTab with URL parameters
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams, activeTab]);
 
   const handleLogout = async () => {
     await logout();
@@ -684,7 +696,10 @@ const AdminDashboard = () => {
                     type="button"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setActiveTab(tab.key)}
+                    onClick={() => {
+                      setActiveTab(tab.key);
+                      setSearchParams({ tab: tab.key });
+                    }}
                     className={`flex items-center space-x-2 px-4 py-2 rounded-md text-base font-medium transition-all duration-200 ${
                       activeTab === tab.key
                         ? 'bg-white text-blue-600 shadow-sm'

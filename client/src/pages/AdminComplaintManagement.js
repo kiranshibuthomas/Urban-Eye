@@ -16,7 +16,8 @@ import {
   FiTrendingUp,
   FiBarChart2,
   FiMap,
-  FiTrash2
+  FiTrash2,
+  FiThumbsDown
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import GoogleMapModal from '../components/GoogleMapModal';
@@ -46,6 +47,9 @@ const AdminComplaintManagement = () => {
   const [deleteReason, setDeleteReason] = useState('');
   const [deleteType, setDeleteType] = useState('archive'); // 'archive' or 'hard-delete'
   const [showDeleted, setShowDeleted] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [complaintToReject, setComplaintToReject] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   useEffect(() => {
     fetchComplaints();
@@ -256,6 +260,54 @@ const AdminComplaintManagement = () => {
       console.error('Error restoring complaint:', error);
       toast.error('Failed to restore complaint');
     }
+  };
+
+  const handleRejectComplaint = (complaint) => {
+    setComplaintToReject(complaint);
+    setRejectionReason('');
+    setShowRejectDialog(true);
+  };
+
+  const confirmRejectComplaint = async () => {
+    if (!rejectionReason.trim()) {
+      toast.error('Please provide a reason for rejection');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/complaints/${complaintToReject._id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'rejected',
+          rejectionReason: rejectionReason.trim()
+        })
+      });
+
+      if (response.ok) {
+        toast.success('Complaint rejected successfully');
+        setShowRejectDialog(false);
+        setComplaintToReject(null);
+        setRejectionReason('');
+        fetchComplaints();
+        fetchStats();
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to reject complaint');
+      }
+    } catch (error) {
+      console.error('Error rejecting complaint:', error);
+      toast.error('Failed to reject complaint');
+    }
+  };
+
+  const cancelReject = () => {
+    setShowRejectDialog(false);
+    setComplaintToReject(null);
+    setRejectionReason('');
   };
 
   const handleViewMap = (complaint) => {
@@ -629,11 +681,12 @@ const AdminComplaintManagement = () => {
                           <span className="sm:hidden">Start</span>
                         </button>
                         <button
-                          onClick={() => updateComplaintStatus(complaint._id, 'rejected')}
-                          className="flex items-center px-3 py-1.5 text-base text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors duration-200"
+                          onClick={() => handleRejectComplaint(complaint)}
+                          className="flex items-center px-3 py-1.5 text-base text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-md transition-colors duration-200"
+                          title="Reject complaint"
                         >
-                          <FiXCircle className="h-4 w-4 mr-1" />
-                          Reject
+                          <FiThumbsDown className="h-4 w-4 mr-1" />
+                          <span className="hidden sm:inline">Reject</span>
                         </button>
                       </>
                     )}
@@ -777,6 +830,59 @@ const AdminComplaintManagement = () => {
                     }`}
                   >
                     {deleteType === 'hard-delete' ? 'Delete Permanently' : 'Archive'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Rejection Reason Modal */}
+        {showRejectDialog && complaintToReject && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-lg p-6 w-full max-w-md mx-4"
+            >
+              <div className="text-center">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Reject Complaint
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Please provide a reason for rejecting this complaint. The user will be notified via email.
+                </p>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rejection Reason *
+                  </label>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Enter the reason for rejection..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 text-base"
+                    rows={4}
+                    maxLength={500}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {rejectionReason.length}/500 characters
+                  </p>
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={cancelReject}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmRejectComplaint}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors duration-200"
+                  >
+                    Reject Complaint
                   </button>
                 </div>
               </div>

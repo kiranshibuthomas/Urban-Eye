@@ -160,6 +160,20 @@ const complaintSchema = new mongoose.Schema({
     trim: true,
     maxlength: [1000, 'Resolution notes cannot be more than 1000 characters']
   },
+
+  // Rejection information
+  rejectedAt: {
+    type: Date
+  },
+  rejectionReason: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Rejection reason cannot be more than 500 characters']
+  },
+  rejectedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   resolutionImages: [{
     url: {
       type: String,
@@ -331,6 +345,16 @@ complaintSchema.methods.resolveComplaint = function(resolutionNotes, adminId) {
   this.status = 'resolved';
   this.resolvedAt = new Date();
   this.resolutionNotes = resolutionNotes;
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Method to reject complaint
+complaintSchema.methods.rejectComplaint = function(rejectionReason, adminId) {
+  this.status = 'rejected';
+  this.rejectedAt = new Date();
+  this.rejectionReason = rejectionReason;
+  this.rejectedBy = adminId;
   this.lastUpdated = new Date();
   return this.save();
 };

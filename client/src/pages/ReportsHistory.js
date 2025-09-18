@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoogleMapModal from '../components/GoogleMapModal';
@@ -34,15 +34,42 @@ import { FaCity } from 'react-icons/fa';
 
 const ReportsHistory = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, logout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reports, setReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('newest');
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'all');
+  const [categoryFilter, setCategoryFilter] = useState(() => searchParams.get('category') || 'all');
+  const [sortBy, setSortBy] = useState(() => searchParams.get('sort') || 'newest');
+
+  // Helper function to update URL parameters
+  const updateURLParams = (updates) => {
+    const newParams = new URLSearchParams(searchParams);
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value && value !== 'all' && value !== 'newest') {
+        newParams.set(key, value);
+      } else {
+        newParams.delete(key);
+      }
+    });
+    setSearchParams(newParams);
+  };
+
+  // Sync filter states with URL parameters
+  useEffect(() => {
+    const search = searchParams.get('search') || '';
+    const status = searchParams.get('status') || 'all';
+    const category = searchParams.get('category') || 'all';
+    const sort = searchParams.get('sort') || 'newest';
+
+    if (search !== searchTerm) setSearchTerm(search);
+    if (status !== statusFilter) setStatusFilter(status);
+    if (category !== categoryFilter) setCategoryFilter(category);
+    if (sort !== sortBy) setSortBy(sort);
+  }, [searchParams, searchTerm, statusFilter, categoryFilter, sortBy]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -184,6 +211,13 @@ const ReportsHistory = () => {
       borderColor: 'border-[#84A98C]/30',
       icon: FiCheckCircle 
     },
+    rejected: { 
+      label: 'Rejected', 
+      color: 'text-red-600', 
+      bgColor: 'bg-red-50', 
+      borderColor: 'border-red-200',
+      icon: FiXCircle 
+    },
     closed: { 
       label: 'Closed', 
       color: 'text-gray-600', 
@@ -273,7 +307,7 @@ const ReportsHistory = () => {
           const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
           return priorityOrder[b.priority] - priorityOrder[a.priority];
         case 'status':
-          const statusOrder = { pending: 1, in_progress: 2, resolved: 3, closed: 4, deleted: 5 };
+          const statusOrder = { pending: 1, in_progress: 2, resolved: 3, rejected: 4, closed: 5, deleted: 6 };
           return statusOrder[a.status] - statusOrder[b.status];
         default:
           return 0;
@@ -616,7 +650,10 @@ const ReportsHistory = () => {
                     type="text"
                     placeholder="Search reports..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      updateURLParams({ search: e.target.value });
+                    }}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                   />
                 </div>
@@ -626,20 +663,27 @@ const ReportsHistory = () => {
               <div className="flex flex-wrap gap-4">
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    updateURLParams({ status: e.target.value });
+                  }}
                   className="px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
                   <option value="in_progress">In Progress</option>
                   <option value="resolved">Resolved</option>
+                  <option value="rejected">Rejected</option>
                   <option value="closed">Closed</option>
                   <option value="deleted">Archived</option>
                 </select>
 
                 <select
                   value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  onChange={(e) => {
+                    setCategoryFilter(e.target.value);
+                    updateURLParams({ category: e.target.value });
+                  }}
                   className="px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                 >
                   <option value="all">All Categories</option>
@@ -652,7 +696,10 @@ const ReportsHistory = () => {
 
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
+                  onChange={(e) => {
+                    setSortBy(e.target.value);
+                    updateURLParams({ sort: e.target.value });
+                  }}
                   className="px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                 >
                   <option value="newest">Newest First</option>
@@ -1033,6 +1080,16 @@ const ReportsHistory = () => {
                           <p className="text-[#354F52] leading-relaxed">{comment.message}</p>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Rejection Reason */}
+                {selectedReport.status === 'rejected' && selectedReport.rejectionReason && (
+                  <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
+                    <label className="block text-sm font-semibold text-red-800 mb-4">Reason for Rejection</label>
+                    <div className="bg-white/60 rounded-xl p-4 border border-red-200">
+                      <p className="text-red-700 leading-relaxed">{selectedReport.rejectionReason}</p>
                     </div>
                   </div>
                 )}

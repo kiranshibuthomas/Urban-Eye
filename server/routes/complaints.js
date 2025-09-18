@@ -655,7 +655,7 @@ router.get('/:id/audit-trail', authenticateToken, requireRole('admin'), async (r
 // @access  Private (Admin only)
 router.put('/:id/status', authenticateToken, requireRole('admin'), async (req, res) => {
   try {
-    const { status, resolutionNotes } = req.body;
+    const { status, resolutionNotes, rejectionReason } = req.body;
 
     if (!status) {
       return res.status(400).json({
@@ -695,6 +695,15 @@ router.put('/:id/status', authenticateToken, requireRole('admin'), async (req, r
       }
     }
 
+    // Handle rejection
+    if (status === 'rejected') {
+      complaint.rejectedAt = new Date();
+      complaint.rejectedBy = req.user.id;
+      if (rejectionReason) {
+        complaint.rejectionReason = rejectionReason;
+      }
+    }
+
     await complaint.save();
 
     // Populate citizen information for email
@@ -711,7 +720,7 @@ router.put('/:id/status', authenticateToken, requireRole('admin'), async (req, r
         await sendComplaintResolvedEmail(complaint, user, resolutionNotes);
         console.log('Complaint resolved email sent to:', user.email);
       } else if (status === 'rejected' && previousStatus !== 'rejected') {
-        await sendComplaintRejectedEmail(complaint, user, resolutionNotes);
+        await sendComplaintRejectedEmail(complaint, user, rejectionReason);
         console.log('Complaint rejected email sent to:', user.email);
       } else if (status === 'closed' && previousStatus !== 'closed') {
         await sendComplaintClosedEmail(complaint, user);
