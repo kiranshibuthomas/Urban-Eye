@@ -12,6 +12,7 @@ const authRoutes = require('./routes/auth');
 const complaintRoutes = require('./routes/complaints');
 const statsRoutes = require('./routes/stats');
 const servicesRoutes = require('./routes/services');
+const userRoutes = require('./routes/users');
 
 // Import passport configuration
 require('./config/passport');
@@ -58,6 +59,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/services', servicesRoutes);
+app.use('/api/users', userRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

@@ -36,6 +36,7 @@ import {
   FiList
 } from 'react-icons/fi';
 import DashboardLayout from '../components/DashboardLayout';
+import UserManagement from './UserManagement';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -219,8 +220,14 @@ const AdminDashboard = () => {
       badge: stats.totalComplaints
     },
     {
-      label: 'Manage Staff',
+      label: 'User Management',
       icon: FiUsers,
+      onClick: () => setActiveTab('users'),
+      badge: stats.totalUsers
+    },
+    {
+      label: 'Manage Staff',
+      icon: FiUserCheck,
       onClick: () => setActiveTab('staff'),
       badge: stats.activeStaff
     },
@@ -882,6 +889,8 @@ const AdminDashboard = () => {
         return <OverviewTab />;
       case 'complaints':
         return <ComplaintsTab />;
+      case 'users':
+        return <UserManagement />;
       case 'staff':
         return <StaffTab />;
       case 'alerts':

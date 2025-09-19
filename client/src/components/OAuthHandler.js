@@ -85,6 +85,10 @@ const OAuthHandler = () => {
     if (user && hasProcessedAuth.current) {
       // Redirect based on user role after OAuth success
       const redirectPath = user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard';
+      
+      // Debug logging
+      console.log('OAuth redirect:', { userRole: user.role, redirectPath });
+      
       navigate(redirectPath, { replace: true });
       
       // Reset the flags

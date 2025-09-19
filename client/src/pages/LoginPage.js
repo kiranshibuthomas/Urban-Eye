@@ -27,7 +27,17 @@ const LoginPage = () => {
   useEffect(() => {
     // Redirect if already authenticated
     if (isAuthenticated && user) {
-      const redirectPath = from || (user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard');
+      // Only use 'from' if it's a valid dashboard path, otherwise use role-based redirect
+      let redirectPath;
+      if (from && (from === '/admin-dashboard' || from === '/citizen-dashboard')) {
+        redirectPath = from;
+      } else {
+        redirectPath = user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard';
+      }
+      
+      // Debug logging
+      console.log('Already authenticated redirect:', { from, userRole: user.role, redirectPath });
+      
       navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, user, navigate, from]);
@@ -69,7 +79,17 @@ const LoginPage = () => {
       });
 
       if (result.success) {
-        const redirectPath = from || (result.user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard');
+        // Only use 'from' if it's a valid dashboard path, otherwise use role-based redirect
+        let redirectPath;
+        if (from && (from === '/admin-dashboard' || from === '/citizen-dashboard')) {
+          redirectPath = from;
+        } else {
+          redirectPath = result.user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard';
+        }
+        
+        // Debug logging
+        console.log('Login redirect:', { from, userRole: result.user.role, redirectPath });
+        
         navigate(redirectPath, { replace: true });
       }
     } catch (error) {

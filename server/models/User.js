@@ -43,6 +43,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  customAvatar: {
+    type: String,
+    default: null
+  },
   isEmailVerified: {
     type: Boolean,
     default: false
@@ -170,7 +174,12 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 
 // Instance method to get live avatar URL
 userSchema.methods.getLiveAvatarUrl = function() {
-  // For Google OAuth users, prioritize the stored Google photo
+  // Priority 1: Custom uploaded avatar
+  if (this.customAvatar) {
+    return this.customAvatar;
+  }
+  
+  // Priority 2: Google OAuth photo
   if (this.googleId && this.googlePhotoUrl) {
     // Make sure it's not the invalid placeholder
     if (this.googlePhotoUrl !== 'https://lh3.googleusercontent.com/a/default-user=s400') {
@@ -192,11 +201,35 @@ userSchema.methods.getLiveAvatarUrl = function() {
     }
   }
   
-  // For all other users, use initials-based avatar service (better than Gravatar for new users)
+  // Priority 3: Fallback to initials-based avatar service
   const initials = this.name ? this.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U';
   const colors = ['FF6B6B', '4ECDC4', '45B7D1', '96CEB4', 'FFEAA7', 'DDA0DD', '98D8C8', 'F7DC6F'];
   const colorIndex = this.email ? this.email.charCodeAt(0) % colors.length : 0;
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&size=400&background=${colors[colorIndex]}&color=fff&bold=true`;
+};
+
+// Instance method to refresh Google photo URL
+userSchema.methods.refreshGooglePhotoUrl = function() {
+  if (this.googleId && this.googlePhotoUrl) {
+    // Try to get a fresh Google photo URL
+    let googleUrl = this.googlePhotoUrl;
+    
+    if (googleUrl.includes('googleusercontent.com')) {
+      // Remove any existing size parameters and add s400-c for better compatibility
+      googleUrl = googleUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400-c';
+      
+      // Add additional parameters to make the image more accessible
+      if (!googleUrl.includes('?')) {
+        googleUrl += '?sz=400';
+      }
+      
+      // Update the stored URL
+      this.googlePhotoUrl = googleUrl;
+      return googleUrl;
+    }
+  }
+  
+  return null;
 };
 
 // Instance method to get public profile

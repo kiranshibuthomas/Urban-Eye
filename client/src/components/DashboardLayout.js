@@ -17,7 +17,7 @@ const DashboardLayout = ({ children, title, actions }) => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/login', { replace: true, state: {} });
   };
 
   // Close user menu when clicking outside

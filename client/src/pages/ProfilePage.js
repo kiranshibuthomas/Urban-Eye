@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -18,12 +18,15 @@ import {
 import { FaCity } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import ProfileImageUpload from '../components/ProfileImageUpload';
 
 const ProfilePage = () => {
   const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const profileImageRef = useRef(null);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -35,7 +38,7 @@ const ProfilePage = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/login', { replace: true, state: {} });
   };
 
   // Update form data when user data changes
@@ -68,8 +71,22 @@ const ProfilePage = () => {
   };
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
-      // Call API to update profile
+      // First, handle avatar upload if there's a new image
+      let updatedUser = user;
+      if (profileImageRef.current && profileImageRef.current.hasChanges()) {
+        const avatarResult = await profileImageRef.current.uploadAvatar();
+        if (avatarResult.success) {
+          updatedUser = avatarResult.user;
+        } else {
+          toast.error(avatarResult.message || 'Failed to upload avatar');
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // Then update profile data
       const response = await fetch('/api/auth/profile', {
         method: 'PUT',
         headers: {
@@ -94,6 +111,8 @@ const ProfilePage = () => {
     } catch (error) {
       console.error('Profile update error:', error);
       toast.error('Failed to update profile. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -107,6 +126,12 @@ const ProfilePage = () => {
       city: user?.city || '',
       zipCode: user?.zipCode || ''
     });
+    
+    // Reset profile image component if it exists
+    if (profileImageRef.current) {
+      profileImageRef.current.handleCancel();
+    }
+    
     setIsEditing(false);
   };
 
@@ -327,6 +352,19 @@ const ProfilePage = () => {
             >
               <h2 className="text-2xl font-bold text-[#2F3E46] mb-6">Personal Information</h2>
               
+              {/* Profile Image Upload - Only show in edit mode */}
+              {isEditing && !isAdmin && (
+                <div className="mb-8 pb-6 border-b border-gray-200">
+                  <ProfileImageUpload 
+                    ref={profileImageRef}
+                    user={user} 
+                    onAvatarUpdate={(updatedUser) => {
+                      updateUser(updatedUser);
+                    }}
+                  />
+                </div>
+              )}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-[#354F52] mb-3">
@@ -457,10 +495,20 @@ const ProfilePage = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={handleSave}
-                    className="flex items-center space-x-2 px-6 py-3 bg-[#52796F] text-white rounded-xl hover:bg-[#354F52] transition-all duration-200 font-medium"
+                    disabled={isSaving}
+                    className="flex items-center space-x-2 px-6 py-3 bg-[#52796F] text-white rounded-xl hover:bg-[#354F52] transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <FiSave className="h-4 w-4" />
-                    <span>Save Changes</span>
+                    {isSaving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiSave className="h-4 w-4" />
+                        <span>Save Changes</span>
+                      </>
+                    )}
                   </motion.button>
                 </motion.div>
               )}

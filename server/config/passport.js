@@ -39,7 +39,12 @@ passport.use(new GoogleStrategy({
       existingUser.lastLogin = new Date();
       // Always update the Google profile photo URL on each login
       if (profile.photos && profile.photos[0] && profile.photos[0].value) {
-        existingUser.googlePhotoUrl = profile.photos[0].value.replace(/=s\d+-c$/, '=s400-c');
+        let photoUrl = profile.photos[0].value;
+        // Ensure proper formatting for Google photo URLs
+        if (photoUrl.includes('googleusercontent.com')) {
+          photoUrl = photoUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400-c';
+        }
+        existingUser.googlePhotoUrl = photoUrl;
       }
       await existingUser.save();
       return done(null, existingUser);
@@ -53,7 +58,12 @@ passport.use(new GoogleStrategy({
       emailUser.googleId = profile.id;
       // Store Google profile photo URL
       if (profile.photos && profile.photos[0] && profile.photos[0].value) {
-        emailUser.googlePhotoUrl = profile.photos[0].value.replace(/=s\d+-c$/, '=s400-c');
+        let photoUrl = profile.photos[0].value;
+        // Ensure proper formatting for Google photo URLs
+        if (photoUrl.includes('googleusercontent.com')) {
+          photoUrl = photoUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400-c';
+        }
+        emailUser.googlePhotoUrl = photoUrl;
       }
       emailUser.isEmailVerified = true;
       emailUser.lastLogin = new Date();
@@ -69,7 +79,12 @@ passport.use(new GoogleStrategy({
       // Store Google profile photo URL
       googlePhotoUrl: (() => {
         if (profile.photos && profile.photos[0] && profile.photos[0].value) {
-          return profile.photos[0].value.replace(/=s\d+-c$/, '=s400-c');
+          let photoUrl = profile.photos[0].value;
+          // Ensure proper formatting for Google photo URLs
+          if (photoUrl.includes('googleusercontent.com')) {
+            photoUrl = photoUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400-c';
+          }
+          return photoUrl;
         }
         return null;
       })(),

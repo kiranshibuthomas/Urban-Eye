@@ -39,6 +39,10 @@ const DefaultRedirect = () => {
 
   // Redirect based on user role
   const redirectPath = user?.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard';
+  
+  // Debug logging
+  console.log('DefaultRedirect:', { userRole: user?.role, redirectPath });
+  
   return <Navigate to={redirectPath} replace />;
 };
 

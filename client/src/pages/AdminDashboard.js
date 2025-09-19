@@ -44,6 +44,7 @@ import ModernSearchFilter from '../components/ModernSearchFilter';
 import ModernQuickActions from '../components/ModernQuickActions';
 import ModernRecentActivity from '../components/ModernRecentActivity';
 import AdminComplaintManagement from './AdminComplaintManagement';
+import UserManagement from './UserManagement';
 
 const AdminDashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -91,7 +92,7 @@ const AdminDashboard = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/login', { replace: true, state: {} });
   };
 
   // Close dropdown when clicking outside
@@ -633,6 +634,8 @@ const AdminDashboard = () => {
         return <OverviewTab />;
       case 'complaints':
         return <AdminComplaintManagement />;
+      case 'users':
+        return <UserManagement />;
       case 'staff':
         return <StaffTab />;
       case 'alerts':
@@ -688,7 +691,8 @@ const AdminDashboard = () => {
                 {[
                   { key: 'overview', label: 'Overview', icon: FiTrendingUp },
                   { key: 'complaints', label: 'Complaints', icon: FiFileText },
-                  { key: 'staff', label: 'Staff', icon: FiUsers },
+                  { key: 'users', label: 'Users', icon: FiUsers },
+                  { key: 'staff', label: 'Staff', icon: FiUserCheck },
                   { key: 'alerts', label: 'Alerts', icon: FiSend }
                 ].map((tab) => (
                   <motion.button
@@ -760,6 +764,7 @@ const AdminDashboard = () => {
                       <div className="py-1">
                         <button
                           type="button"
+                          onClick={() => navigate('/profile')}
                           className="w-full px-4 py-2 text-left text-base text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-200"
                         >
                           <FiUser className="h-4 w-4 mr-3" />
@@ -767,6 +772,7 @@ const AdminDashboard = () => {
                         </button>
                         <button
                           type="button"
+                          onClick={() => navigate('/settings')}
                           className="w-full px-4 py-2 text-left text-base text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-200"
                         >
                           <FiSettings className="h-4 w-4 mr-3" />

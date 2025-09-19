@@ -1,0 +1,112 @@
+commit b1bc67a5b659e7475b65f3e9f0b07a253bce6586
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Thu Sep 18 16:18:50 2025 +0530
+
+    Add rejection reason functionality and fix page refresh issues
+
+commit f6cee2e17efe1ba93defb458169028425d92234e
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Thu Sep 18 15:51:39 2025 +0530
+
+    Add soft/hard delete, audit logs, live stats, and improve UI readability
+
+commit c2861c8ae5efa09753b69bb8690bac72ad520aa2
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Thu Sep 18 13:32:58 2025 +0530
+
+    Fix avatar display issues and add debugging tools
+    
+    - Fix ObjectId casting errors in complaints routes by reordering route definitions
+    - Fix duplicate toast messages in OAuth handling and auth context
+    - Improve avatar display with better error handling and fallbacks
+    - Add debug endpoint and tools for avatar troubleshooting
+    - Enhance Google photo URL handling with better fallback mechanisms
+    - Replace generic placeholder icons with user initials when avatars fail
+    - Add avatar refresh functionality to AuthContext
+    - Fix logout function hoisting issues in AuthContext
+
+commit 16135a415552725c67f65ce2c9ac0c334820582a
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Wed Sep 17 16:17:58 2025 +0530
+
+    feat: Implement OTP-based email verification and forgot password system
+    
+    - Add OTP verification for user registration
+    - Implement forgot password with OTP verification
+    - Add password reset functionality
+    - Create new pages: OTPVerificationPage, ForgotPasswordPage, PasswordResetOTPPage, ResetPasswordPage
+    - Update User model with OTP fields for email verification and password reset
+    - Add email templates for OTP verification and password reset
+    - Fix Google OAuth account detection logic
+    - Update AuthContext to handle OTP verification flow
+    - Add routing for password reset flow
+    - Enhance email service with OTP templates
+
+commit afae6af90793ce25afd46df4d11b656dc8766f14
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Mon Sep 15 16:10:50 2025 +0530
+
+    Add missing server dependencies to root package.json
+    
+    - Added cookie-parser, connect-mongo, express-rate-limit
+    - Added express-session, express-validator, uuid
+    - Updated mongoose and nodemailer versions to match server
+    - Fixed deployment dependency issues
+
+commit ed9061624180cacec6d7fe736cb962cf850f70a9
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Mon Sep 15 16:07:04 2025 +0530
+
+    Fix deployment configuration and add email verification system
+    
+    - Updated package.json with all server dependencies
+    - Added render.yaml for Render.com deployment
+    - Created .env.example with all required environment variables
+    - Updated README.md with deployment instructions and email verification info
+    - Fixed dependency issues for production deployment
+
+commit 1f565c4d75b9ef4fde1c728a3d45a3d52d9f4270
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Mon Sep 15 15:58:24 2025 +0530
+
+    Initial commit: UrbanEye - Smart Civic Management Platform with Email Verification
+
+commit 5778aa4a26d16548d587c2c5b961417b9e70b71e
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Fri Sep 12 09:36:41 2025 +0530
+
+    Fix map visual bug, update UI for admin and report pages, fix dropdown bug in header, implement live stats update
+
+commit e9bbe58ac568907503f1fb46da3c80c463150c75
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Wed Sep 10 16:21:03 2025 +0530
+
+    feat: Add interactive map functionality to ReportsHistory
+    
+    - Integrate GoogleMapModal component for viewing report locations
+    - Add 'View Map' button in report details modal
+    - Add map icon button in report list for quick access
+    - Support both coordinate formats (location.coordinates and latitude/longitude)
+    - Include professional styling with color palette integration
+    - Add smooth animations and hover effects for map buttons
+    - Implement full Google Maps functionality with custom markers
+    - Add directions and copy coordinates features
+    - Ensure responsive design and accessibility
+
+commit 9782d7c8cab6acbf4e830ea4f496735f62109cba
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Mon Aug 25 09:14:48 2025 +0530
+
+    Restore original file organization: move LoadingSpinner back to flat structure
+
+commit 406e0e2e4bc7650d08b21dbc83a81602e1f7db5b
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Mon Aug 25 09:10:18 2025 +0530
+
+    dashboard update
+
+commit e6accd4e4707fea0a761e7eb79dd853de292e7b9
+Author: Kiran SHibu Thomas <kiranshibuthomas17603@gmail.com>
+Date:   Tue Aug 12 20:39:42 2025 +0530
+
+    Initial commit: login / signup

@@ -1,6 +1,8 @@
 const express = require('express');
 const passport = require('passport');
 const crypto = require('crypto');
+const path = require('path');
+const fs = require('fs');
 const User = require('../models/User');
 const { 
   generateToken, 
@@ -9,6 +11,7 @@ const {
   clearTokenCookie 
 } = require('../middleware/auth');
 const { sendOTPVerificationEmail, sendPasswordResetOTPEmail } = require('../services/emailService');
+const upload = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -1224,6 +1227,108 @@ router.put('/change-password', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error during password change'
+    });
+  }
+});
+
+// @route   POST /api/auth/upload-avatar
+// @desc    Upload user avatar
+// @access  Private
+router.post('/upload-avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      // Delete the uploaded file if user not found
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Delete old custom avatar if it exists
+    if (user.customAvatar) {
+      const oldAvatarPath = path.join(__dirname, '../uploads/avatars', path.basename(user.customAvatar));
+      if (fs.existsSync(oldAvatarPath)) {
+        fs.unlinkSync(oldAvatarPath);
+      }
+    }
+
+    // Update user with new avatar URL
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    user.customAvatar = avatarUrl;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Avatar uploaded successfully',
+      avatarUrl: avatarUrl,
+      user: user.getPublicProfile()
+    });
+
+  } catch (error) {
+    console.error('Upload avatar error:', error);
+    
+    // Delete the uploaded file if there was an error
+    if (req.file) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Server error during avatar upload'
+    });
+  }
+});
+
+// @route   DELETE /api/auth/delete-avatar
+// @desc    Delete user's custom avatar
+// @access  Private
+router.delete('/delete-avatar', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (!user.customAvatar) {
+      return res.status(400).json({
+        success: false,
+        message: 'No custom avatar to delete'
+      });
+    }
+
+    // Delete the avatar file from filesystem
+    const avatarPath = path.join(__dirname, '../uploads/avatars', path.basename(user.customAvatar));
+    if (fs.existsSync(avatarPath)) {
+      fs.unlinkSync(avatarPath);
+    }
+
+    // Remove custom avatar from user record
+    user.customAvatar = null;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Avatar deleted successfully',
+      user: user.getPublicProfile()
+    });
+
+  } catch (error) {
+    console.error('Delete avatar error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during avatar deletion'
     });
   }
 });
