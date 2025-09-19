@@ -506,28 +506,28 @@ const UserManagement = () => {
           icon={FiUsers}
           title="Total Users"
           value={stats.totalUsers.toLocaleString()}
-          color="bg-gray-100"
+          color="bg-blue-500"
           delay={0.1}
         />
         <StatCard
           icon={FiUserCheck}
           title="Active Users"
           value={stats.activeUsers.toLocaleString()}
-          color="bg-gray-100"
+          color="bg-green-500"
           delay={0.2}
         />
         <StatCard
           icon={FiShield}
           title="Verified Users"
           value={stats.verifiedUsers.toLocaleString()}
-          color="bg-gray-100"
+          color="bg-purple-500"
           delay={0.3}
         />
         <StatCard
           icon={FiCalendar}
           title="Today's Registrations"
           value={stats.todayRegistrations.toLocaleString()}
-          color="bg-gray-100"
+          color="bg-orange-500"
           delay={0.4}
         />
       </div>
