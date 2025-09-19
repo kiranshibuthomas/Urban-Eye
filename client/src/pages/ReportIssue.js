@@ -17,7 +17,9 @@ import {
   FiUser,
   FiSettings,
   FiLogOut,
-  FiChevronDown
+  FiChevronDown,
+  FiEye,
+  FiEyeOff
 } from 'react-icons/fi';
 import { FaCity } from 'react-icons/fa';
 
@@ -45,6 +47,8 @@ const ReportIssue = () => {
   const [images, setImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [fieldTouched, setFieldTouched] = useState({});
 
   // Category options
   const categories = [
@@ -73,6 +77,116 @@ const ReportIssue = () => {
   useEffect(() => {
     getCurrentLocation();
   }, []);
+
+  // Real-time validation
+  useEffect(() => {
+    validateField('title', formData.title);
+  }, [formData.title]);
+
+  useEffect(() => {
+    validateField('description', formData.description);
+  }, [formData.description]);
+
+  useEffect(() => {
+    validateField('address', formData.address);
+  }, [formData.address]);
+
+  useEffect(() => {
+    validateField('city', formData.city);
+  }, [formData.city]);
+
+  useEffect(() => {
+    validateField('pincode', formData.pincode);
+  }, [formData.pincode]);
+
+  const validateField = (fieldName, value) => {
+    const errors = { ...validationErrors };
+    
+    switch (fieldName) {
+      case 'title':
+        if (!value.trim()) {
+          errors.title = 'Title is required';
+        } else if (value.trim().length < 5) {
+          errors.title = 'Title must be at least 5 characters long';
+        } else if (value.trim().length > 100) {
+          errors.title = 'Title cannot exceed 100 characters';
+        } else {
+          delete errors.title;
+        }
+        break;
+
+      case 'description':
+        if (!value.trim()) {
+          errors.description = 'Description is required';
+        } else if (value.trim().length < 20) {
+          errors.description = 'Description must be at least 20 characters long';
+        } else if (value.trim().length > 1000) {
+          errors.description = 'Description cannot exceed 1000 characters';
+        } else {
+          delete errors.description;
+        }
+        break;
+
+      case 'address':
+        if (!value.trim()) {
+          errors.address = 'Address is required';
+        } else if (value.trim().length < 10) {
+          errors.address = 'Address must be at least 10 characters long';
+        } else if (value.trim().length > 200) {
+          errors.address = 'Address cannot exceed 200 characters';
+        } else {
+          delete errors.address;
+        }
+        break;
+
+      case 'city':
+        if (!value.trim()) {
+          errors.city = 'City is required';
+        } else if (value.trim().length < 2) {
+          errors.city = 'City must be at least 2 characters long';
+        } else if (value.trim().length > 50) {
+          errors.city = 'City cannot exceed 50 characters';
+        } else if (!/^[a-zA-Z\s]+$/.test(value.trim())) {
+          errors.city = 'City can only contain letters and spaces';
+        } else {
+          delete errors.city;
+        }
+        break;
+
+      case 'pincode':
+        if (value && value.trim()) {
+          const pincodeRegex = /^[1-9][0-9]{5}$/;
+          if (!pincodeRegex.test(value.trim())) {
+            errors.pincode = 'Please enter a valid 6-digit pincode';
+          } else {
+            delete errors.pincode;
+          }
+        } else {
+          delete errors.pincode;
+        }
+        break;
+
+      default:
+        break;
+    }
+
+    setValidationErrors(errors);
+  };
+
+  const isFieldValid = (fieldName) => {
+    return !validationErrors[fieldName] && formData[fieldName] && formData[fieldName].trim();
+  };
+
+  const isFieldInvalid = (fieldName) => {
+    return validationErrors[fieldName] && fieldTouched[fieldName];
+  };
+
+  const handleFieldBlur = (fieldName) => {
+    setFieldTouched(prev => ({
+      ...prev,
+      [fieldName]: true
+    }));
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -185,6 +299,31 @@ const ReportIssue = () => {
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
+  const validateForm = () => {
+    // Mark all fields as touched
+    const allFields = ['title', 'description', 'address', 'city', 'pincode'];
+    allFields.forEach(field => {
+      setFieldTouched(prev => ({ ...prev, [field]: true }));
+    });
+
+    // Validate all fields
+    validateField('title', formData.title);
+    validateField('description', formData.description);
+    validateField('address', formData.address);
+    validateField('city', formData.city);
+    validateField('pincode', formData.pincode);
+
+    // Check if there are any validation errors
+    const hasErrors = Object.keys(validationErrors).length > 0;
+    
+    if (hasErrors) {
+      toast.error('Please fix the validation errors before submitting');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -193,8 +332,7 @@ const ReportIssue = () => {
       return;
     }
 
-    if (!formData.title.trim() || !formData.description.trim()) {
-      toast.error('Title and description are required');
+    if (!validateForm()) {
       return;
     }
 
@@ -451,29 +589,61 @@ const ReportIssue = () => {
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
                   Address *
                 </label>
-                <input
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F] focus:border-[#52796F] transition-all duration-200"
-                  placeholder="Enter the address where the issue occurred"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    onBlur={() => handleFieldBlur('address')}
+                    required
+                    className={`w-full px-4 py-3 pr-10 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 ${
+                      isFieldValid('address') ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500' : 
+                      isFieldInvalid('address') ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 
+                      'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
+                    }`}
+                    placeholder="Enter the address where the issue occurred"
+                  />
+                  {isFieldValid('address') && (
+                    <FiCheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500 w-5 h-5" />
+                  )}
+                  {isFieldInvalid('address') && (
+                    <FiX className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />
+                  )}
+                </div>
+                {isFieldInvalid('address') && (
+                  <p className="text-red-500 text-sm mt-1">{validationErrors.address}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
                   City *
                 </label>
-                <input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F] focus:border-[#52796F] transition-all duration-200"
-                  placeholder="Enter city"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                    onBlur={() => handleFieldBlur('city')}
+                    required
+                    className={`w-full px-4 py-3 pr-10 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 ${
+                      isFieldValid('city') ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500' : 
+                      isFieldInvalid('city') ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 
+                      'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
+                    }`}
+                    placeholder="Enter city"
+                  />
+                  {isFieldValid('city') && (
+                    <FiCheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500 w-5 h-5" />
+                  )}
+                  {isFieldInvalid('city') && (
+                    <FiX className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />
+                  )}
+                </div>
+                {isFieldInvalid('city') && (
+                  <p className="text-red-500 text-sm mt-1">{validationErrors.city}</p>
+                )}
               </div>
             </div>
 
@@ -481,14 +651,31 @@ const ReportIssue = () => {
               <label className="block text-sm font-semibold text-gray-700 mb-3">
                 Pincode
               </label>
-              <input
-                type="text"
-                name="pincode"
-                value={formData.pincode}
-                onChange={handleInputChange}
-                className="w-full md:w-1/3 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F] focus:border-[#52796F] transition-all duration-200"
-                placeholder="Enter pincode"
-              />
+              <div className="relative w-full md:w-1/3">
+                <input
+                  type="text"
+                  name="pincode"
+                  value={formData.pincode}
+                  onChange={handleInputChange}
+                  onBlur={() => handleFieldBlur('pincode')}
+                  className={`w-full px-4 py-3 pr-10 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 ${
+                    isFieldValid('pincode') ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500' : 
+                    isFieldInvalid('pincode') ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 
+                    'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
+                  }`}
+                  placeholder="Enter pincode"
+                  maxLength="6"
+                />
+                {isFieldValid('pincode') && (
+                  <FiCheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500 w-5 h-5" />
+                )}
+                {isFieldInvalid('pincode') && (
+                  <FiX className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />
+                )}
+              </div>
+              {isFieldInvalid('pincode') && (
+                <p className="text-red-500 text-sm mt-1">{validationErrors.pincode}</p>
+              )}
             </div>
           </motion.div>
 
@@ -514,30 +701,72 @@ const ReportIssue = () => {
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
                   Title *
                 </label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F] focus:border-[#52796F] transition-all duration-200"
-                  placeholder="Brief description of the issue"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    onBlur={() => handleFieldBlur('title')}
+                    required
+                    className={`w-full px-4 py-3 pr-10 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 ${
+                      isFieldValid('title') ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500' : 
+                      isFieldInvalid('title') ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 
+                      'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
+                    }`}
+                    placeholder="Brief description of the issue"
+                    maxLength="100"
+                  />
+                  {isFieldValid('title') && (
+                    <FiCheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500 w-5 h-5" />
+                  )}
+                  {isFieldInvalid('title') && (
+                    <FiX className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />
+                  )}
+                </div>
+                {isFieldInvalid('title') && (
+                  <p className="text-red-500 text-sm mt-1">{validationErrors.title}</p>
+                )}
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>Minimum 5 characters</span>
+                  <span>{formData.title.length}/100</span>
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
                   Description *
                 </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  required
-                  rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F] focus:border-[#52796F] transition-all duration-200 resize-none"
-                  placeholder="Detailed description of the issue..."
-                />
+                <div className="relative">
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    onBlur={() => handleFieldBlur('description')}
+                    required
+                    rows={4}
+                    className={`w-full px-4 py-3 pr-10 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 resize-none ${
+                      isFieldValid('description') ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500' : 
+                      isFieldInvalid('description') ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 
+                      'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
+                    }`}
+                    placeholder="Detailed description of the issue..."
+                    maxLength="1000"
+                  />
+                  {isFieldValid('description') && (
+                    <FiCheckCircle className="absolute right-3 top-3 text-green-500 w-5 h-5" />
+                  )}
+                  {isFieldInvalid('description') && (
+                    <FiX className="absolute right-3 top-3 text-red-500 w-5 h-5" />
+                  )}
+                </div>
+                {isFieldInvalid('description') && (
+                  <p className="text-red-500 text-sm mt-1">{validationErrors.description}</p>
+                )}
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>Minimum 20 characters</span>
+                  <span>{formData.description.length}/1000</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -718,7 +947,7 @@ const ReportIssue = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              disabled={loading || !currentLocation}
+              disabled={loading || !currentLocation || Object.keys(validationErrors).length > 0}
               className="px-8 py-3 bg-gradient-to-r from-[#52796F] to-[#354F52] text-white rounded-xl hover:from-[#354F52] hover:to-[#2F3E46] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold shadow-lg"
             >
               {loading && (
