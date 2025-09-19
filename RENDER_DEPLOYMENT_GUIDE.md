@@ -8,7 +8,7 @@
 ## Render Configuration
 
 ### 1. Service Settings
-- **Build Command**: `npm install`
+- **Build Command**: `npm install && npm run render-postbuild`
 - **Start Command**: `npm start`
 - **Node Version**: 18.x or higher
 
@@ -54,12 +54,11 @@ EMAIL_FROM=UrbanEye <noreply@urbaneye.com>
 5. Add all environment variables
 6. Deploy!
 
-### 5. Frontend Deployment
-For the React frontend, you'll need to:
-1. Create a separate Static Site service in Render
-2. Set the build command to: `cd client && npm install && npm run build`
-3. Set the publish directory to: `client/build`
-4. Update the CLIENT_URL in your backend environment variables
+### 5. Single Service Deployment
+✅ **No separate frontend deployment needed!** 
+- The server now serves both the API and the React frontend
+- React app is built during deployment and served by the same server
+- All routes are handled by the Express server
 
 ## Troubleshooting
 - If you get module errors, ensure all dependencies are in the root `package.json`

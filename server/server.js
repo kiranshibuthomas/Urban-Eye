@@ -69,6 +69,26 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'UrbanEye Backend is running!' });
 });
 
+// Serve static files from React build in production
+if (process.env.NODE_ENV === 'production') {
+  // Serve static files from the React app build directory
+  app.use(express.static(path.join(__dirname, '../client/build')));
+  
+  // Handle React routing - return all requests to React app
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+  });
+} else {
+  // In development, just provide a simple message
+  app.get('/', (req, res) => {
+    res.json({ 
+      message: 'UrbanEye Backend API is running!',
+      environment: 'development',
+      frontend: 'http://localhost:3000'
+    });
+  });
+}
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
