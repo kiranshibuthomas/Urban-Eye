@@ -50,10 +50,18 @@ const AdminComplaintManagement = () => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [complaintToReject, setComplaintToReject] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [complaintToAssign, setComplaintToAssign] = useState(null);
+  const [fieldStaff, setFieldStaff] = useState([]);
+  const [selectedFieldStaff, setSelectedFieldStaff] = useState('');
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [complaintToApprove, setComplaintToApprove] = useState(null);
+  const [approvalNotes, setApprovalNotes] = useState('');
 
   useEffect(() => {
     fetchComplaints();
     fetchStats();
+    fetchFieldStaff();
     loadGoogleMapsScript();
   }, [filters, showDeleted]);
 
@@ -154,6 +162,21 @@ const AdminComplaintManagement = () => {
     } catch (error) {
       console.error('Error fetching stats:', error);
       toast.error('Failed to fetch statistics');
+    }
+  };
+
+  const fetchFieldStaff = async () => {
+    try {
+      const response = await fetch('/api/users/field-staff', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setFieldStaff(data.fieldStaff);
+      }
+    } catch (error) {
+      console.error('Error fetching field staff:', error);
     }
   };
 
@@ -304,6 +327,95 @@ const AdminComplaintManagement = () => {
     }
   };
 
+  const handleAssignToFieldStaff = (complaint) => {
+    setComplaintToAssign(complaint);
+    setSelectedFieldStaff('');
+    setShowAssignDialog(true);
+  };
+
+  const confirmAssignToFieldStaff = async () => {
+    if (!selectedFieldStaff) {
+      toast.error('Please select a field staff member');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/complaints/${complaintToAssign._id}/assign-field-staff`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          assignedToFieldStaff: selectedFieldStaff
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          toast.success('Complaint assigned to field staff successfully');
+          setShowAssignDialog(false);
+          setComplaintToAssign(null);
+          setSelectedFieldStaff('');
+          fetchComplaints();
+          fetchStats();
+        } else {
+          toast.error(data.message || 'Failed to assign complaint');
+        }
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to assign complaint');
+      }
+    } catch (error) {
+      console.error('Error assigning complaint:', error);
+      toast.error('Failed to assign complaint');
+    }
+  };
+
+  const handleApproveWork = (complaint) => {
+    setComplaintToApprove(complaint);
+    setApprovalNotes('');
+    setShowApproveDialog(true);
+  };
+
+  const confirmApproveWork = async () => {
+    if (!complaintToApprove) return;
+
+    try {
+      const response = await fetch(`/api/complaints/${complaintToApprove._id}/approve-work`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          approvalNotes: approvalNotes.trim()
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          toast.success('Work approved successfully');
+          setShowApproveDialog(false);
+          setComplaintToApprove(null);
+          setApprovalNotes('');
+          fetchComplaints();
+          fetchStats();
+        } else {
+          toast.error(data.message || 'Failed to approve work');
+        }
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to approve work');
+      }
+    } catch (error) {
+      console.error('Error approving work:', error);
+      toast.error('Failed to approve work');
+    }
+  };
+
   const cancelReject = () => {
     setShowRejectDialog(false);
     setComplaintToReject(null);
@@ -318,7 +430,9 @@ const AdminComplaintManagement = () => {
   const getStatusColor = (status) => {
     const colors = {
       pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      assigned: 'bg-orange-100 text-orange-800 border-orange-200',
       in_progress: 'bg-blue-100 text-blue-800 border-blue-200',
+      work_completed: 'bg-purple-100 text-purple-800 border-purple-200',
       resolved: 'bg-green-100 text-green-800 border-green-200',
       rejected: 'bg-red-100 text-red-800 border-red-200',
       closed: 'bg-gray-100 text-gray-800 border-gray-200'
@@ -673,12 +787,12 @@ const AdminComplaintManagement = () => {
                     {complaint.status === 'pending' && (
                       <>
                         <button
-                          onClick={() => updateComplaintStatus(complaint._id, 'in_progress')}
-                          className="flex items-center px-3 py-1.5 text-base text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors duration-200"
+                          onClick={() => handleAssignToFieldStaff(complaint)}
+                          className="flex items-center px-3 py-1.5 text-base text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md transition-colors duration-200"
+                          title="Assign to Field Staff"
                         >
-                          <FiEdit className="h-4 w-4 mr-1" />
-                          <span className="hidden sm:inline">Start Work</span>
-                          <span className="sm:hidden">Start</span>
+                          <FiUser className="h-4 w-4 mr-1" />
+                          <span className="hidden sm:inline">Assign</span>
                         </button>
                         <button
                           onClick={() => handleRejectComplaint(complaint)}
@@ -690,13 +804,15 @@ const AdminComplaintManagement = () => {
                         </button>
                       </>
                     )}
-                    {complaint.status === 'in_progress' && (
+                    {complaint.status === 'work_completed' && (
                       <button
-                        onClick={() => updateComplaintStatus(complaint._id, 'resolved')}
-                          className="flex items-center px-3 py-1.5 text-base text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md transition-colors duration-200"
+                        onClick={() => handleApproveWork(complaint)}
+                        className="flex items-center px-3 py-1.5 text-base text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md transition-colors duration-200"
+                        title="Approve completed work"
                       >
                         <FiCheckCircle className="h-4 w-4 mr-1" />
-                        Mark Resolved
+                        <span className="hidden sm:inline">Approve Work</span>
+                        <span className="sm:hidden">Approve</span>
                       </button>
                     )}
                     {complaint.status === 'deleted' ? (
@@ -883,6 +999,140 @@ const AdminComplaintManagement = () => {
                     className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors duration-200"
                   >
                     Reject Complaint
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Field Staff Assignment Modal */}
+        {showAssignDialog && complaintToAssign && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-lg p-6 w-full max-w-md mx-4"
+            >
+              <div className="text-center">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Assign to Field Staff
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Select a field staff member to assign this complaint to.
+                </p>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Complaint: {complaintToAssign.title}
+                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Category: {complaintToAssign.category.replace('_', ' ')}
+                  </label>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Field Staff Member *
+                  </label>
+                  <select
+                    value={selectedFieldStaff}
+                    onChange={(e) => setSelectedFieldStaff(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select Field Staff</option>
+                    {fieldStaff
+                      .filter(staff => {
+                        // Filter field staff based on complaint category
+                        const categoryToDepartmentMap = {
+                          'waste_management': 'sanitation',
+                          'water_supply': 'water_supply',
+                          'electricity': 'electricity',
+                          'street_lighting': 'electricity',
+                          'road_issues': 'public_works',
+                          'drainage': 'public_works',
+                          'parks_recreation': 'public_works'
+                        };
+                        const expectedDepartment = categoryToDepartmentMap[complaintToAssign.category];
+                        return !expectedDepartment || staff.department === expectedDepartment;
+                      })
+                      .map(staff => (
+                        <option key={staff._id} value={staff._id}>
+                          {staff.name} ({staff.department.replace('_', ' ')})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowAssignDialog(false);
+                      setComplaintToAssign(null);
+                      setSelectedFieldStaff('');
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmAssignToFieldStaff}
+                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors duration-200"
+                  >
+                    Assign Complaint
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Approve Work Modal */}
+        {showApproveDialog && complaintToApprove && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4"
+            >
+              <div className="p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Approve Completed Work</h3>
+                <p className="text-sm text-gray-600 mb-4">Review and approve the work completed by field staff.</p>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Complaint: {complaintToApprove.title}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Field Staff: {complaintToApprove.assignedToFieldStaff?.name}</label>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Approval Notes (Optional)</label>
+                  <textarea
+                    value={approvalNotes}
+                    onChange={(e) => setApprovalNotes(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Add any notes about the approval..."
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowApproveDialog(false);
+                      setComplaintToApprove(null);
+                      setApprovalNotes('');
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmApproveWork}
+                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-200"
+                  >
+                    Approve Work
                   </button>
                 </div>
               </div>

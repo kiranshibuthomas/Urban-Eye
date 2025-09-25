@@ -13,6 +13,7 @@ const complaintRoutes = require('./routes/complaints');
 const statsRoutes = require('./routes/stats');
 const servicesRoutes = require('./routes/services');
 const userRoutes = require('./routes/users');
+const fieldStaffRoutes = require('./routes/fieldStaff');
 
 // Import passport configuration
 require('./config/passport');
@@ -36,8 +37,11 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 30 * 60 * 1000 // 30 minutes
-  }
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours (extended from 30 minutes)
+  },
+  name: 'urbaneye.sid' // Custom session name
 }));
 
 // Passport middleware
@@ -60,6 +64,7 @@ app.use('/api/complaints', complaintRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/services', servicesRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/field-staff', fieldStaffRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

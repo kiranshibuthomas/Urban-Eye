@@ -28,7 +28,7 @@ const createTransporter = () => {
 // Email templates
 const emailTemplates = {
   complaintSubmitted: (complaint, user) => ({
-    subject: `Complaint Submitted Successfully - ${complaint.complaintId}`,
+    subject: `Your complaint has been submitted - ${complaint.complaintId}`,
     html: `
       <!DOCTYPE html>
       <html>
@@ -37,50 +37,219 @@ const emailTemplates = {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Complaint Submitted</title>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .complaint-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
-          .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
-          .status-pending { background: #fff3cd; color: #856404; }
-          .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-          .btn { display: inline-block; padding: 12px 25px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+          body { 
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            line-height: 1.4; 
+            color: #000000; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f3f2f1;
+          }
+          .email-container { 
+            max-width: 600px; 
+            margin: 40px auto; 
+            background-color: #ffffff;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+          }
+          .header { 
+            background-color: #9146ff; 
+            padding: 40px 24px; 
+            text-align: center; 
+          }
+          .logo-icon { 
+            width: 48px; 
+            height: 48px; 
+            margin: 0 auto 16px auto; 
+            background-color: #ffffff; 
+            border-radius: 8px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 24px; 
+            color: #9146ff; 
+            font-weight: bold; 
+          }
+          .logo { 
+            color: #ffffff; 
+            font-size: 24px; 
+            font-weight: 600; 
+            margin: 0; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+          }
+          .content { 
+            padding: 32px 24px; 
+            background-color: #ffffff;
+          }
+          .greeting { 
+            font-size: 16px; 
+            margin: 0 0 16px 0; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .main-message { 
+            font-size: 14px; 
+            margin: 0 0 24px 0; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .details-section {
+            margin: 24px 0;
+            text-align: center;
+          }
+          .detail-item { 
+            margin: 8px 0; 
+            font-size: 14px; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .detail-label { 
+            font-weight: 600; 
+            color: #000000; 
+          }
+          .complaint-box { 
+            background-color: #ffffff; 
+            border: 1px solid #e0e0e0; 
+            border-radius: 0; 
+            padding: 24px; 
+            margin: 24px 0; 
+            text-align: center;
+          }
+          .complaint-title { 
+            font-size: 16px; 
+            font-weight: 600; 
+            color: #000000; 
+            margin: 0 0 12px 0; 
+          }
+          .complaint-id { 
+            font-size: 12px; 
+            color: #666666; 
+            margin: 0 0 16px 0; 
+            font-weight: 400;
+          }
+          .complaint-desc { 
+            font-size: 14px; 
+            color: #000000; 
+            margin: 0 0 16px 0; 
+            line-height: 1.4; 
+            font-weight: 400;
+          }
+          .complaint-meta { 
+            display: block; 
+            margin: 16px 0 0 0; 
+          }
+          .meta-item { 
+            margin: 6px 0; 
+            font-size: 12px; 
+            color: #000000; 
+            font-weight: 400;
+          }
+          .meta-label { 
+            font-weight: 600; 
+            color: #000000; 
+          }
+          .cta-section { 
+            text-align: center; 
+            margin: 32px 0; 
+          }
+          .cta-button { 
+            display: inline-block; 
+            background-color: #9146ff; 
+            color: #ffffff; 
+            text-decoration: none; 
+            padding: 14px 28px; 
+            border-radius: 0; 
+            font-size: 14px; 
+            font-weight: 600; 
+            margin: 8px; 
+          }
+          .footer { 
+            background-color: #f3f2f1; 
+            padding: 24px; 
+            text-align: center; 
+          }
+          .footer-text { 
+            font-size: 12px; 
+            color: #666666; 
+            margin: 0; 
+            font-weight: 400;
+          }
+          .status-badge { 
+            display: inline-block; 
+            background-color: #ffd700; 
+            color: #000000; 
+            padding: 4px 8px; 
+            border-radius: 0; 
+            font-size: 12px; 
+            font-weight: 600; 
+          }
+          @media (max-width: 600px) {
+            .email-container { margin: 20px; }
+            .content { padding: 24px 20px; }
+          }
         </style>
       </head>
       <body>
-        <div class="container">
+        <div class="email-container">
           <div class="header">
-            <h1>🏛️ UrbanEye</h1>
-            <h2>Complaint Submitted Successfully</h2>
+            <div class="logo-icon">📝</div>
+            <h1 class="logo">UrbanEye</h1>
           </div>
+          
           <div class="content">
-            <p>Dear ${user.name},</p>
-            <p>Thank you for reporting an issue through UrbanEye. Your complaint has been successfully submitted and is now under review.</p>
+            <p class="greeting">Hey ${user.name},</p>
             
-            <div class="complaint-details">
-              <h3>Complaint Details</h3>
-              <p><strong>Complaint ID:</strong> ${complaint.complaintId}</p>
-              <p><strong>Title:</strong> ${complaint.title}</p>
-              <p><strong>Category:</strong> ${complaint.category.replace(/_/g, ' ').toUpperCase()}</p>
-              <p><strong>Priority:</strong> ${complaint.priority.toUpperCase()}</p>
-              <p><strong>Status:</strong> <span class="status-badge status-pending">${complaint.status.toUpperCase()}</span></p>
-              <p><strong>Location:</strong> ${complaint.address}, ${complaint.city}</p>
-              <p><strong>Submitted:</strong> ${new Date(complaint.submittedAt).toLocaleString()}</p>
+            <p class="main-message">Thank you for submitting your complaint. We have received it and will review it shortly.</p>
+            
+            <div class="details-section">
+              <div class="detail-item">
+                <span class="detail-label">Status:</span> <span class="status-badge">Pending</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Submitted:</span> ${new Date(complaint.createdAt).toLocaleDateString()}
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Reference:</span> ${complaint.complaintId}
+              </div>
             </div>
             
-            <p>We will keep you updated on the progress of your complaint. You can track its status by logging into your UrbanEye account.</p>
-            
-            <div style="text-align: center;">
-              <a href="${process.env.CLIENT_URL}/dashboard" class="btn">View Dashboard</a>
+            <div class="complaint-box">
+              <h3 class="complaint-title">${complaint.title}</h3>
+              <p class="complaint-id">Complaint ID: ${complaint.complaintId}</p>
+              <p class="complaint-desc">${complaint.description}</p>
+              
+              <div class="complaint-meta">
+                <div class="meta-item">
+                  <span class="meta-label">Location:</span><br>
+                  ${complaint.address}, ${complaint.city}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Category:</span><br>
+                  ${complaint.category.replace('_', ' ')}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Priority:</span><br>
+                  ${complaint.priority}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Submitted:</span><br>
+                  ${new Date(complaint.createdAt).toLocaleDateString()}
+                </div>
+              </div>
             </div>
             
-            <p>If you have any questions or need to provide additional information, please don't hesitate to contact us.</p>
+            <p style="font-size: 14px; color: #666666; margin: 24px 0; font-weight: 400;">We will review your complaint and take appropriate action. You will receive updates via email.</p>
             
-            <div class="footer">
-              <p>Best regards,<br>The UrbanEye Team</p>
-              <p>This is an automated message. Please do not reply to this email.</p>
+            <div class="cta-section">
+              <a href="${process.env.CLIENT_URL}/complaint/${complaint._id}" class="cta-button">View Complaint Details</a>
             </div>
+          </div>
+          
+          <div class="footer">
+            <p class="footer-text">Best regards,<br>The UrbanEye Team</p>
+            <p class="footer-text">This is an automated message. Please do not reply to this email.</p>
           </div>
         </div>
       </body>
@@ -147,7 +316,7 @@ const emailTemplates = {
   }),
 
   complaintResolved: (complaint, user, resolutionNotes) => ({
-    subject: `Complaint Resolved - ${complaint.complaintId}`,
+    subject: `Your complaint has been resolved - ${complaint.complaintId}`,
     html: `
       <!DOCTYPE html>
       <html>
@@ -156,63 +325,215 @@ const emailTemplates = {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Complaint Resolved</title>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .complaint-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #56ab2f; }
-          .resolution-notes { background: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #56ab2f; }
-          .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
-          .status-resolved { background: #d4edda; color: #155724; }
-          .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-          .btn { display: inline-block; padding: 12px 25px; background: #56ab2f; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0; }
-          .rating-section { background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; }
+          body { 
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            line-height: 1.4; 
+            color: #000000; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f3f2f1;
+          }
+          .email-container { 
+            max-width: 600px; 
+            margin: 40px auto; 
+            background-color: #ffffff;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+          }
+          .header { 
+            background-color: #00d4aa; 
+            padding: 40px 24px; 
+            text-align: center; 
+          }
+          .logo-icon { 
+            width: 48px; 
+            height: 48px; 
+            margin: 0 auto 16px auto; 
+            background-color: #ffffff; 
+            border-radius: 8px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 24px; 
+            color: #00d4aa; 
+            font-weight: bold; 
+          }
+          .logo { 
+            color: #ffffff; 
+            font-size: 24px; 
+            font-weight: 600; 
+            margin: 0; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+          }
+          .content { 
+            padding: 32px 24px; 
+            background-color: #ffffff;
+          }
+          .greeting { 
+            font-size: 16px; 
+            margin: 0 0 16px 0; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .main-message { 
+            font-size: 14px; 
+            margin: 0 0 24px 0; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .details-section {
+            margin: 24px 0;
+            text-align: center;
+          }
+          .detail-item { 
+            margin: 8px 0; 
+            font-size: 14px; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .detail-label { 
+            font-weight: 600; 
+            color: #000000; 
+          }
+          .complaint-box { 
+            background-color: #ffffff; 
+            border: 1px solid #e0e0e0; 
+            border-radius: 0; 
+            padding: 24px; 
+            margin: 24px 0; 
+            text-align: center;
+          }
+          .complaint-title { 
+            font-size: 16px; 
+            font-weight: 600; 
+            color: #000000; 
+            margin: 0 0 12px 0; 
+          }
+          .complaint-id { 
+            font-size: 12px; 
+            color: #666666; 
+            margin: 0 0 16px 0; 
+            font-weight: 400;
+          }
+          .complaint-desc { 
+            font-size: 14px; 
+            color: #000000; 
+            margin: 0 0 16px 0; 
+            line-height: 1.4; 
+            font-weight: 400;
+          }
+          .complaint-meta { 
+            display: block; 
+            margin: 16px 0 0 0; 
+          }
+          .meta-item { 
+            margin: 6px 0; 
+            font-size: 12px; 
+            color: #000000; 
+            font-weight: 400;
+          }
+          .meta-label { 
+            font-weight: 600; 
+            color: #000000; 
+          }
+          .cta-section { 
+            text-align: center; 
+            margin: 32px 0; 
+          }
+          .cta-button { 
+            display: inline-block; 
+            background-color: #00d4aa; 
+            color: #ffffff; 
+            text-decoration: none; 
+            padding: 14px 28px; 
+            border-radius: 0; 
+            font-size: 14px; 
+            font-weight: 600; 
+            margin: 8px; 
+          }
+          .footer { 
+            background-color: #f3f2f1; 
+            padding: 24px; 
+            text-align: center; 
+          }
+          .footer-text { 
+            font-size: 12px; 
+            color: #666666; 
+            margin: 0; 
+            font-weight: 400;
+          }
+          .status-badge { 
+            display: inline-block; 
+            background-color: #00d4aa; 
+            color: #ffffff; 
+            padding: 4px 8px; 
+            border-radius: 0; 
+            font-size: 12px; 
+            font-weight: 600; 
+          }
+          @media (max-width: 600px) {
+            .email-container { margin: 20px; }
+            .content { padding: 24px 20px; }
+          }
         </style>
       </head>
       <body>
-        <div class="container">
+        <div class="email-container">
           <div class="header">
-            <h1>🏛️ UrbanEye</h1>
-            <h2>✅ Complaint Resolved</h2>
+            <div class="logo-icon">✅</div>
+            <h1 class="logo">UrbanEye</h1>
           </div>
+          
           <div class="content">
-            <p>Dear ${user.name},</p>
-            <p>Great news! Your complaint has been successfully resolved.</p>
+            <p class="greeting">Hey ${user.name},</p>
             
-            <div class="complaint-details">
-              <h3>Complaint Details</h3>
-              <p><strong>Complaint ID:</strong> ${complaint.complaintId}</p>
-              <p><strong>Title:</strong> ${complaint.title}</p>
-              <p><strong>Status:</strong> <span class="status-badge status-resolved">RESOLVED</span></p>
-              <p><strong>Location:</strong> ${complaint.address}, ${complaint.city}</p>
-              <p><strong>Resolved on:</strong> ${new Date(complaint.resolvedAt).toLocaleString()}</p>
+            <p class="main-message">Great news! Your complaint has been successfully resolved.</p>
+            
+            <div class="details-section">
+              <div class="detail-item">
+                <span class="detail-label">Status:</span> <span class="status-badge">Resolved</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Resolved:</span> ${new Date().toLocaleDateString()}
+              </div>
+              ${resolutionNotes ? `<div class="detail-item"><span class="detail-label">Notes:</span> ${resolutionNotes}</div>` : ''}
             </div>
             
-            ${resolutionNotes ? `
-            <div class="resolution-notes">
-              <h3>Resolution Details</h3>
-              <p>${resolutionNotes}</p>
-            </div>
-            ` : ''}
-            
-            <div class="rating-section">
-              <h3>How was our service?</h3>
-              <p>We'd love to hear your feedback about how we handled your complaint.</p>
-              <div style="text-align: center;">
-                <a href="${process.env.CLIENT_URL}/complaint/${complaint._id}" class="btn">Rate & Review</a>
+            <div class="complaint-box">
+              <h3 class="complaint-title">${complaint.title}</h3>
+              <p class="complaint-id">Complaint ID: ${complaint.complaintId}</p>
+              <p class="complaint-desc">${complaint.description}</p>
+              
+              <div class="complaint-meta">
+                <div class="meta-item">
+                  <span class="meta-label">Location:</span><br>
+                  ${complaint.address}, ${complaint.city}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Category:</span><br>
+                  ${complaint.category.replace('_', ' ')}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Priority:</span><br>
+                  ${complaint.priority}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Submitted:</span><br>
+                  ${new Date(complaint.createdAt).toLocaleDateString()}
+                </div>
               </div>
             </div>
             
-            <div style="text-align: center;">
-              <a href="${process.env.CLIENT_URL}/dashboard" class="btn">View Dashboard</a>
+            <div class="cta-section">
+              <a href="${process.env.CLIENT_URL}/complaint/${complaint._id}" class="cta-button">Rate & Review</a>
             </div>
-            
-            <p>Thank you for using UrbanEye to help improve our community!</p>
+          </div>
             
             <div class="footer">
-              <p>Best regards,<br>The UrbanEye Team</p>
-              <p>This is an automated message. Please do not reply to this email.</p>
-            </div>
+            <p class="footer-text">Best regards,<br>The UrbanEye Team</p>
+            <p class="footer-text">This is an automated message. Please do not reply to this email.</p>
           </div>
         </div>
       </body>
@@ -459,6 +780,746 @@ const emailTemplates = {
       </body>
       </html>
     `
+  }),
+
+  complaintAssignedToFieldStaff: (complaint, user, fieldStaffName, department) => ({
+    subject: `Your complaint has been assigned to field staff - ${complaint.complaintId}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Complaint Assigned to Field Staff</title>
+        <style>
+          body { 
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            line-height: 1.4; 
+            color: #000000; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f3f2f1;
+          }
+          .email-container { 
+            max-width: 600px; 
+            margin: 40px auto; 
+            background-color: #ffffff;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+          }
+          .header { 
+            background-color: #9146ff; 
+            padding: 40px 24px; 
+            text-align: center; 
+          }
+          .logo-icon { 
+            width: 48px; 
+            height: 48px; 
+            margin: 0 auto 16px auto; 
+            background-color: #ffffff; 
+            border-radius: 8px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 24px; 
+            color: #9146ff; 
+            font-weight: bold; 
+          }
+          .logo { 
+            color: #ffffff; 
+            font-size: 24px; 
+            font-weight: 600; 
+            margin: 0; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+          }
+          .content { 
+            padding: 32px 24px; 
+            background-color: #ffffff;
+          }
+          .greeting { 
+            font-size: 16px; 
+            margin: 0 0 16px 0; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .main-message { 
+            font-size: 14px; 
+            margin: 0 0 24px 0; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .details-section {
+            margin: 24px 0;
+            text-align: center;
+          }
+          .detail-item { 
+            margin: 8px 0; 
+            font-size: 14px; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .detail-label { 
+            font-weight: 600; 
+            color: #000000; 
+          }
+          .complaint-box { 
+            background-color: #ffffff; 
+            border: 1px solid #e0e0e0; 
+            border-radius: 0; 
+            padding: 24px; 
+            margin: 24px 0; 
+            text-align: center;
+          }
+          .complaint-title { 
+            font-size: 16px; 
+            font-weight: 600; 
+            color: #000000; 
+            margin: 0 0 12px 0; 
+          }
+          .complaint-id { 
+            font-size: 12px; 
+            color: #666666; 
+            margin: 0 0 16px 0; 
+            font-weight: 400;
+          }
+          .complaint-desc { 
+            font-size: 14px; 
+            color: #000000; 
+            margin: 0 0 16px 0; 
+            line-height: 1.4; 
+            font-weight: 400;
+          }
+          .complaint-meta { 
+            display: block; 
+            margin: 16px 0 0 0; 
+          }
+          .meta-item { 
+            margin: 6px 0; 
+            font-size: 12px; 
+            color: #000000; 
+            font-weight: 400;
+          }
+          .meta-label { 
+            font-weight: 600; 
+            color: #000000; 
+          }
+          .cta-section { 
+            text-align: center; 
+            margin: 32px 0; 
+          }
+          .cta-button { 
+            display: inline-block; 
+            background-color: #9146ff; 
+            color: #ffffff; 
+            text-decoration: none; 
+            padding: 14px 28px; 
+            border-radius: 0; 
+            font-size: 14px; 
+            font-weight: 600; 
+            margin: 8px; 
+          }
+          .footer { 
+            background-color: #f3f2f1; 
+            padding: 24px; 
+            text-align: center; 
+          }
+          .footer-text { 
+            font-size: 12px; 
+            color: #666666; 
+            margin: 0; 
+            font-weight: 400;
+          }
+          .status-badge { 
+            display: inline-block; 
+            background-color: #ffd700; 
+            color: #000000; 
+            padding: 4px 8px; 
+            border-radius: 0; 
+            font-size: 12px; 
+            font-weight: 600; 
+          }
+          @media (max-width: 600px) {
+            .email-container { margin: 20px; }
+            .content { padding: 24px 20px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="email-container">
+          <div class="header">
+            <div class="logo-icon">👁️</div>
+            <h1 class="logo">UrbanEye</h1>
+          </div>
+          
+          <div class="content">
+            <p class="greeting">Hey ${user.name},</p>
+            
+            <p class="main-message">Your complaint has been assigned to our field staff team and work will begin soon.</p>
+            
+            <div class="details-section">
+              <div class="detail-item">
+                <span class="detail-label">Field Staff:</span> ${fieldStaffName}
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Department:</span> ${department.replace('_', ' ')}
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Status:</span> <span class="status-badge">Assigned</span>
+              </div>
+            </div>
+            
+            <div class="complaint-box">
+              <h3 class="complaint-title">${complaint.title}</h3>
+              <p class="complaint-id">Complaint ID: ${complaint.complaintId}</p>
+              <p class="complaint-desc">${complaint.description}</p>
+              
+              <div class="complaint-meta">
+                <div class="meta-item">
+                  <span class="meta-label">Location:</span><br>
+                  ${complaint.address}, ${complaint.city}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Category:</span><br>
+                  ${complaint.category.replace('_', ' ')}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Priority:</span><br>
+                  ${complaint.priority}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Assigned:</span><br>
+                  ${new Date().toLocaleDateString()}
+                </div>
+              </div>
+            </div>
+            
+            <div class="cta-section">
+              <a href="${process.env.CLIENT_URL}/complaint/${complaint._id}" class="cta-button">View Complaint Details</a>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p class="footer-text">Best regards,<br>The UrbanEye Team</p>
+            <p class="footer-text">This is an automated message. Please do not reply to this email.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  }),
+
+  workCompleted: (complaint, user, fieldStaffName, workCompletionNotes) => ({
+    subject: `Work completed on your complaint - ${complaint.complaintId}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Work Completed</title>
+        <style>
+          body { 
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            line-height: 1.4; 
+            color: #000000; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f3f2f1;
+          }
+          .email-container { 
+            max-width: 600px; 
+            margin: 40px auto; 
+            background-color: #ffffff;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+          }
+          .header { 
+            background-color: #8b5cf6; 
+            padding: 40px 24px; 
+            text-align: center; 
+          }
+          .logo-icon { 
+            width: 48px; 
+            height: 48px; 
+            margin: 0 auto 16px auto; 
+            background-color: #ffffff; 
+            border-radius: 8px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 24px; 
+            color: #8b5cf6; 
+            font-weight: bold; 
+          }
+          .logo { 
+            color: #ffffff; 
+            font-size: 24px; 
+            font-weight: 600; 
+            margin: 0; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+          }
+          .content { 
+            padding: 32px 24px; 
+            background-color: #ffffff;
+          }
+          .greeting { 
+            font-size: 16px; 
+            margin: 0 0 16px 0; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .main-message { 
+            font-size: 14px; 
+            margin: 0 0 24px 0; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .work-completion-box { 
+            background-color: #f3e8ff; 
+            border: 2px solid #8b5cf6; 
+            border-radius: 0; 
+            padding: 24px; 
+            margin: 24px 0; 
+            text-align: center;
+          }
+          .work-completion-title { 
+            font-size: 16px; 
+            font-weight: 600; 
+            color: #8b5cf6; 
+            margin: 0 0 12px 0; 
+          }
+          .work-completion-notes { 
+            font-size: 14px; 
+            color: #000000; 
+            margin: 0 0 16px 0; 
+            line-height: 1.4; 
+            font-weight: 400;
+          }
+          .details-section {
+            margin: 24px 0;
+            text-align: center;
+          }
+          .detail-item { 
+            margin: 8px 0; 
+            font-size: 14px; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .detail-label { 
+            font-weight: 600; 
+            color: #000000; 
+          }
+          .complaint-box { 
+            background-color: #ffffff; 
+            border: 1px solid #e0e0e0; 
+            border-radius: 0; 
+            padding: 24px; 
+            margin: 24px 0; 
+            text-align: center;
+          }
+          .complaint-title { 
+            font-size: 16px; 
+            font-weight: 600; 
+            color: #000000; 
+            margin: 0 0 12px 0; 
+          }
+          .complaint-id { 
+            font-size: 12px; 
+            color: #666666; 
+            margin: 0 0 16px 0; 
+            font-weight: 400;
+          }
+          .complaint-desc { 
+            font-size: 14px; 
+            color: #000000; 
+            margin: 0 0 16px 0; 
+            line-height: 1.4; 
+            font-weight: 400;
+          }
+          .complaint-meta { 
+            display: block; 
+            margin: 16px 0 0 0; 
+          }
+          .meta-item { 
+            margin: 6px 0; 
+            font-size: 12px; 
+            color: #000000; 
+            font-weight: 400;
+          }
+          .meta-label { 
+            font-weight: 600; 
+            color: #000000; 
+          }
+          .cta-section { 
+            text-align: center; 
+            margin: 32px 0; 
+          }
+          .cta-button { 
+            display: inline-block; 
+            background-color: #8b5cf6; 
+            color: #ffffff; 
+            text-decoration: none; 
+            padding: 14px 28px; 
+            border-radius: 0; 
+            font-size: 14px; 
+            font-weight: 600; 
+            margin: 8px; 
+          }
+          .footer { 
+            background-color: #f3f2f1; 
+            padding: 24px; 
+            text-align: center; 
+          }
+          .footer-text { 
+            font-size: 12px; 
+            color: #666666; 
+            margin: 0; 
+            font-weight: 400;
+          }
+          .status-badge { 
+            display: inline-block; 
+            background-color: #8b5cf6; 
+            color: #ffffff; 
+            padding: 4px 8px; 
+            border-radius: 0; 
+            font-size: 12px; 
+            font-weight: 600; 
+          }
+          @media (max-width: 600px) {
+            .email-container { margin: 20px; }
+            .content { padding: 24px 20px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="email-container">
+          <div class="header">
+            <div class="logo-icon">🔧</div>
+            <h1 class="logo">UrbanEye</h1>
+          </div>
+          
+          <div class="content">
+            <p class="greeting">Hey ${user.name},</p>
+            
+            <p class="main-message">Great news! The field staff has completed work on your complaint and it's now pending admin approval.</p>
+            
+            <div class="work-completion-box">
+              <h3 class="work-completion-title">Work Completion Details</h3>
+              <p class="work-completion-notes">${workCompletionNotes}</p>
+              <div class="detail-item">
+                <span class="detail-label">Completed by:</span> ${fieldStaffName}
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Status:</span> <span class="status-badge">Work Completed</span>
+              </div>
+            </div>
+            
+            <div class="details-section">
+              <div class="detail-item">
+                <span class="detail-label">Next Step:</span> Admin Review & Approval
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Completed:</span> ${new Date().toLocaleDateString()}
+              </div>
+            </div>
+            
+            <div class="complaint-box">
+              <h3 class="complaint-title">${complaint.title}</h3>
+              <p class="complaint-id">Complaint ID: ${complaint.complaintId}</p>
+              <p class="complaint-desc">${complaint.description}</p>
+              
+              <div class="complaint-meta">
+                <div class="meta-item">
+                  <span class="meta-label">Location:</span><br>
+                  ${complaint.address}, ${complaint.city}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Category:</span><br>
+                  ${complaint.category.replace('_', ' ')}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Priority:</span><br>
+                  ${complaint.priority}
+                </div>
+              </div>
+            </div>
+            
+            <p style="font-size: 14px; color: #666666; margin: 24px 0; font-weight: 400;">Our admin team will now review the completed work and approve it. You'll receive another notification once it's fully resolved.</p>
+            
+            <div class="cta-section">
+              <a href="${process.env.CLIENT_URL}/complaint/${complaint._id}" class="cta-button">View Complaint Details</a>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p class="footer-text">Best regards,<br>The UrbanEye Team</p>
+            <p class="footer-text">This is an automated message. Please do not reply to this email.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  }),
+
+  workApproved: (complaint, user, adminName, approvalNotes) => ({
+    subject: `Your complaint has been resolved - ${complaint.complaintId}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Complaint Resolved</title>
+        <style>
+          body { 
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            line-height: 1.4; 
+            color: #000000; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f3f2f1;
+          }
+          .email-container { 
+            max-width: 600px; 
+            margin: 40px auto; 
+            background-color: #ffffff;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+          }
+          .header { 
+            background-color: #00d4aa; 
+            padding: 40px 24px; 
+            text-align: center; 
+          }
+          .logo-icon { 
+            width: 48px; 
+            height: 48px; 
+            margin: 0 auto 16px auto; 
+            background-color: #ffffff; 
+            border-radius: 8px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 24px; 
+            color: #00d4aa; 
+            font-weight: bold; 
+          }
+          .logo { 
+            color: #ffffff; 
+            font-size: 24px; 
+            font-weight: 600; 
+            margin: 0; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+          }
+          .content { 
+            padding: 32px 24px; 
+            background-color: #ffffff;
+          }
+          .greeting { 
+            font-size: 16px; 
+            margin: 0 0 16px 0; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .main-message { 
+            font-size: 14px; 
+            margin: 0 0 24px 0; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .approval-box { 
+            background-color: #d1fae5; 
+            border: 2px solid #00d4aa; 
+            border-radius: 0; 
+            padding: 24px; 
+            margin: 24px 0; 
+            text-align: center;
+          }
+          .approval-title { 
+            font-size: 16px; 
+            font-weight: 600; 
+            color: #00d4aa; 
+            margin: 0 0 12px 0; 
+          }
+          .approval-notes { 
+            font-size: 14px; 
+            color: #000000; 
+            margin: 0 0 16px 0; 
+            line-height: 1.4; 
+            font-weight: 400;
+          }
+          .details-section {
+            margin: 24px 0;
+            text-align: center;
+          }
+          .detail-item { 
+            margin: 8px 0; 
+            font-size: 14px; 
+            color: #000000;
+            font-weight: 400;
+          }
+          .detail-label { 
+            font-weight: 600; 
+            color: #000000; 
+          }
+          .complaint-box { 
+            background-color: #ffffff; 
+            border: 1px solid #e0e0e0; 
+            border-radius: 0; 
+            padding: 24px; 
+            margin: 24px 0; 
+            text-align: center;
+          }
+          .complaint-title { 
+            font-size: 16px; 
+            font-weight: 600; 
+            color: #000000; 
+            margin: 0 0 12px 0; 
+          }
+          .complaint-id { 
+            font-size: 12px; 
+            color: #666666; 
+            margin: 0 0 16px 0; 
+            font-weight: 400;
+          }
+          .complaint-desc { 
+            font-size: 14px; 
+            color: #000000; 
+            margin: 0 0 16px 0; 
+            line-height: 1.4; 
+            font-weight: 400;
+          }
+          .complaint-meta { 
+            display: block; 
+            margin: 16px 0 0 0; 
+          }
+          .meta-item { 
+            margin: 6px 0; 
+            font-size: 12px; 
+            color: #000000; 
+            font-weight: 400;
+          }
+          .meta-label { 
+            font-weight: 600; 
+            color: #000000; 
+          }
+          .cta-section { 
+            text-align: center; 
+            margin: 32px 0; 
+          }
+          .cta-button { 
+            display: inline-block; 
+            background-color: #00d4aa; 
+            color: #ffffff; 
+            text-decoration: none; 
+            padding: 14px 28px; 
+            border-radius: 0; 
+            font-size: 14px; 
+            font-weight: 600; 
+            margin: 8px; 
+          }
+          .footer { 
+            background-color: #f3f2f1; 
+            padding: 24px; 
+            text-align: center; 
+          }
+          .footer-text { 
+            font-size: 12px; 
+            color: #666666; 
+            margin: 0; 
+            font-weight: 400;
+          }
+          .status-badge { 
+            display: inline-block; 
+            background-color: #00d4aa; 
+            color: #ffffff; 
+            padding: 4px 8px; 
+            border-radius: 0; 
+            font-size: 12px; 
+            font-weight: 600; 
+          }
+          @media (max-width: 600px) {
+            .email-container { margin: 20px; }
+            .content { padding: 24px 20px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="email-container">
+          <div class="header">
+            <div class="logo-icon">✅</div>
+            <h1 class="logo">UrbanEye</h1>
+          </div>
+          
+          <div class="content">
+            <p class="greeting">Hey ${user.name},</p>
+            
+            <p class="main-message">Excellent news! Your complaint has been successfully resolved and approved by our admin team.</p>
+            
+            <div class="approval-box">
+              <h3 class="approval-title">Work Approved & Resolved</h3>
+              ${approvalNotes ? `<p class="approval-notes">${approvalNotes}</p>` : ''}
+              <div class="detail-item">
+                <span class="detail-label">Approved by:</span> ${adminName}
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Status:</span> <span class="status-badge">Resolved</span>
+              </div>
+            </div>
+            
+            <div class="details-section">
+              <div class="detail-item">
+                <span class="detail-label">Resolved:</span> ${new Date().toLocaleDateString()}
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Reference:</span> ${complaint.complaintId}
+              </div>
+            </div>
+            
+            <div class="complaint-box">
+              <h3 class="complaint-title">${complaint.title}</h3>
+              <p class="complaint-id">Complaint ID: ${complaint.complaintId}</p>
+              <p class="complaint-desc">${complaint.description}</p>
+              
+              <div class="complaint-meta">
+                <div class="meta-item">
+                  <span class="meta-label">Location:</span><br>
+                  ${complaint.address}, ${complaint.city}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Category:</span><br>
+                  ${complaint.category.replace('_', ' ')}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Priority:</span><br>
+                  ${complaint.priority}
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Submitted:</span><br>
+                  ${new Date(complaint.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+            </div>
+            
+            <div class="cta-section">
+              <a href="${process.env.CLIENT_URL}/complaint/${complaint._id}" class="cta-button">Rate & Review</a>
+            </div>
+          </div>
+            
+            <div class="footer">
+            <p class="footer-text">Best regards,<br>The UrbanEye Team</p>
+            <p class="footer-text">This is an automated message. Please do not reply to this email.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
   })
 };
 
@@ -504,6 +1565,16 @@ const sendComplaintInProgressEmail = async (complaint, user, adminName) => {
   return await sendEmail(user.email, template.subject, template.html);
 };
 
+const sendComplaintAssignedToFieldStaffEmail = async (complaint, user, fieldStaffName, department) => {
+  if (!user.preferences?.emailNotifications) {
+    console.log('Email notifications disabled for user:', user.email);
+    return { success: false, reason: 'Email notifications disabled' };
+  }
+
+  const template = emailTemplates.complaintAssignedToFieldStaff(complaint, user, fieldStaffName, department);
+  return await sendEmail(user.email, template.subject, template.html);
+};
+
 const sendComplaintResolvedEmail = async (complaint, user, resolutionNotes) => {
   if (!user.preferences?.emailNotifications) {
     console.log('Email notifications disabled for user:', user.email);
@@ -544,13 +1615,36 @@ const sendPasswordResetOTPEmail = async (user, otp) => {
   return await sendEmail(user.email, template.subject, template.html);
 };
 
+const sendWorkCompletedEmail = async (complaint, user, fieldStaffName, workCompletionNotes) => {
+  if (!user.preferences?.emailNotifications) {
+    console.log('Email notifications disabled for user:', user.email);
+    return { success: false, reason: 'Email notifications disabled' };
+  }
+
+  const template = emailTemplates.workCompleted(complaint, user, fieldStaffName, workCompletionNotes);
+  return await sendEmail(user.email, template.subject, template.html);
+};
+
+const sendWorkApprovedEmail = async (complaint, user, adminName, approvalNotes) => {
+  if (!user.preferences?.emailNotifications) {
+    console.log('Email notifications disabled for user:', user.email);
+    return { success: false, reason: 'Email notifications disabled' };
+  }
+
+  const template = emailTemplates.workApproved(complaint, user, adminName, approvalNotes);
+  return await sendEmail(user.email, template.subject, template.html);
+};
+
 module.exports = {
   sendEmail,
   sendComplaintSubmittedEmail,
   sendComplaintInProgressEmail,
+  sendComplaintAssignedToFieldStaffEmail,
   sendComplaintResolvedEmail,
   sendComplaintRejectedEmail,
   sendComplaintClosedEmail,
   sendOTPVerificationEmail,
-  sendPasswordResetOTPEmail
+  sendPasswordResetOTPEmail,
+  sendWorkCompletedEmail,
+  sendWorkApprovedEmail
 };

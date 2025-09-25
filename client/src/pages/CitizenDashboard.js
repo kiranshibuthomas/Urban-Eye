@@ -40,6 +40,7 @@ import {
 } from 'react-icons/fi';
 import { FaCity, FaBuilding, FaCog, FaRegSmile, FaHandshake, FaChartLine, FaHeadset, FaClipboardList } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { useSession } from '../context/SessionContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import EmailVerificationBanner from '../components/EmailVerificationBanner';
@@ -66,6 +67,7 @@ const CitizenDashboard = () => {
   const [services, setServices] = useState([]);
   const [error, setError] = useState(null);
   const { user, logout } = useAuth();
+  const { logout: sessionLogout } = useSession();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
@@ -158,7 +160,9 @@ const CitizenDashboard = () => {
   // Fetch platform-wide statistics
   const fetchPlatformStats = async () => {
     try {
-      const response = await fetch('/api/stats/platform');
+      const response = await fetch('/api/stats/platform', {
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         setPlatformStats(data.stats || {
@@ -167,6 +171,9 @@ const CitizenDashboard = () => {
           activeCitizens: 5500,
           satisfaction: 92
         });
+      } else if (response.status === 401) {
+        // Don't fetch data if unauthorized - session will handle logout
+        return;
       } else {
         // Set default platform stats if API fails
         setPlatformStats({
@@ -191,10 +198,15 @@ const CitizenDashboard = () => {
   // Fetch available services
   const fetchServices = async () => {
     try {
-      const response = await fetch('/api/services');
+      const response = await fetch('/api/services', {
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         setServices(data.services || []);
+      } else if (response.status === 401) {
+        // Don't fetch data if unauthorized - session will handle logout
+        return;
       }
     } catch (error) {
       console.error('Error fetching services:', error);
@@ -348,8 +360,7 @@ const CitizenDashboard = () => {
   ];
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true, state: {} });
+    await sessionLogout();
   };
 
   // Handle hover-based dropdown behavior

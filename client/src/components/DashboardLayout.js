@@ -4,20 +4,21 @@ import { Link } from 'react-router-dom';
 import { FiMenu, FiX, FiLogOut, FiUser, FiBell, FiSettings, FiChevronDown, FiMapPin, FiUsers, FiShield, FiTrendingUp } from 'react-icons/fi';
 import { FaCity, FaBuilding, FaCog } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { useSession } from '../context/SessionContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 
 const DashboardLayout = ({ children, title, actions }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { user, logout, refreshAvatar } = useAuth();
+  const { user, refreshAvatar } = useAuth();
+  const { logout: sessionLogout } = useSession();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const userMenuRef = useRef(null);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true, state: {} });
+    await sessionLogout();
   };
 
   // Close user menu when clicking outside

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import toast from 'react-hot-toast';
+import { customToast } from '../utils/customToast';
 
 const OAuthHandler = () => {
   const location = useLocation();
@@ -10,12 +10,13 @@ const OAuthHandler = () => {
   const hasProcessedAuth = useRef(false);
   const lastProcessedUrl = useRef('');
   const toastShown = useRef(false);
+  const processingRef = useRef(false);
 
   useEffect(() => {
     const currentUrl = location.search;
     
-    // Skip if we've already processed this exact URL
-    if (hasProcessedAuth.current && lastProcessedUrl.current === currentUrl) {
+    // Skip if we're already processing or have already processed this exact URL
+    if (processingRef.current || (hasProcessedAuth.current && lastProcessedUrl.current === currentUrl)) {
       return;
     }
 
@@ -30,17 +31,23 @@ const OAuthHandler = () => {
       return;
     }
 
-    // Mark as processed for this URL
+    // Mark as processing and processed for this URL
+    processingRef.current = true;
     hasProcessedAuth.current = true;
     lastProcessedUrl.current = currentUrl;
 
-    if (authStatus === 'success' && token) {
-      // Store token and trigger auth check
-      localStorage.setItem('token', token);
+    if (authStatus === 'success') {
+      // Store token if provided
+      if (token) {
+        localStorage.setItem('token', token);
+      }
+      
+      // Set OAuth flag to prevent duplicate success message in AuthContext
+      sessionStorage.setItem('oauth_login', 'true');
       
       // Only show toast if not already shown
       if (!toastShown.current) {
-        toast.success('Google authentication successful!');
+        customToast.success('Welcome back! 🎉');
         toastShown.current = true;
       }
       
@@ -51,21 +58,10 @@ const OAuthHandler = () => {
       setTimeout(() => {
         checkAuthStatus();
       }, 100);
-    } else if (authStatus === 'success' && !token) {
-      // Only show toast if not already shown
-      if (!toastShown.current) {
-        toast.success('Google authentication successful!');
-        toastShown.current = true;
-      }
-      navigate(location.pathname, { replace: true });
-      
-      setTimeout(() => {
-        checkAuthStatus();
-      }, 100);
     } else if (errorParam === 'auth_failed') {
       // Only show toast if not already shown
       if (!toastShown.current) {
-        toast.error('Google authentication failed. Please try again.');
+        customToast.error('Authentication failed. Please try again.');
         toastShown.current = true;
       }
       navigate(location.pathname, { replace: true });
@@ -76,6 +72,9 @@ const OAuthHandler = () => {
       hasProcessedAuth.current = false;
       lastProcessedUrl.current = '';
       toastShown.current = false;
+      processingRef.current = false;
+      // Clear OAuth flag after processing
+      sessionStorage.removeItem('oauth_login');
     }, 5000);
 
   }, [location.search, location.pathname, checkAuthStatus, navigate]);

@@ -501,7 +501,7 @@ router.post('/register', async (req, res) => {
     }
 
     // Validate role
-    const validRoles = ['citizen', 'admin'];
+    const validRoles = ['citizen', 'admin', 'field_staff'];
     if (role && !validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
@@ -614,12 +614,11 @@ router.post('/login', async (req, res) => {
     await user.save();
 
     // Generate token
-    const tokenExpiry = rememberMe ? '30d' : '7d';
     const token = generateToken(user._id);
     
-    // Set cookie with appropriate expiry
+    // Set cookie with 15 minute expiry for security
     const cookieOptions = {
-      expires: new Date(Date.now() + (rememberMe ? 30 : 7) * 24 * 60 * 60 * 1000),
+      expires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict'
@@ -645,6 +644,47 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/refresh
+// @desc    Refresh authentication token
+// @access  Private
+router.post('/refresh', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password');
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Generate new token
+    const token = generateToken(user._id);
+    
+    // Set new token in httpOnly cookie with 15 minute expiry
+    const cookieOptions = {
+      expires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    };
+    res.cookie('token', token, cookieOptions);
+
+    res.json({
+      success: true,
+      message: 'Token refreshed successfully',
+      token: token,
+      user: user.getPublicProfile()
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during token refresh'
+    });
+  }
+});
+
 // @route   POST /api/auth/logout
 // @desc    Logout user
 // @access  Private
@@ -666,10 +706,13 @@ router.get('/me', authenticateToken, async (req, res) => {
     const user = await User.findById(req.user._id).select('-password');
     const publicProfile = user.getPublicProfile();
     
+    // Generate a new token to refresh the session
+    const token = generateToken(user._id);
     
     res.json({
       success: true,
-      user: publicProfile
+      user: publicProfile,
+      token: token
     });
   } catch (error) {
     console.error('Get profile error:', error);
@@ -908,9 +951,17 @@ router.get('/google/callback',
       setTokenCookie(res, token);
 
       // Determine redirect URL based on user role
-      const redirectUrl = req.user.role === 'admin' 
-        ? `${process.env.CLIENT_URL}/admin-dashboard`
-        : `${process.env.CLIENT_URL}/citizen-dashboard`;
+      let redirectUrl;
+      switch (req.user.role) {
+        case 'admin':
+          redirectUrl = `${process.env.CLIENT_URL}/admin-dashboard`;
+          break;
+        case 'field_staff':
+          redirectUrl = `${process.env.CLIENT_URL}/field-staff-dashboard`;
+          break;
+        default:
+          redirectUrl = `${process.env.CLIENT_URL}/citizen-dashboard`;
+      }
       
       // Redirect to frontend with success and user data
       res.redirect(`${redirectUrl}?auth=success&token=${token}`);

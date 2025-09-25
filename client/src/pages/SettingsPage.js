@@ -5,16 +5,17 @@ import { FiSun, FiMoon, FiSettings, FiArrowLeft, FiUser, FiLogOut, FiChevronDown
 import { FaCity } from 'react-icons/fa';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useSession } from '../context/SessionContext';
 
 const SettingsPage = () => {
   const { isDarkMode, toggleTheme, theme } = useTheme();
   const { user, logout } = useAuth();
+  const { logout: sessionLogout } = useSession();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true, state: {} });
+    await sessionLogout();
   };
 
   // Handle hover-based dropdown behavior
@@ -276,6 +277,7 @@ const SettingsPage = () => {
           </div>
         </div>
       </motion.div>
+
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSession } from '../context/SessionContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoogleMapModal from '../components/GoogleMapModal';
 import { 
@@ -36,6 +37,7 @@ const ReportsHistory = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, logout } = useAuth();
+  const { logout: sessionLogout } = useSession();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reports, setReports] = useState([]);
@@ -372,8 +374,7 @@ const ReportsHistory = () => {
   const stats = getStats();
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true, state: {} });
+    await sessionLogout();
   };
 
   // Handle hover-based dropdown behavior

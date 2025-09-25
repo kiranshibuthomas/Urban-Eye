@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { SessionProvider } from './context/SessionContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoadingSpinner from './components/LoadingSpinner';
 import OAuthHandler from './components/OAuthHandler';
@@ -17,6 +18,8 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import CitizenDashboard from './pages/CitizenDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminComplaintManagement from './pages/AdminComplaintManagement';
+import FieldStaffDashboard from './pages/FieldStaffDashboard';
+import FieldStaffManagement from './pages/FieldStaffManagement';
 import ReportIssue from './pages/ReportIssue';
 import ReportsHistory from './pages/ReportsHistory';
 import ComplaintDetail from './pages/ComplaintDetail';
@@ -38,7 +41,17 @@ const DefaultRedirect = () => {
   }
 
   // Redirect based on user role
-  const redirectPath = user?.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard';
+  let redirectPath;
+  switch (user?.role) {
+    case 'admin':
+      redirectPath = '/admin-dashboard';
+      break;
+    case 'field_staff':
+      redirectPath = '/field-staff-dashboard';
+      break;
+    default:
+      redirectPath = '/citizen-dashboard';
+  }
   
   // Debug logging
   console.log('DefaultRedirect:', { userRole: user?.role, redirectPath });
@@ -84,10 +97,26 @@ function AppRoutes() {
           } 
         />
         <Route 
+          path="/field-staff-dashboard" 
+          element={
+            <ProtectedRoute requiredRole="field_staff">
+              <FieldStaffDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
           path="/admin-complaint-management" 
           element={
             <ProtectedRoute requiredRole="admin">
               <AdminComplaintManagement />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/field-staff-management" 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <FieldStaffManagement />
             </ProtectedRoute>
           } 
         />
@@ -156,34 +185,36 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            {/* Global toast notifications */}
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#ffffff',
-                  color: '#1f2937',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                },
-                success: {
-                  iconTheme: {
-                    primary: '#10b981',
-                    secondary: '#ffffff',
+            <SessionProvider>
+              {/* Global toast notifications */}
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: '#ffffff',
+                    color: '#1f2937',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
                   },
-                },
-                error: {
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#ffffff',
+                  success: {
+                    iconTheme: {
+                      primary: '#10b981',
+                      secondary: '#ffffff',
+                    },
                   },
-                },
-              }}
-            />
-            
-            <AppRoutes />
+                  error: {
+                    iconTheme: {
+                      primary: '#ef4444',
+                      secondary: '#ffffff',
+                    },
+                  },
+                }}
+              />
+              
+              <AppRoutes />
+            </SessionProvider>
           </Router>
         </ThemeProvider>
       </AuthProvider>

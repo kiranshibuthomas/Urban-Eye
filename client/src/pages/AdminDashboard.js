@@ -35,6 +35,7 @@ import {
   FiChevronDown
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import { useSession } from '../context/SessionContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import ModernStatCard from '../components/ModernStatCard';
@@ -45,6 +46,8 @@ import ModernQuickActions from '../components/ModernQuickActions';
 import ModernRecentActivity from '../components/ModernRecentActivity';
 import AdminComplaintManagement from './AdminComplaintManagement';
 import UserManagement from './UserManagement';
+import FieldStaffManagement from './FieldStaffManagement';
+import AdminWorkApprovalList from '../components/AdminWorkApprovalList';
 
 const AdminDashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -80,6 +83,7 @@ const AdminDashboard = () => {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [isBackgroundUpdating, setIsBackgroundUpdating] = useState(false);
   const { user, logout } = useAuth();
+  const { logout: sessionLogout } = useSession();
   const navigate = useNavigate();
 
   // Sync activeTab with URL parameters
@@ -91,8 +95,7 @@ const AdminDashboard = () => {
   }, [searchParams, activeTab]);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true, state: {} });
+    await sessionLogout();
   };
 
   // Close dropdown when clicking outside
@@ -634,10 +637,14 @@ const AdminDashboard = () => {
         return <OverviewTab />;
       case 'complaints':
         return <AdminComplaintManagement />;
+      case 'work-approval':
+        return <AdminWorkApprovalList />;
       case 'users':
         return <UserManagement />;
       case 'staff':
         return <StaffTab />;
+      case 'field-staff':
+        return <FieldStaffManagement />;
       case 'alerts':
         return <AlertsTab />;
       default:
@@ -691,8 +698,10 @@ const AdminDashboard = () => {
                 {[
                   { key: 'overview', label: 'Overview', icon: FiTrendingUp },
                   { key: 'complaints', label: 'Complaints', icon: FiFileText },
+                  { key: 'work-approval', label: 'Work Approval', icon: FiCheckCircle },
                   { key: 'users', label: 'Users', icon: FiUsers },
                   { key: 'staff', label: 'Staff', icon: FiUserCheck },
+                  { key: 'field-staff', label: 'Field Staff', icon: FiShield },
                   { key: 'alerts', label: 'Alerts', icon: FiSend }
                 ].map((tab) => (
                   <motion.button

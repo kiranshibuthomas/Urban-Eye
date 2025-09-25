@@ -40,7 +40,7 @@ const complaintSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'in_progress', 'resolved', 'rejected', 'closed', 'deleted'],
+    enum: ['pending', 'assigned', 'in_progress', 'work_completed', 'resolved', 'rejected', 'closed', 'deleted'],
     default: 'pending'
   },
 
@@ -133,6 +133,23 @@ const complaintSchema = new mongoose.Schema({
   assignedAt: {
     type: Date
   },
+  assignedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  
+  // Field staff handling
+  assignedToFieldStaff: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  fieldStaffAssignedAt: {
+    type: Date
+  },
+  fieldStaffAssignedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   adminNotes: [{
     note: {
       type: String,
@@ -192,6 +209,48 @@ const complaintSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+
+  // Field staff work completion
+  workCompletedAt: {
+    type: Date
+  },
+  workCompletionNotes: {
+    type: String,
+    trim: true,
+    maxlength: [1000, 'Work completion notes cannot be more than 1000 characters']
+  },
+  workProofImages: [{
+    url: {
+      type: String,
+      required: true
+    },
+    filename: {
+      type: String,
+      required: true
+    },
+    originalName: {
+      type: String,
+      required: true
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
+  // Admin approval for completed work
+  adminApprovedAt: {
+    type: Date
+  },
+  adminApprovedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  adminApprovalNotes: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Admin approval notes cannot be more than 500 characters']
+  },
 
   // Citizen feedback
   citizenRating: {
@@ -269,6 +328,7 @@ complaintSchema.index({ status: 1 });
 complaintSchema.index({ category: 1 });
 complaintSchema.index({ priority: 1 });
 complaintSchema.index({ assignedTo: 1 });
+complaintSchema.index({ assignedToFieldStaff: 1 });
 complaintSchema.index({ submittedAt: -1 });
 complaintSchema.index({ location: '2dsphere' }); // Geospatial index
 
@@ -295,7 +355,9 @@ complaintSchema.virtual('timeSinceSubmission').get(function() {
 complaintSchema.virtual('statusColor').get(function() {
   const colors = {
     pending: 'yellow',
+    assigned: 'orange',
     in_progress: 'blue',
+    work_completed: 'purple',
     resolved: 'green',
     rejected: 'red',
     closed: 'gray'
@@ -335,12 +397,44 @@ complaintSchema.methods.addAdminNote = function(note, adminId) {
 complaintSchema.methods.assignToAdmin = function(adminId) {
   this.assignedTo = adminId;
   this.assignedAt = new Date();
+  this.assignedBy = adminId;
   this.status = 'in_progress';
   this.lastUpdated = new Date();
   return this.save();
 };
 
-// Method to resolve complaint
+// Method to assign to field staff
+complaintSchema.methods.assignToFieldStaff = function(fieldStaffId, assignedByAdminId) {
+  this.assignedToFieldStaff = fieldStaffId;
+  this.fieldStaffAssignedAt = new Date();
+  this.fieldStaffAssignedBy = assignedByAdminId;
+  this.status = 'assigned';
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Method to mark work as completed by field staff
+complaintSchema.methods.markWorkCompleted = function(completionNotes, proofImages = []) {
+  this.workCompletedAt = new Date();
+  this.workCompletionNotes = completionNotes;
+  this.workProofImages = proofImages;
+  this.status = 'work_completed';
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Method to approve completed work by admin
+complaintSchema.methods.approveWork = function(adminId, approvalNotes = '') {
+  this.status = 'resolved';
+  this.resolvedAt = new Date();
+  this.adminApprovedAt = new Date();
+  this.adminApprovedBy = adminId;
+  this.adminApprovalNotes = approvalNotes;
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Method to resolve complaint (legacy method)
 complaintSchema.methods.resolveComplaint = function(resolutionNotes, adminId) {
   this.status = 'resolved';
   this.resolvedAt = new Date();
@@ -382,7 +476,9 @@ complaintSchema.statics.getStatistics = function() {
         _id: null,
         total: { $sum: 1 },
         pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+        assigned: { $sum: { $cond: [{ $eq: ['$status', 'assigned'] }, 1, 0] } },
         inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] } },
+        workCompleted: { $sum: { $cond: [{ $eq: ['$status', 'work_completed'] }, 1, 0] } },
         resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
         rejected: { $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] } },
         closed: { $sum: { $cond: [{ $eq: ['$status', 'closed'] }, 1, 0] } }

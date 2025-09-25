@@ -30,9 +30,16 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['citizen', 'admin'],
+    enum: ['citizen', 'admin', 'field_staff'],
     default: 'citizen',
     required: true
+  },
+  department: {
+    type: String,
+    enum: ['sanitation', 'water_supply', 'electricity', 'public_works'],
+    required: function() {
+      return this.role === 'field_staff';
+    }
   },
   googleId: {
     type: String,
@@ -146,6 +153,8 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ email: 1 });
 userSchema.index({ googleId: 1 });
 userSchema.index({ role: 1 });
+userSchema.index({ department: 1 });
+userSchema.index({ role: 1, department: 1 });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

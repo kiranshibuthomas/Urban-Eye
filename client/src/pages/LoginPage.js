@@ -84,7 +84,16 @@ const LoginPage = () => {
         if (from && (from === '/admin-dashboard' || from === '/citizen-dashboard')) {
           redirectPath = from;
         } else {
-          redirectPath = result.user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard';
+          switch (result.user.role) {
+            case 'admin':
+              redirectPath = '/admin-dashboard';
+              break;
+            case 'field_staff':
+              redirectPath = '/field-staff-dashboard';
+              break;
+            default:
+              redirectPath = '/citizen-dashboard';
+          }
         }
         
         // Debug logging

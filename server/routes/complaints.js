@@ -10,9 +10,11 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 const {
   sendComplaintSubmittedEmail,
   sendComplaintInProgressEmail,
+  sendComplaintAssignedToFieldStaffEmail,
   sendComplaintResolvedEmail,
   sendComplaintRejectedEmail,
-  sendComplaintClosedEmail
+  sendComplaintClosedEmail,
+  sendWorkApprovedEmail
 } = require('../services/emailService');
 
 const router = express.Router();
@@ -664,19 +666,24 @@ router.put('/:id/status', authenticateToken, requireRole('admin'), async (req, r
       });
     }
 
-    const validStatuses = ['pending', 'in_progress', 'resolved', 'rejected', 'closed'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid status'
-      });
-    }
-
     const complaint = await Complaint.findById(req.params.id);
     if (!complaint) {
       return res.status(404).json({
         success: false,
         message: 'Complaint not found'
+      });
+    }
+
+    // Only allow specific workflow transitions for admin
+    const allowedTransitions = {
+      'pending': ['rejected', 'closed'],
+      'work_completed': ['resolved'] // This should be handled by approve-work route instead
+    };
+
+    if (!allowedTransitions[complaint.status] || !allowedTransitions[complaint.status].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot change status from ${complaint.status} to ${status}. Use proper workflow routes.`
       });
     }
 
@@ -804,6 +811,143 @@ router.put('/:id/assign', authenticateToken, requireRole('admin'), async (req, r
     res.status(500).json({
       success: false,
       message: 'Server error while assigning complaint'
+    });
+  }
+});
+
+// @route   PUT /api/complaints/:id/assign-field-staff
+// @desc    Assign complaint to field staff
+// @access  Private (Admin only)
+router.put('/:id/assign-field-staff', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { assignedToFieldStaff } = req.body;
+
+    if (!assignedToFieldStaff) {
+      return res.status(400).json({
+        success: false,
+        message: 'Assigned field staff is required'
+      });
+    }
+
+    // Verify field staff exists and is active
+    const fieldStaff = await User.findById(assignedToFieldStaff);
+    if (!fieldStaff || fieldStaff.role !== 'field_staff' || !fieldStaff.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid field staff user or user is inactive'
+      });
+    }
+
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    // Check if complaint category matches field staff department
+    const categoryToDepartmentMap = {
+      'waste_management': 'sanitation',
+      'water_supply': 'water_supply',
+      'electricity': 'electricity',
+      'street_lighting': 'electricity',
+      'road_issues': 'public_works',
+      'drainage': 'public_works',
+      'parks_recreation': 'public_works'
+    };
+
+    const expectedDepartment = categoryToDepartmentMap[complaint.category];
+    if (expectedDepartment && fieldStaff.department !== expectedDepartment) {
+      return res.status(400).json({
+        success: false,
+        message: `This complaint category (${complaint.category}) should be assigned to ${expectedDepartment} department, not ${fieldStaff.department}`
+      });
+    }
+
+    // Assign complaint to field staff
+    await complaint.assignToFieldStaff(assignedToFieldStaff, req.user._id);
+
+    // Populate citizen information for email
+    await complaint.populate('citizen', 'name email preferences');
+
+    // Send email notification for assignment
+    try {
+      const user = complaint.citizen;
+      await sendComplaintAssignedToFieldStaffEmail(complaint, user, fieldStaff.name, fieldStaff.department);
+      console.log('Field staff assignment email sent to:', user.email);
+    } catch (emailError) {
+      console.error('Failed to send field staff assignment email:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    res.json({
+      success: true,
+      message: 'Complaint assigned to field staff successfully',
+      complaint
+    });
+
+  } catch (error) {
+    console.error('Assign field staff error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while assigning complaint to field staff'
+    });
+  }
+});
+
+// @route   PUT /api/complaints/:id/approve-work
+// @desc    Approve completed work by field staff
+// @access  Private (Admin only)
+router.put('/:id/approve-work', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { approvalNotes } = req.body;
+
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    // Check if complaint is in work_completed status
+    if (complaint.status !== 'work_completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only approve complaints that have completed work'
+      });
+    }
+
+    // Approve the work
+    await complaint.approveWork(req.user._id, approvalNotes || '');
+
+    // Populate citizen information for email
+    await complaint.populate('citizen', 'name email preferences');
+    await complaint.populate('assignedToFieldStaff', 'name email');
+
+    // Send email notification for approval
+    try {
+      const user = complaint.citizen;
+      const admin = await User.findById(req.user._id);
+      await sendWorkApprovedEmail(complaint, user, admin.name, approvalNotes || '');
+      console.log('Work approval email sent to:', user.email);
+    } catch (emailError) {
+      console.error('Failed to send work approval email:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    res.json({
+      success: true,
+      message: 'Work approved successfully',
+      complaint
+    });
+
+  } catch (error) {
+    console.error('Approve work error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while approving work'
     });
   }
 });

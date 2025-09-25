@@ -17,11 +17,13 @@ import {
 } from 'react-icons/fi';
 import { FaCity } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { useSession } from '../context/SessionContext';
 import toast from 'react-hot-toast';
 import ProfileImageUpload from '../components/ProfileImageUpload';
 
 const ProfilePage = () => {
   const { user, logout, updateUser } = useAuth();
+  const { logout: sessionLogout } = useSession();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -37,8 +39,7 @@ const ProfilePage = () => {
   });
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true, state: {} });
+    await sessionLogout();
   };
 
   // Update form data when user data changes

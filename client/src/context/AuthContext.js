@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import toast from 'react-hot-toast';
+import { customToast } from '../utils/customToast';
 
 // Initial state
 const initialState = {
@@ -92,12 +92,17 @@ export const AuthProvider = ({ children }) => {
     } finally {
       // Clear local storage and axios headers
       localStorage.removeItem('token');
+      localStorage.removeItem('session_refresh');
+      sessionStorage.clear();
       delete axios.defaults.headers.common['Authorization'];
 
       // Dispatch logout action
       dispatch({ type: AuthActionTypes.LOGOUT });
       
-      toast.success('Logged out successfully');
+      // Clear browser history to prevent back button access
+      window.history.replaceState(null, '', '/login');
+      
+      customToast.success('See you later! 👋');
     }
   }, []);
 
@@ -115,8 +120,18 @@ export const AuthProvider = ({ children }) => {
         if (error.response?.status === 401) {
           // Token expired or invalid - only show toast if not already logged out
           if (state.isAuthenticated) {
-            logout();
-            toast.error('Session expired. Please login again.');
+            // Clear token immediately
+            localStorage.removeItem('token');
+            delete axios.defaults.headers.common['Authorization'];
+            
+            // Dispatch logout action
+            dispatch({ type: AuthActionTypes.LOGOUT });
+            
+            // Show error message
+            customToast.error('Session expired. Please login again.');
+            
+            // Redirect to login
+            window.location.href = '/login';
           }
         }
         return Promise.reject(error);
@@ -126,12 +141,24 @@ export const AuthProvider = ({ children }) => {
     return () => {
       axios.interceptors.response.eject(responseInterceptor);
     };
-  }, [state.isAuthenticated, logout]);
+  }, [state.isAuthenticated]);
 
   // Check if user is logged in on app start
   useEffect(() => {
     checkAuthStatus();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Set up periodic session refresh
+  useEffect(() => {
+    if (state.isAuthenticated) {
+      // Refresh session every 30 minutes
+      const refreshInterval = setInterval(() => {
+        checkAuthStatus();
+      }, 30 * 60 * 1000);
+
+      return () => clearInterval(refreshInterval);
+    }
+  }, [state.isAuthenticated]);
 
   const checkAuthStatus = async () => {
     try {
@@ -152,25 +179,37 @@ export const AuthProvider = ({ children }) => {
         // it means we're authenticated via cookie (from OAuth)
         const finalToken = token || 'cookie-auth';
         
+        // If we got a new token from the server, store it
+        if (response.data.token && response.data.token !== 'cookie-auth') {
+          localStorage.setItem('token', response.data.token);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+        }
+        
         dispatch({
           type: AuthActionTypes.LOGIN_SUCCESS,
           payload: {
             user: response.data.user,
-            token: finalToken
+            token: response.data.token || finalToken
           }
         });
+        
+        // Clear logout flag on successful authentication
+        sessionStorage.removeItem('user_logged_out');
+        
+        // Clear navigation blocker logout state
+        if (window.navigationBlocker) {
+          window.navigationBlocker.clearLoggedOut();
+        }
       } else {
         throw new Error('Invalid authentication');
       }
     } catch (error) {
       console.error('Auth check failed:', error.response?.data || error.message);
       
-      // Only clear localStorage token if we actually had one
-      if (localStorage.getItem('token')) {
-        localStorage.removeItem('token');
-      }
+      // Clear authentication state
+      localStorage.removeItem('token');
       delete axios.defaults.headers.common['Authorization'];
-      dispatch({ type: AuthActionTypes.SET_LOADING, payload: false });
+      dispatch({ type: AuthActionTypes.LOGOUT });
     }
   };
 
@@ -184,24 +223,38 @@ export const AuthProvider = ({ children }) => {
       if (response.data.success) {
         const { token, user } = response.data;
         
-        // Store token in localStorage
-        localStorage.setItem('token', token);
-        
-        // Set token in axios headers
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        // Store token in localStorage with validation
+        if (token) {
+          localStorage.setItem('token', token);
+          // Set token in axios headers
+          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        }
         
         dispatch({
           type: AuthActionTypes.LOGIN_SUCCESS,
           payload: { user, token }
         });
 
-        toast.success('Login successful!');
-        return { success: true, user };
+        // Only show login success message if it's not an OAuth login
+        // OAuth logins will show their own message via OAuthHandler
+        const isOAuthLogin = sessionStorage.getItem('oauth_login') === 'true';
+        if (!isOAuthLogin) {
+          customToast.success('Welcome back! 🎉');
+        } else {
+          // Clear the OAuth flag
+          sessionStorage.removeItem('oauth_login');
+        }
+        
+        return { success: true, user, token };
       }
     } catch (error) {
+      // Clear any existing token on login failure
+      localStorage.removeItem('token');
+      delete axios.defaults.headers.common['Authorization'];
+      
       const message = error.response?.data?.message || 'Login failed';
       dispatch({ type: AuthActionTypes.SET_ERROR, payload: message });
-      toast.error(message);
+      customToast.error(message);
       return { success: false, error: message };
     }
   };
@@ -229,15 +282,15 @@ export const AuthProvider = ({ children }) => {
             payload: { user, token }
           });
           
-          toast.success('Registration successful!');
+          customToast.success('Account created! 🚀');
         } else {
           // For verification flows, don't log in yet
           dispatch({ type: AuthActionTypes.SET_LOADING, payload: false });
           
           if (requiresOTPVerification) {
-            toast.success(message || 'Registration successful! Please check your email for OTP verification.');
+            customToast.success('Check your email for verification! 📧');
           } else if (requiresEmailVerification) {
-            toast.success(message || 'Registration successful! Please check your email to verify your account.');
+            customToast.success('Check your email to verify! 📧');
           }
         }
         
@@ -252,7 +305,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       const message = error.response?.data?.message || 'Registration failed';
       dispatch({ type: AuthActionTypes.SET_ERROR, payload: message });
-      toast.error(message);
+      customToast.error(message);
       return { success: false, error: message };
     }
   };
@@ -278,7 +331,7 @@ export const AuthProvider = ({ children }) => {
           payload: { user, token }
         });
         
-        toast.success('Email verified successfully!');
+        customToast.success('Email verified! ✅');
         return { success: true, user };
       }
     } catch (error) {
@@ -304,12 +357,12 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.get(`/auth/verify-email/${token}`);
       
       if (response.data.success) {
-        toast.success('Email verified successfully!');
+        customToast.success('Email verified! ✅');
         return { success: true };
       }
     } catch (error) {
       const message = error.response?.data?.message || 'Email verification failed';
-      toast.error(message);
+      customToast.error(message);
       return { success: false, error: message };
     }
   };
@@ -319,12 +372,12 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post('/auth/resend-verification');
       
       if (response.data.success) {
-        toast.success('Verification email sent successfully!');
+        customToast.success('Verification email sent! 📧');
         return { success: true };
       }
     } catch (error) {
       const message = error.response?.data?.message || 'Failed to resend verification email';
-      toast.error(message);
+      customToast.error(message);
       return { success: false, error: message };
     }
   };

@@ -83,6 +83,46 @@ router.get('/', async (req, res) => {
   }
 });
 
+// @route   GET /api/users/field-staff
+// @desc    Get field staff by department
+// @access  Private (Admin only)
+router.get('/field-staff', async (req, res) => {
+  try {
+    const { department } = req.query;
+    
+    // Build filter for field staff
+    const filter = { role: 'field_staff', isActive: true };
+    
+    // Add department filter if specified
+    if (department) {
+      const validDepartments = ['sanitation', 'water_supply', 'electricity', 'public_works'];
+      if (validDepartments.includes(department)) {
+        filter.department = department;
+      }
+    }
+
+    const fieldStaff = await User.find(filter)
+      .select('-password -otpCode -otpExpires -otpAttempts -passwordResetOTP -passwordResetExpires -passwordResetAttempts -emailVerificationToken -emailVerificationExpires')
+      .sort({ name: 1 });
+
+    // Transform users to include public profile data
+    const transformedFieldStaff = fieldStaff.map(user => user.getPublicProfile());
+
+    res.json({
+      success: true,
+      fieldStaff: transformedFieldStaff,
+      count: transformedFieldStaff.length
+    });
+
+  } catch (error) {
+    console.error('Get field staff error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching field staff'
+    });
+  }
+});
+
 // @route   GET /api/users/stats
 // @desc    Get user statistics
 // @access  Private (Admin only)
@@ -104,6 +144,9 @@ router.get('/stats', async (req, res) => {
           },
           citizenUsers: {
             $sum: { $cond: [{ $eq: ['$role', 'citizen'] }, 1, 0] }
+          },
+          fieldStaffUsers: {
+            $sum: { $cond: [{ $eq: ['$role', 'field_staff'] }, 1, 0] }
           },
           googleUsers: {
             $sum: { $cond: [{ $ne: ['$googleId', null] }, 1, 0] }
@@ -136,6 +179,7 @@ router.get('/stats', async (req, res) => {
       verifiedUsers: 0,
       adminUsers: 0,
       citizenUsers: 0,
+      fieldStaffUsers: 0,
       googleUsers: 0
     };
 
@@ -191,7 +235,7 @@ router.get('/:id', async (req, res) => {
 // @access  Private (Admin only)
 router.post('/', async (req, res) => {
   try {
-    const { name, email, password, role, phone, address, city, zipCode } = req.body;
+    const { name, email, password, role, department, phone, address, city, zipCode } = req.body;
 
     // Validation
     if (!name || !email || !password) {
@@ -278,12 +322,23 @@ router.post('/', async (req, res) => {
     }
 
     // Validate role
-    const validRoles = ['citizen', 'admin'];
+    const validRoles = ['citizen', 'admin', 'field_staff'];
     if (role && !validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid role specified'
       });
+    }
+
+    // Validate department for field staff
+    if (role === 'field_staff') {
+      const validDepartments = ['sanitation', 'water_supply', 'electricity', 'public_works'];
+      if (!department || !validDepartments.includes(department)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Department is required for field staff and must be one of: sanitation, water_supply, electricity, public_works'
+        });
+      }
     }
 
     // Create new user
@@ -292,6 +347,7 @@ router.post('/', async (req, res) => {
       email: email.toLowerCase().trim(),
       password,
       role: role || 'citizen',
+      department: department || undefined,
       phone: phone ? phone.trim() : undefined,
       address: address ? address.trim() : undefined,
       city: city ? city.trim() : undefined,
@@ -337,7 +393,7 @@ router.post('/', async (req, res) => {
 // @access  Private (Admin only)
 router.put('/:id', async (req, res) => {
   try {
-    const { name, email, role, phone, address, city, zipCode, isActive, isEmailVerified } = req.body;
+    const { name, email, role, department, phone, address, city, zipCode, isActive, isEmailVerified } = req.body;
 
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -413,7 +469,7 @@ router.put('/:id', async (req, res) => {
 
     // Validate role if provided
     if (role !== undefined) {
-      const validRoles = ['citizen', 'admin'];
+      const validRoles = ['citizen', 'admin', 'field_staff'];
       if (!validRoles.includes(role)) {
         return res.status(400).json({
           success: false,
@@ -421,6 +477,24 @@ router.put('/:id', async (req, res) => {
         });
       }
       user.role = role;
+    }
+
+    // Validate department if provided or if role is field_staff
+    if (department !== undefined || role === 'field_staff') {
+      if (user.role === 'field_staff') {
+        const validDepartments = ['sanitation', 'water_supply', 'electricity', 'public_works'];
+        const deptToUse = department || user.department;
+        if (!deptToUse || !validDepartments.includes(deptToUse)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Department is required for field staff and must be one of: sanitation, water_supply, electricity, public_works'
+          });
+        }
+        user.department = deptToUse;
+      } else {
+        // Clear department if not field staff
+        user.department = undefined;
+      }
     }
 
     // Validate phone if provided

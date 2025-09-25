@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSession } from '../context/SessionContext';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -26,6 +27,7 @@ import { FaCity } from 'react-icons/fa';
 const ReportIssue = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { logout: sessionLogout } = useSession();
   const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [locationPermission, setLocationPermission] = useState(null);
@@ -189,8 +191,7 @@ const ReportIssue = () => {
   };
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true, state: {} });
+    await sessionLogout();
   };
 
   // Handle hover-based dropdown behavior
