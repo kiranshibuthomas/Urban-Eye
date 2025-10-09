@@ -17,6 +17,7 @@ const {
   sendWorkApprovedEmail
 } = require('../services/emailService');
 const AutomationService = require('../services/automationService');
+const { isWithinKottayam } = require('../utils/geofencing');
 
 const router = express.Router();
 
@@ -89,6 +90,17 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
       return res.status(400).json({
         success: false,
         message: 'Invalid coordinates provided'
+      });
+    }
+
+    // Validate location is within Kanjirapally panchayath (Geofencing)
+    const geofenceCheck = isWithinKottayam(lat, lng); // Using backward compatible function name
+    if (!geofenceCheck.isInside) {
+      console.log(`Geofence violation: User ${req.user._id} attempted to submit complaint from outside Kanjirapally panchayath at ${lat}, ${lng}`);
+      return res.status(403).json({
+        success: false,
+        message: geofenceCheck.message,
+        error: 'LOCATION_OUTSIDE_SERVICE_AREA'
       });
     }
 

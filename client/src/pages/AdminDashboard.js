@@ -723,11 +723,11 @@ const AdminDashboard = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => navigate('/settings')}
+                          onClick={() => navigate('/admin-settings')}
                           className="w-full px-4 py-2 text-left text-base text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-200"
                         >
                           <FiSettings className="h-4 w-4 mr-3" />
-                          Settings
+                          Admin Settings
                         </button>
                       </div>
                       

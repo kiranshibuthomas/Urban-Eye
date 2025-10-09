@@ -18,6 +18,8 @@ const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const CitizenDashboard = lazy(() => import('./pages/CitizenDashboard'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminComplaintManagement = lazy(() => import('./pages/AdminComplaintManagement'));
+const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
+const GeofenceConfigPage = lazy(() => import('./pages/GeofenceConfigPage'));
 const FieldStaffDashboard = lazy(() => import('./pages/FieldStaffDashboard'));
 const FieldStaffManagement = lazy(() => import('./pages/FieldStaffManagement'));
 const ReportIssue = lazy(() => import('./pages/ReportIssue'));
@@ -94,6 +96,22 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredRole="admin">
               <AdminDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin-settings" 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminSettingsPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/geofence-config" 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <GeofenceConfigPage />
             </ProtectedRoute>
           } 
         />

@@ -29,6 +29,7 @@ A comprehensive platform for citizens and administrators to report, track, and m
 
 ### 📱 Citizen Features
 - Report issues with photos and location
+- **Geofenced reporting** - Only users within Kanjirapally panchayath can submit complaints
 - Track complaint status real-time
 - View personal history
 - Receive notifications
@@ -373,6 +374,40 @@ REACT_APP_API_URL=https://your-backend-url.com/api
 - Secure file uploads
 - SQL injection prevention
 - XSS protection
+- **Geofencing** - Location-based access control for Kanjirapally panchayath
+
+## 🗺️ Geofencing
+
+This system implements geofencing to restrict complaint submissions to users within Kanjirapally panchayath only.
+
+### How It Works
+
+1. **Frontend Validation**: When a user reports an issue, their location is validated against Kanjirapally panchayath boundaries
+2. **Backend Validation**: Server-side validation ensures no one can bypass frontend checks
+3. **Point-in-Polygon Algorithm**: Uses ray casting to accurately determine if coordinates fall within panchayath boundaries
+4. **User-Friendly Messages**: Clear feedback when users are outside the service area
+
+### Coverage Area
+
+- **Panchayath**: Kanjirapally, Kottayam District, Kerala, India
+- **Center**: 9.5595° N, 76.7874° E
+- **Radius**: 15-20 km from center (18km operational radius)
+- **Approximate Boundaries**:
+  - North: 9.74° N (~18km)
+  - South: 9.40° N (~18km)
+  - East: 76.95° E (~18km)
+  - West: 76.62° E (~18km)
+- **Coverage**: Approximately 1,000+ sq km area
+
+### Configuration
+
+To modify the geofenced area, edit the boundary coordinates in:
+- `client/src/utils/geofencing.js` (Frontend)
+- `server/utils/geofencing.js` (Backend)
+
+Update the `KANJIRAPALLY_BOUNDARY` array with new polygon coordinates and adjust the `BOUNDING_BOX` for the area's extent.
+
+**Note**: The coordinates define a polygon around Kanjirapally panchayath. For other panchayaths, replace with appropriate boundary coordinates.
 
 ---
 

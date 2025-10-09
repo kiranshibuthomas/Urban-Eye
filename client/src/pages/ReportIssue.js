@@ -23,6 +23,7 @@ import {
   FiEyeOff
 } from 'react-icons/fi';
 import { FaCity } from 'react-icons/fa';
+import { isWithinGeofence } from '../services/geofenceService';
 
 const ReportIssue = () => {
   const navigate = useNavigate();
@@ -33,6 +34,8 @@ const ReportIssue = () => {
   const [locationPermission, setLocationPermission] = useState(null);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
+  const [isLocationValid, setIsLocationValid] = useState(false);
+  const [geofenceMessage, setGeofenceMessage] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -188,18 +191,43 @@ const ReportIssue = () => {
     setLocationPermission('requesting');
     
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
+        
+        // Validate location with dynamic geofence configuration
+        const geofenceCheck = await isWithinGeofence(latitude, longitude);
+        
+        if (!geofenceCheck.isInside) {
+          setLocationPermission('denied');
+          setIsLocationValid(false);
+          setGeofenceMessage(geofenceCheck.message);
+          setLocationError(geofenceCheck.message);
+          toast.error('Location outside service area', {
+            duration: 5000,
+            icon: '🚫'
+          });
+          return;
+        }
+        
+        // Location is valid
         setCurrentLocation({ latitude, longitude });
         setLocationPermission('granted');
+        setIsLocationValid(true);
+        setGeofenceMessage(geofenceCheck.message);
         setLocationError(null);
         
         // Reverse geocoding to get address
         reverseGeocode(latitude, longitude);
+        
+        toast.success(geofenceCheck.message || 'Location verified!', {
+          duration: 3000,
+          icon: '✅'
+        });
       },
       (error) => {
         setLocationPermission('denied');
-        setLocationError('Unable to get your location. Please enter your address manually.');
+        setIsLocationValid(false);
+        setLocationError('Unable to get your location. Please allow location access and try again.');
         console.error('Geolocation error:', error);
       },
       {
@@ -305,7 +333,12 @@ const ReportIssue = () => {
     e.preventDefault();
     
     if (!currentLocation) {
-      toast.error('Location is required. Please allow location access or enter coordinates manually.');
+      toast.error('Location is required. Please allow location access and ensure you are within the service area.');
+      return;
+    }
+
+    if (!isLocationValid) {
+      toast.error('You must be within the service area to submit a complaint.');
       return;
     }
 
@@ -530,18 +563,46 @@ const ReportIssue = () => {
               </motion.div>
             )}
 
-            {locationPermission === 'granted' && currentLocation && (
+            {locationPermission === 'granted' && currentLocation && isLocationValid && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex items-center text-emerald-600 mb-6 p-4 bg-emerald-50 rounded-xl border border-emerald-200"
               >
-                <FiCheckCircle className="h-5 w-5 mr-3" />
+                <FiCheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
                 <div>
-                  <p className="font-medium">Location detected successfully!</p>
+                  <p className="font-medium">Location verified! ✓</p>
                   <p className="text-sm text-gray-600">
                     {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
                   </p>
+                  {geofenceMessage && (
+                    <p className="text-xs text-emerald-700 mt-1">{geofenceMessage}</p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {!isLocationValid && geofenceMessage && locationPermission !== 'requesting' && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-start text-red-600 mb-6 p-4 bg-red-50 rounded-xl border border-red-200"
+              >
+                <FiAlertTriangle className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-medium">Location Outside Service Area</p>
+                  <p className="text-sm text-red-700 mt-1">{geofenceMessage}</p>
+                  <p className="text-xs text-red-600 mt-2">
+                    This complaint reporting system is exclusively for residents within the configured service area. 
+                    Please ensure you are physically within the boundaries to submit a complaint.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={getCurrentLocation}
+                    className="mt-3 text-sm bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                  >
+                    Retry Location Check
+                  </button>
                 </div>
               </motion.div>
             )}
@@ -941,13 +1002,13 @@ const ReportIssue = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              disabled={loading || !currentLocation || Object.keys(validationErrors).length > 0}
+              disabled={loading || !currentLocation || !isLocationValid || Object.keys(validationErrors).length > 0}
               className="px-8 py-3 bg-gradient-to-r from-[#52796F] to-[#354F52] text-white rounded-xl hover:from-[#354F52] hover:to-[#2F3E46] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold shadow-lg"
             >
               {loading && (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
               )}
-              {loading ? 'Submitting Report...' : 'Submit Report'}
+              {loading ? 'Submitting Report...' : !isLocationValid && currentLocation ? 'Location Outside Service Area' : 'Submit Report'}
             </motion.button>
           </motion.div>
         </form>

@@ -16,6 +16,7 @@ const userRoutes = require('./routes/users');
 const fieldStaffRoutes = require('./routes/fieldStaff');
 const schedulerRoutes = require('./routes/scheduler');
 const analyticsRoutes = require('./routes/analytics');
+const geofenceConfigRoutes = require('./routes/geofenceConfig');
 
 // Import passport configuration
 require('./config/passport');
@@ -72,6 +73,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/field-staff', fieldStaffRoutes);
 app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/geofence-config', geofenceConfigRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
