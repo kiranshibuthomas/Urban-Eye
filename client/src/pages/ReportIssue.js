@@ -38,8 +38,6 @@ const ReportIssue = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: 'other',
-    priority: 'medium',
     address: '',
     city: '',
     pincode: '',
@@ -52,28 +50,6 @@ const ReportIssue = () => {
   const [validationErrors, setValidationErrors] = useState({});
   const [fieldTouched, setFieldTouched] = useState({});
 
-  // Category options
-  const categories = [
-    { value: 'road_issues', label: 'Road Issues', icon: '🛣️' },
-    { value: 'water_supply', label: 'Water Supply', icon: '💧' },
-    { value: 'electricity', label: 'Electricity', icon: '⚡' },
-    { value: 'waste_management', label: 'Waste Management', icon: '🗑️' },
-    { value: 'public_transport', label: 'Public Transport', icon: '🚌' },
-    { value: 'parks_recreation', label: 'Parks & Recreation', icon: '🌳' },
-    { value: 'street_lighting', label: 'Street Lighting', icon: '💡' },
-    { value: 'drainage', label: 'Drainage', icon: '🌊' },
-    { value: 'noise_pollution', label: 'Noise Pollution', icon: '🔊' },
-    { value: 'air_pollution', label: 'Air Pollution', icon: '🌫️' },
-    { value: 'safety_security', label: 'Safety & Security', icon: '🛡️' },
-    { value: 'other', label: 'Other', icon: '📋' }
-  ];
-
-  const priorities = [
-    { value: 'low', label: 'Low', color: 'text-emerald-600' },
-    { value: 'medium', label: 'Medium', color: 'text-teal-600' },
-    { value: 'high', label: 'High', color: 'text-green-600' },
-    { value: 'urgent', label: 'Urgent', color: 'text-lime-600' }
-  ];
 
   // Get current location on component mount
   useEffect(() => {
@@ -342,10 +318,14 @@ const ReportIssue = () => {
     try {
       const submitData = new FormData();
       
-      // Add form data
+      // Add form data (excluding category and priority as they're auto-determined)
       Object.keys(formData).forEach(key => {
         submitData.append(key, formData[key]);
       });
+      
+      // Set default values for AI processing
+      submitData.append('category', 'other'); // Will be overridden by AI
+      submitData.append('priority', 'medium'); // Will be overridden by AI
 
       // Add location
       submitData.append('latitude', currentLocation.latitude);
@@ -365,7 +345,7 @@ const ReportIssue = () => {
       const data = await response.json();
 
       if (data.success) {
-        toast.success('Issue reported successfully!');
+        toast.success('Issue reported successfully! Our AI system is analyzing your report and will assign it to the appropriate field staff automatically.');
         navigate('/citizen-dashboard');
       } else {
         toast.error(data.message || 'Failed to report issue');
@@ -770,42 +750,45 @@ const ReportIssue = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Category *
-                  </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F] focus:border-[#52796F] transition-all duration-200"
-                  >
-                    {categories.map(category => (
-                      <option key={category.value} value={category.value}>
-                        {category.icon} {category.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Priority
-                  </label>
-                  <select
-                    name="priority"
-                    value={formData.priority}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F] focus:border-[#52796F] transition-all duration-200"
-                  >
-                    {priorities.map(priority => (
-                      <option key={priority.value} value={priority.value}>
-                        {priority.label}
-                      </option>
-                    ))}
-                  </select>
+              {/* AI Automation Information */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+                <div className="flex items-start space-x-4">
+                  <div className="flex-shrink-0">
+                    <div className="h-12 w-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                      <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">🤖 AI-Powered Processing</h3>
+                    <p className="text-gray-700 mb-3">
+                      Our intelligent system will automatically analyze your report and images to:
+                    </p>
+                    <ul className="space-y-2 text-sm text-gray-600">
+                      <li className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span><strong>Detect the category</strong> (Road Issues, Water Supply, Electricity, etc.)</span>
+                      </li>
+                      <li className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span><strong>Determine priority level</strong> (Low, Medium, High, Urgent)</span>
+                      </li>
+                      <li className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span><strong>Assign to appropriate field staff</strong> based on expertise and workload</span>
+                      </li>
+                      <li className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span><strong>Process within minutes</strong> for faster response times</span>
+                      </li>
+                    </ul>
+                    <div className="mt-4 p-3 bg-blue-100 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>💡 Tip:</strong> Provide clear descriptions and upload relevant photos for the most accurate AI analysis and faster processing.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -828,9 +811,18 @@ const ReportIssue = () => {
               </div>
             </div>
             
-            <p className="text-gray-600 mb-6 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
-              <strong>Guidelines:</strong> Maximum 5 images, 5MB each. Supported formats: JPG, PNG, GIF
-            </p>
+            <div className="mb-6 space-y-3">
+              <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                <p className="text-gray-700">
+                  <strong>📸 For Best AI Analysis:</strong> Upload clear photos that show the issue from different angles. This helps our AI system accurately categorize and prioritize your report.
+                </p>
+              </div>
+              <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <p className="text-gray-600">
+                  <strong>Guidelines:</strong> Maximum 5 images, 5MB each. Supported formats: JPG, PNG, GIF
+                </p>
+              </div>
+            </div>
 
             <div className="space-y-6">
               <input

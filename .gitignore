@@ -119,3 +119,13 @@ client/.env
 # Package lock files (optional - uncomment if you want to ignore them)
 # package-lock.json
 # yarn.lock
+
+# Temporary documentation files
+*_TEMP.md
+*_DRAFT.md
+*_OLD.md
+TEMP_*.md
+
+# Test files (keep in dedicated test directories)
+test-*.js
+*.test.backup.js

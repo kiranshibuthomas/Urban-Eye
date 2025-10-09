@@ -12,6 +12,7 @@ import {
   FiMapPin,
   FiCalendar,
   FiUser,
+  FiUserCheck,
   FiAlertCircle,
   FiTrendingUp,
   FiBarChart2,
@@ -737,7 +738,7 @@ const AdminComplaintManagement = () => {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-base text-gray-500">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-base text-gray-500">
                       <div className="flex items-center">
                         <FiMapPin className="h-4 w-4 mr-2 flex-shrink-0" />
                         <span className="truncate">{complaint.address}, {complaint.city}</span>
@@ -750,6 +751,14 @@ const AdminComplaintManagement = () => {
                         <FiUser className="h-4 w-4 mr-2 flex-shrink-0" />
                         <span className="truncate">{complaint.citizenName}</span>
                       </div>
+                      {complaint.assignedToFieldStaff && (
+                        <div className="flex items-center">
+                          <FiUserCheck className="h-4 w-4 mr-2 flex-shrink-0 text-green-600" />
+                          <span className="truncate text-green-700 font-medium">
+                            Assigned to: {complaint.assignedToFieldStaff.name}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

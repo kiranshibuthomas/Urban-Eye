@@ -10,7 +10,8 @@ import {
   FiAlertCircle,
   FiRefreshCw,
   FiFilter,
-  FiSearch
+  FiSearch,
+  FiMessageSquare
 } from 'react-icons/fi';
 import AdminWorkApproval from './AdminWorkApproval';
 import toast from 'react-hot-toast';
@@ -327,12 +328,25 @@ const AdminWorkApprovalList = () => {
                           <span>Completed {formatDate(complaint.workCompletedAt)}</span>
                         </div>
                       </div>
-                      {complaint.workProofImages && complaint.workProofImages.length > 0 && (
-                        <div className="mt-2 text-xs text-green-600">
-                          <FiCheckCircle className="h-3 w-3 inline mr-1" />
-                          {complaint.workProofImages.length} proof image(s) uploaded
-                        </div>
-                      )}
+                      <div className="mt-2 flex items-center space-x-4 text-xs">
+                        {complaint.workProofImages && complaint.workProofImages.length > 0 ? (
+                          <div className="text-green-600">
+                            <FiCheckCircle className="h-3 w-3 inline mr-1" />
+                            {complaint.workProofImages.length} proof image(s)
+                          </div>
+                        ) : (
+                          <div className="text-yellow-600">
+                            <FiAlertCircle className="h-3 w-3 inline mr-1" />
+                            No proof images
+                          </div>
+                        )}
+                        {complaint.workCompletionNotes && (
+                          <div className="text-blue-600">
+                            <FiMessageSquare className="h-3 w-3 inline mr-1" />
+                            Has completion notes
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex space-x-2">
                       <button

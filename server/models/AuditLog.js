@@ -4,7 +4,7 @@ const auditLogSchema = new mongoose.Schema({
   action: {
     type: String,
     required: true,
-    enum: ['create', 'update', 'archive', 'restore', 'hard_delete', 'status_change']
+    enum: ['create', 'update', 'archive', 'restore', 'hard_delete', 'status_change', 'automated_processing', 'automation_error', 'approve_work', 'reject_work']
   },
   entityType: {
     type: String,
@@ -18,7 +18,7 @@ const auditLogSchema = new mongoose.Schema({
   performedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false // Allow null for system actions
   },
   performedByEmail: {
     type: String,

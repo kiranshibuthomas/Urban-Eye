@@ -1354,6 +1354,49 @@ const emailTemplates = {
             line-height: 1.4; 
             font-weight: 400;
           }
+          .work-completion-box { 
+            background-color: #f0f9ff; 
+            border: 2px solid #0ea5e9; 
+            border-radius: 0; 
+            padding: 24px; 
+            margin: 24px 0; 
+            text-align: center;
+          }
+          .work-completion-title { 
+            font-size: 16px; 
+            font-weight: 600; 
+            color: #0ea5e9; 
+            margin: 0 0 12px 0; 
+          }
+          .work-completion-notes { 
+            font-size: 14px; 
+            color: #000000; 
+            margin: 0 0 16px 0; 
+            line-height: 1.4; 
+            font-weight: 400;
+          }
+          .proof-images-section {
+            margin: 24px 0;
+            text-align: center;
+          }
+          .proof-images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin: 16px 0;
+          }
+          .proof-image {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+          }
+          .proof-image:hover {
+            transform: scale(1.05);
+          }
           .details-section {
             margin: 24px 0;
             text-align: center;
@@ -1447,6 +1490,7 @@ const emailTemplates = {
           @media (max-width: 600px) {
             .email-container { margin: 20px; }
             .content { padding: 24px 20px; }
+            .proof-images-grid { grid-template-columns: repeat(2, 1fr); }
           }
         </style>
       </head>
@@ -1472,6 +1516,34 @@ const emailTemplates = {
                 <span class="detail-label">Status:</span> <span class="status-badge">Resolved</span>
               </div>
             </div>
+            
+            ${complaint.workCompletionNotes ? `
+            <div class="work-completion-box">
+              <h3 class="work-completion-title">Work Completion Details</h3>
+              <p class="work-completion-notes">${complaint.workCompletionNotes}</p>
+              <div class="detail-item">
+                <span class="detail-label">Completed by:</span> ${complaint.assignedToFieldStaff?.name || 'Field Staff'}
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Completed on:</span> ${new Date(complaint.workCompletedAt).toLocaleDateString()}
+              </div>
+            </div>
+            ` : ''}
+            
+            ${complaint.workProofImages && complaint.workProofImages.length > 0 ? `
+            <div class="proof-images-section">
+              <h3 style="font-size: 16px; font-weight: 600; color: #000000; margin: 0 0 16px 0;">Work Proof Images</h3>
+              <p style="font-size: 14px; color: #666666; margin: 0 0 16px 0;">Here are the proof images showing the completed work:</p>
+              <div class="proof-images-grid">
+                ${complaint.workProofImages.map(image => `
+                  <img src="${process.env.SERVER_URL || 'http://localhost:5000'}${image.url}" 
+                       alt="Work proof" 
+                       class="proof-image"
+                       onclick="window.open('${process.env.SERVER_URL || 'http://localhost:5000'}${image.url}', '_blank')">
+                `).join('')}
+              </div>
+            </div>
+            ` : ''}
             
             <div class="details-section">
               <div class="detail-item">

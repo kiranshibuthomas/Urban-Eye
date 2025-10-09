@@ -16,6 +16,7 @@ const {
   sendComplaintClosedEmail,
   sendWorkApprovedEmail
 } = require('../services/emailService');
+const AutomationService = require('../services/automationService');
 
 const router = express.Router();
 
@@ -148,9 +149,18 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
       // Don't fail the request if email fails
     }
 
+    // Trigger automated processing (async, don't wait for it)
+    AutomationService.processComplaint(complaint)
+      .then(result => {
+        console.log(`Automated processing completed for complaint ${complaint._id}:`, result.success ? 'Success' : 'Failed');
+      })
+      .catch(error => {
+        console.error(`Automated processing failed for complaint ${complaint._id}:`, error);
+      });
+
     res.status(201).json({
       success: true,
-      message: 'Complaint submitted successfully',
+      message: 'Complaint submitted successfully and is being processed automatically',
       complaint: complaint
     });
 
@@ -239,6 +249,7 @@ router.get('/user', authenticateToken, requireRole('citizen'), async (req, res) 
     const complaints = await Complaint.find(filter)
       .populate('citizen', 'name email phone')
       .populate('assignedTo', 'name email')
+      .populate('assignedToFieldStaff', 'name email department jobRole experience')
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit));
@@ -471,6 +482,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const complaints = await Complaint.find(filter)
       .populate('citizen', 'name email phone')
       .populate('assignedTo', 'name email')
+      .populate('assignedToFieldStaff', 'name email department jobRole experience')
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit));
@@ -596,6 +608,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     const complaint = await Complaint.findById(req.params.id)
       .populate('citizen', 'name email phone')
       .populate('assignedTo', 'name email')
+      .populate('assignedToFieldStaff', 'name email department jobRole experience')
       .populate('adminNotes.addedBy', 'name email');
 
     if (!complaint) {
@@ -712,6 +725,34 @@ router.put('/:id/status', authenticateToken, requireRole('admin'), async (req, r
     }
 
     await complaint.save();
+
+    // Log the rejection action if applicable
+    if (status === 'rejected') {
+      try {
+        await AuditLog.logAction({
+          action: 'reject_work',
+          entityType: 'complaint',
+          entityId: complaint._id,
+          performedBy: req.user._id,
+          performedByEmail: req.user.email,
+          reason: rejectionReason || 'No reason provided',
+          details: {
+            complaintTitle: complaint.title,
+            complaintCategory: complaint.category,
+            complaintPriority: complaint.priority,
+            fieldStaffId: complaint.assignedToFieldStaff,
+            fieldStaffName: complaint.assignedToFieldStaff?.name,
+            citizenId: complaint.citizen,
+            citizenName: complaint.citizenName
+          },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent')
+        });
+      } catch (auditError) {
+        console.error('Failed to log rejection action:', auditError);
+        // Don't fail the request if audit logging fails
+      }
+    }
 
     // Populate citizen information for email
     await complaint.populate('citizen', 'name email preferences');
@@ -922,9 +963,9 @@ router.put('/:id/approve-work', authenticateToken, requireRole('admin'), async (
     // Approve the work
     await complaint.approveWork(req.user._id, approvalNotes || '');
 
-    // Populate citizen information for email
+    // Populate citizen and field staff information for email
     await complaint.populate('citizen', 'name email preferences');
-    await complaint.populate('assignedToFieldStaff', 'name email');
+    await complaint.populate('assignedToFieldStaff', 'name email department');
 
     // Send email notification for approval
     try {
@@ -935,6 +976,32 @@ router.put('/:id/approve-work', authenticateToken, requireRole('admin'), async (
     } catch (emailError) {
       console.error('Failed to send work approval email:', emailError);
       // Don't fail the request if email fails
+    }
+
+    // Log the approval action
+    try {
+      await AuditLog.logAction({
+        action: 'approve_work',
+        entityType: 'complaint',
+        entityId: complaint._id,
+        performedBy: req.user._id,
+        performedByEmail: req.user.email,
+        details: {
+          complaintTitle: complaint.title,
+          complaintCategory: complaint.category,
+          complaintPriority: complaint.priority,
+          fieldStaffId: complaint.assignedToFieldStaff,
+          fieldStaffName: complaint.assignedToFieldStaff?.name,
+          approvalNotes: approvalNotes || '',
+          citizenId: complaint.citizen,
+          citizenName: complaint.citizenName
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+    } catch (auditError) {
+      console.error('Failed to log approval action:', auditError);
+      // Don't fail the request if audit logging fails
     }
 
     res.json({
@@ -1209,6 +1276,80 @@ router.delete('/:id/hard-delete', authenticateToken, requireRole('admin'), async
   }
 });
 
+
+// @route   POST /api/complaints/process-pending
+// @desc    Process pending complaints with automation (Admin only)
+// @access  Private (Admin only)
+router.post('/process-pending', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const result = await AutomationService.processPendingComplaints();
+    
+    res.json({
+      success: true,
+      message: 'Batch processing completed',
+      result
+    });
+    
+  } catch (error) {
+    console.error('Process pending complaints error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during batch processing'
+    });
+  }
+});
+
+// @route   GET /api/complaints/automation-stats
+// @desc    Get automation statistics (Admin only)
+// @access  Private (Admin only)
+router.get('/automation-stats', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const stats = await AutomationService.getAutomationStats();
+    
+    res.json({
+      success: true,
+      stats
+    });
+    
+  } catch (error) {
+    console.error('Get automation stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching automation statistics'
+    });
+  }
+});
+
+// @route   POST /api/complaints/:id/reprocess
+// @desc    Reprocess a complaint with automation (Admin only)
+// @access  Private (Admin only)
+router.post('/:id/reprocess', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+    
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    const result = await AutomationService.processComplaint(complaint);
+    
+    res.json({
+      success: true,
+      message: 'Complaint reprocessed successfully',
+      result
+    });
+    
+  } catch (error) {
+    console.error('Reprocess complaint error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during reprocessing'
+    });
+  }
+});
 
 module.exports = router;
 

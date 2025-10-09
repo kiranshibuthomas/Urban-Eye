@@ -235,7 +235,7 @@ router.get('/:id', async (req, res) => {
 // @access  Private (Admin only)
 router.post('/', async (req, res) => {
   try {
-    const { name, email, password, role, department, phone, address, city, zipCode } = req.body;
+    const { name, email, password, role, department, jobRole, experience, maxWorkload, phone, address, city, zipCode } = req.body;
 
     // Validation
     if (!name || !email || !password) {
@@ -330,13 +330,37 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Validate department for field staff
+    // Validate department and job role for field staff
     if (role === 'field_staff') {
       const validDepartments = ['sanitation', 'water_supply', 'electricity', 'public_works'];
       if (!department || !validDepartments.includes(department)) {
         return res.status(400).json({
           success: false,
           message: 'Department is required for field staff and must be one of: sanitation, water_supply, electricity, public_works'
+        });
+      }
+
+      // Validate job role
+      if (!jobRole) {
+        return res.status(400).json({
+          success: false,
+          message: 'Job role is required for field staff'
+        });
+      }
+
+      // Validate experience
+      if (experience === undefined || experience < 0 || experience > 50) {
+        return res.status(400).json({
+          success: false,
+          message: 'Experience must be between 0 and 50 years'
+        });
+      }
+
+      // Validate max workload
+      if (maxWorkload === undefined || maxWorkload < 1 || maxWorkload > 50) {
+        return res.status(400).json({
+          success: false,
+          message: 'Max workload must be between 1 and 50 complaints'
         });
       }
     }
@@ -348,6 +372,9 @@ router.post('/', async (req, res) => {
       password,
       role: role || 'citizen',
       department: department || undefined,
+      jobRole: jobRole || undefined,
+      experience: experience || undefined,
+      maxWorkload: maxWorkload || undefined,
       phone: phone ? phone.trim() : undefined,
       address: address ? address.trim() : undefined,
       city: city ? city.trim() : undefined,
@@ -393,7 +420,7 @@ router.post('/', async (req, res) => {
 // @access  Private (Admin only)
 router.put('/:id', async (req, res) => {
   try {
-    const { name, email, role, department, phone, address, city, zipCode, isActive, isEmailVerified } = req.body;
+    const { name, email, role, department, jobRole, experience, maxWorkload, phone, address, city, zipCode, isActive, isEmailVerified } = req.body;
 
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -479,7 +506,7 @@ router.put('/:id', async (req, res) => {
       user.role = role;
     }
 
-    // Validate department if provided or if role is field_staff
+    // Validate department and job role if provided or if role is field_staff
     if (department !== undefined || role === 'field_staff') {
       if (user.role === 'field_staff') {
         const validDepartments = ['sanitation', 'water_supply', 'electricity', 'public_works'];
@@ -492,9 +519,39 @@ router.put('/:id', async (req, res) => {
         }
         user.department = deptToUse;
       } else {
-        // Clear department if not field staff
+        // Clear department and job role if not field staff
         user.department = undefined;
+        user.jobRole = undefined;
+        user.experience = undefined;
+        user.maxWorkload = undefined;
       }
+    }
+
+    // Validate job role for field staff
+    if (jobRole !== undefined && user.role === 'field_staff') {
+      user.jobRole = jobRole;
+    }
+
+    // Validate experience for field staff
+    if (experience !== undefined && user.role === 'field_staff') {
+      if (experience < 0 || experience > 50) {
+        return res.status(400).json({
+          success: false,
+          message: 'Experience must be between 0 and 50 years'
+        });
+      }
+      user.experience = experience;
+    }
+
+    // Validate max workload for field staff
+    if (maxWorkload !== undefined && user.role === 'field_staff') {
+      if (maxWorkload < 1 || maxWorkload > 50) {
+        return res.status(400).json({
+          success: false,
+          message: 'Max workload must be between 1 and 50 complaints'
+        });
+      }
+      user.maxWorkload = maxWorkload;
     }
 
     // Validate phone if provided

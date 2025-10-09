@@ -8,6 +8,28 @@
   box-sizing: border-box;
 }
 
+/* Performance optimizations */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* GPU acceleration for animations */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+/* Optimize transforms for 60fps */
+.transform-gpu {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
 :root {
   /* Sophisticated color palette based on the image */
   --primary-50: #f8fafc;   /* Pale blue/gray */
@@ -118,11 +140,14 @@ code {
   border-radius: 20px;
   border: 1px solid var(--primary-200);
   box-shadow: var(--shadow-lg);
-  transition: all 0.3s ease;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.2s ease;
+  will-change: transform;
 }
 
 .modern-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px) translateZ(0);
   box-shadow: var(--shadow-xl);
   border-color: var(--accent-200);
 }
@@ -141,11 +166,14 @@ code {
   padding: 1.5rem;
   border: 1px solid var(--primary-200);
   box-shadow: var(--shadow-md);
-  transition: all 0.3s ease;
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.15s ease;
+  will-change: transform;
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
   box-shadow: var(--shadow-lg);
   border-color: var(--accent-200);
 }
@@ -165,20 +193,21 @@ code {
  100% { transform: rotate(360deg); }
 }
 
-/* Smooth animations */
+/* Smooth animations - GPU accelerated */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translate3d(0, 20px, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.6s ease-out;
+  animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, transform;
 }
 
 /* Custom scrollbar for sophisticated look */
@@ -246,11 +275,15 @@ code {
 
 /* Modern Dashboard Enhancements */
 .dashboard-card {
-  @apply bg-white rounded-3xl shadow-sm border border-primary-200 hover:border-accent-200 hover:shadow-lg transition-all duration-300;
+  @apply bg-white rounded-3xl shadow-sm border border-primary-200 hover:border-accent-200 hover:shadow-lg;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.2s ease;
+  will-change: transform;
 }
 
 .dashboard-card:hover {
-  @apply transform -translate-y-2 scale-[1.02];
+  transform: translate3d(0, -2px, 0);
 }
 
 .modern-button {
@@ -258,15 +291,33 @@ code {
 }
 
 .modern-button-primary {
-  @apply modern-button bg-teal-600 text-white hover:bg-accent-600 focus:ring-accent-500 transform hover:scale-105 active:scale-95;
+  @apply modern-button bg-teal-600 text-white hover:bg-accent-600 focus:ring-accent-500 active:scale-95;
+  transition: background-color 0.15s ease, transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.modern-button-primary:hover {
+  transform: translateY(-1px) translateZ(0);
 }
 
 .modern-button-accent {
-  @apply modern-button bg-accent-500 text-white hover:bg-accent-600 focus:ring-accent-500 transform hover:scale-105 active:scale-95;
+  @apply modern-button bg-accent-500 text-white hover:bg-accent-600 focus:ring-accent-500 active:scale-95;
+  transition: background-color 0.15s ease, transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.modern-button-accent:hover {
+  transform: translateY(-1px) translateZ(0);
 }
 
 .modern-button-secondary {
-  @apply modern-button bg-primary-100 text-primary-700 hover:bg-accent-100 hover:text-accent-700 focus:ring-accent-500 transform hover:scale-105 active:scale-95;
+  @apply modern-button bg-primary-100 text-primary-700 hover:bg-accent-100 hover:text-accent-700 focus:ring-accent-500 active:scale-95;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.modern-button-secondary:hover {
+  transform: translateY(-1px) translateZ(0);
 }
 
 .modern-input {
@@ -337,13 +388,15 @@ code {
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
 }
 
-/* Enhanced hover effects */
+/* Enhanced hover effects - optimized for performance */
 .hover-lift {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
 .hover-lift:hover {
-  transform: translateY(-4px) scale(1.02);
+  transform: translate3d(0, -2px, 0) scale(1.01);
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   FiMapPin, 
@@ -9,7 +9,7 @@ import {
   FiMoreVertical 
 } from 'react-icons/fi';
 
-const ModernComplaintCard = ({ 
+const ModernComplaintCard = memo(({ 
   complaint, 
   getStatusColor, 
   getPriorityColor, 
@@ -20,9 +20,9 @@ const ModernComplaintCard = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      whileHover={{ y: -4, scale: 1.02 }}
-      className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300 p-6"
+      transition={{ delay: Math.min(index * 0.05, 0.3), duration: 0.3 }}
+      whileHover={{ y: -2, transition: { duration: 0.2 } }}
+      className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-shadow duration-200 p-6"
     >
       <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
@@ -80,31 +80,34 @@ const ModernComplaintCard = ({
           )}
         </div>
         <div className="flex items-center space-x-2">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+          <button
+            className="text-primary-600 hover:text-primary-700 text-sm font-medium transition-colors duration-150"
           >
             View
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="text-teal-600 hover:text-teal-700 text-sm font-medium"
+          </button>
+          <button
+            className="text-teal-600 hover:text-teal-700 text-sm font-medium transition-colors duration-150"
           >
             Assign
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="text-gray-600 hover:text-gray-700 text-sm font-medium"
+          </button>
+          <button
+            className="text-gray-600 hover:text-gray-700 text-sm font-medium transition-colors duration-150"
           >
             <FiMoreVertical className="h-4 w-4" />
-          </motion.button>
+          </button>
         </div>
       </div>
     </motion.div>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison for better performance
+  return (
+    prevProps.complaint._id === nextProps.complaint._id &&
+    prevProps.complaint.status === nextProps.complaint.status &&
+    prevProps.complaint.priority === nextProps.complaint.priority
+  );
+});
+
+ModernComplaintCard.displayName = 'ModernComplaintCard';
 
 export default ModernComplaintCard;

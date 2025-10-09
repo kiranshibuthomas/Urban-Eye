@@ -197,6 +197,13 @@ router.put('/complaints/:id/update-status', async (req, res) => {
     const complaintId = req.params.id;
     const { status, notes } = req.body;
 
+    console.log('Field staff update status request:', {
+      fieldStaffId,
+      complaintId,
+      status,
+      notes
+    });
+
     const validStatuses = ['in_progress'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
@@ -211,6 +218,13 @@ router.put('/complaints/:id/update-status', async (req, res) => {
       isDeleted: false
     });
 
+    console.log('Found complaint:', complaint ? {
+      id: complaint._id,
+      status: complaint.status,
+      assignedToFieldStaff: complaint.assignedToFieldStaff,
+      fieldStaffId
+    } : 'Not found');
+
     if (!complaint) {
       return res.status(404).json({
         success: false,
@@ -222,7 +236,7 @@ router.put('/complaints/:id/update-status', async (req, res) => {
     if (complaint.status !== 'assigned') {
       return res.status(400).json({
         success: false,
-        message: 'Can only start work on assigned complaints'
+        message: `Can only start work on assigned complaints. Current status: ${complaint.status}`
       });
     }
 

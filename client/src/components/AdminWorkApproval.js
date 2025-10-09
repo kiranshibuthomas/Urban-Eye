@@ -168,25 +168,34 @@ const AdminWorkApproval = ({ complaint, onApprove, onReject, onClose }) => {
                 <FiCheckCircle className="h-5 w-5 mr-2" />
                 Work Completion Details
               </h3>
-              <div className="mb-4">
-                <p className="text-green-800 leading-relaxed whitespace-pre-wrap">
-                  {complaint.workCompletionNotes}
-                </p>
-              </div>
+              {complaint.workCompletionNotes ? (
+                <div className="mb-4">
+                  <p className="text-green-800 leading-relaxed whitespace-pre-wrap">
+                    {complaint.workCompletionNotes}
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-4">
+                  <p className="text-green-700 italic">No completion notes provided by field staff.</p>
+                </div>
+              )}
               <div className="text-sm text-green-700">
-                <p><strong>Completed by:</strong> {complaint.assignedToFieldStaff?.name}</p>
-                <p><strong>Department:</strong> {complaint.assignedToFieldStaff?.department}</p>
-                <p><strong>Completed on:</strong> {formatDate(complaint.workCompletedAt)}</p>
+                <p><strong>Completed by:</strong> {complaint.assignedToFieldStaff?.name || 'Unknown'}</p>
+                <p><strong>Department:</strong> {complaint.assignedToFieldStaff?.department || 'Unknown'}</p>
+                <p><strong>Completed on:</strong> {complaint.workCompletedAt ? formatDate(complaint.workCompletedAt) : 'Not specified'}</p>
               </div>
             </div>
 
             {/* Work Proof Images */}
-            {complaint.workProofImages && complaint.workProofImages.length > 0 && (
-              <div className="bg-gray-50 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <FiImage className="h-5 w-5 mr-2 text-green-600" />
+            {complaint.workProofImages && complaint.workProofImages.length > 0 ? (
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+                  <FiImage className="h-5 w-5 mr-2 text-blue-600" />
                   Work Proof Images ({complaint.workProofImages.length})
                 </h3>
+                <p className="text-blue-700 text-sm mb-4">
+                  These images show the completed work as submitted by the field staff. Click on any image to view it in full size.
+                </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {complaint.workProofImages.map((image, index) => (
                     <div
@@ -204,9 +213,22 @@ const AdminWorkApproval = ({ complaint, onApprove, onReject, onClose }) => {
                           <FiEye className="h-4 w-4 text-gray-800" />
                         </div>
                       </div>
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        Proof Image {index + 1}
+                      </div>
                     </div>
                   ))}
                 </div>
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-yellow-900 mb-3 flex items-center">
+                  <FiAlertCircle className="h-5 w-5 mr-2 text-yellow-600" />
+                  No Proof Images Provided
+                </h3>
+                <p className="text-yellow-700 text-sm">
+                  The field staff did not upload any proof images for this completed work. You may want to request additional documentation before approving.
+                </p>
               </div>
             )}
 
@@ -340,6 +362,18 @@ const AdminWorkApproval = ({ complaint, onApprove, onReject, onClose }) => {
                 <FiCheckCircle className="h-5 w-5 mr-2 text-blue-600" />
                 Review Actions
               </h3>
+              
+              {/* Review Guidelines */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <h4 className="text-sm font-semibold text-blue-900 mb-2">Review Guidelines:</h4>
+                <ul className="text-xs text-blue-800 space-y-1">
+                  <li>• Verify that the work completion notes are detailed and accurate</li>
+                  <li>• Check proof images to ensure work quality meets standards</li>
+                  <li>• Confirm that the work addresses the original complaint</li>
+                  <li>• Provide clear approval notes for the citizen</li>
+                </ul>
+              </div>
+
               <div className="space-y-4">
                 {/* Approval Notes */}
                 <div>
@@ -350,9 +384,10 @@ const AdminWorkApproval = ({ complaint, onApprove, onReject, onClose }) => {
                     value={approvalNotes}
                     onChange={(e) => setApprovalNotes(e.target.value)}
                     rows={3}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                    placeholder="Add notes about the work quality, completion status, etc..."
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    placeholder="Add notes about the work quality, completion status, and any feedback for the citizen..."
                   />
+                  <p className="text-xs text-gray-500 mt-1">These notes will be included in the email notification to the citizen.</p>
                 </div>
 
                 {/* Rejection Reason */}
@@ -364,28 +399,29 @@ const AdminWorkApproval = ({ complaint, onApprove, onReject, onClose }) => {
                     value={rejectionReason}
                     onChange={(e) => setRejectionReason(e.target.value)}
                     rows={3}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                    placeholder="Explain why the work is being rejected..."
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="Explain why the work is being rejected and what needs to be improved..."
                   />
+                  <p className="text-xs text-gray-500 mt-1">This will be sent to the field staff for corrections.</p>
                 </div>
 
                 {/* Action Buttons */}
                 <div className="space-y-3">
                   <button
                     onClick={handleApprove}
-                    disabled={isApproving || isRejecting}
-                    className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors duration-200 text-sm font-medium"
+                    disabled={isApproving || isRejecting || !approvalNotes.trim()}
+                    className="w-full flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 text-sm font-medium"
                   >
                     <FiThumbsUp className="h-4 w-4 mr-2" />
-                    {isApproving ? 'Approving...' : 'Approve Work'}
+                    {isApproving ? 'Approving...' : 'Approve Work & Notify Citizen'}
                   </button>
                   <button
                     onClick={handleReject}
-                    disabled={isApproving || isRejecting}
-                    className="w-full flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors duration-200 text-sm font-medium"
+                    disabled={isApproving || isRejecting || !rejectionReason.trim()}
+                    className="w-full flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 text-sm font-medium"
                   >
                     <FiThumbsDown className="h-4 w-4 mr-2" />
-                    {isRejecting ? 'Rejecting...' : 'Reject Work'}
+                    {isRejecting ? 'Rejecting...' : 'Reject Work & Return to Field Staff'}
                   </button>
                 </div>
               </div>

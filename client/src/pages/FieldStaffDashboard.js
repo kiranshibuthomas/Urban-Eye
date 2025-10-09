@@ -153,15 +153,13 @@ const FieldStaffDashboard = () => {
           throw new Error(data.message || 'Failed to update status');
         }
       } else {
-        if (response.status === 401) {
-          const errorData = await response.json();
-          if (errorData.message === 'Token has expired.') {
-            toast.error('Your session has expired. Please log in again.');
-            await sessionLogout();
-            return;
-          }
+        const errorData = await response.json();
+        if (response.status === 401 && errorData.message === 'Token has expired.') {
+          toast.error('Your session has expired. Please log in again.');
+          await sessionLogout();
+          return;
         }
-        throw new Error('Failed to update status');
+        throw new Error(errorData.message || 'Failed to update status');
       }
     } catch (error) {
       console.error('Status update error:', error);

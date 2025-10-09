@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiUsers, 
@@ -35,6 +35,29 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import ProfileImageUpload from '../components/ProfileImageUpload';
+
+// Memoized StatCard component to prevent re-renders
+const StatCard = React.memo(({ icon: Icon, title, value, color, delay = 0 }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay, duration: 0.5, ease: "easeOut" }}
+    whileHover={{ y: -4, scale: 1.02 }}
+    className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300"
+  >
+    <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
+        <p className="text-3xl font-bold text-gray-900 mb-2">{value}</p>
+      </div>
+      <div className={`p-3 rounded-xl ${color}`}>
+        <Icon className="h-6 w-6 text-white" />
+      </div>
+    </div>
+  </motion.div>
+));
+
+StatCard.displayName = 'StatCard';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -79,7 +102,7 @@ const UserManagement = () => {
   });
 
   // Fetch users data
-  const fetchUsers = async (page = 1) => {
+  const fetchUsers = useCallback(async (page = 1) => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams({
@@ -108,10 +131,10 @@ const UserManagement = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [searchQuery, selectedFilters]);
 
   // Fetch user statistics
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const response = await fetch('/api/users/stats', {
         credentials: 'include'
@@ -126,19 +149,21 @@ const UserManagement = () => {
     } catch (error) {
       console.error('Error fetching user stats:', error);
     }
-  };
+  }, []);
 
+  // Initial data fetch on mount
   useEffect(() => {
     fetchUsers();
     fetchStats();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchUsers(1);
     }, 500);
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, selectedFilters]);
+  }, [fetchUsers]);
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -234,7 +259,7 @@ const UserManagement = () => {
     }
   };
 
-  const handleDeleteUser = async (userId) => {
+  const handleDeleteUser = useCallback(async (userId) => {
     if (!window.confirm('Are you sure you want to deactivate this user?')) {
       return;
     }
@@ -258,9 +283,9 @@ const UserManagement = () => {
       console.error('Error deleting user:', error);
       toast.error('Failed to deactivate user');
     }
-  };
+  }, [fetchUsers, fetchStats, pagination.currentPage]);
 
-  const handleResendVerification = async (userId) => {
+  const handleResendVerification = useCallback(async (userId) => {
     try {
       const response = await fetch(`/api/users/${userId}/resend-verification`, {
         method: 'POST',
@@ -278,9 +303,9 @@ const UserManagement = () => {
       console.error('Error resending verification:', error);
       toast.error('Failed to send verification email');
     }
-  };
+  }, []);
 
-  const handleResetPassword = async (userId, newPassword) => {
+  const handleResetPassword = useCallback(async (userId, newPassword) => {
     try {
       const response = await fetch(`/api/users/${userId}/reset-password`, {
         method: 'POST',
@@ -302,9 +327,9 @@ const UserManagement = () => {
       console.error('Error resetting password:', error);
       toast.error('Failed to reset password');
     }
-  };
+  }, []);
 
-  const handleRefreshGoogleAvatars = async () => {
+  const handleRefreshGoogleAvatars = useCallback(async () => {
     try {
       const response = await fetch('/api/users/refresh-google-avatars', {
         method: 'POST',
@@ -324,9 +349,9 @@ const UserManagement = () => {
       console.error('Error refreshing Google avatars:', error);
       toast.error('Failed to refresh Google avatars');
     }
-  };
+  }, [fetchUsers, fetchStats, pagination.currentPage]);
 
-  const openEditModal = (user) => {
+  const openEditModal = useCallback((user) => {
     setSelectedUser(user);
     setFormData({
       name: user.name || '',
@@ -339,14 +364,14 @@ const UserManagement = () => {
       zipCode: user.zipCode || ''
     });
     setShowEditModal(true);
-  };
+  }, []);
 
-  const openViewModal = (user) => {
+  const openViewModal = useCallback((user) => {
     setSelectedUser(user);
     setShowViewModal(true);
-  };
+  }, []);
 
-  const getRoleColor = (role) => {
+  const getRoleColor = useCallback((role) => {
     switch (role) {
       case 'admin':
         return 'bg-red-50 text-red-700 border-red-200';
@@ -355,35 +380,16 @@ const UserManagement = () => {
       default:
         return 'bg-gray-50 text-gray-700 border-gray-200';
     }
-  };
+  }, []);
 
-  const getStatusColor = (isActive) => {
+  const getStatusColor = useCallback((isActive) => {
     return isActive 
       ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
       : 'bg-gray-50 text-gray-700 border-gray-200';
-  };
+  }, []);
 
-  const StatCard = ({ icon: Icon, title, value, color, delay = 0 }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.5, ease: "easeOut" }}
-      whileHover={{ y: -4, scale: 1.02 }}
-      className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-gray-900 mb-2">{value}</p>
-        </div>
-        <div className={`p-3 rounded-xl ${color}`}>
-          <Icon className="h-6 w-6 text-white" />
-        </div>
-      </div>
-    </motion.div>
-  );
-
-  const UserCard = ({ user, index }) => (
+  // Memoized UserCard component
+  const UserCard = useCallback(({ user, index }) => (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -472,7 +478,7 @@ const UserManagement = () => {
         </div>
       </div>
     </motion.div>
-  );
+  ), [openEditModal, openViewModal, handleDeleteUser, handleResendVerification]);
 
   return (
     <div className="space-y-8">

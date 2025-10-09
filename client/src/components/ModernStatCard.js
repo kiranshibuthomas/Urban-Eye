@@ -1,15 +1,15 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 
-const ModernStatCard = ({ icon: Icon, title, value, change, color, delay = 0, isLive = false }) => (
+const ModernStatCard = memo(({ icon: Icon, title, value, change, color, delay = 0, isLive = false }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    transition={{ delay, duration: 0.5, ease: "easeOut" }}
-    whileHover={{ y: -4, scale: 1.02 }}
+    transition={{ delay, duration: 0.3, ease: "easeOut" }}
+    whileHover={{ y: -2, transition: { duration: 0.2 } }}
     className="relative group"
   >
-    <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300">
+    <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow duration-200">
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="flex items-center space-x-2 mb-1">
@@ -31,12 +31,22 @@ const ModernStatCard = ({ icon: Icon, title, value, change, color, delay = 0, is
             </div>
           )}
         </div>
-        <div className={`p-3 rounded-2xl ${color} group-hover:scale-110 transition-transform duration-300`}>
+        <div className={`p-3 rounded-2xl ${color} group-hover:scale-105 transition-transform duration-200`}>
           <Icon className="h-6 w-6 text-white" />
         </div>
       </div>
     </div>
   </motion.div>
-);
+), (prevProps, nextProps) => {
+  // Custom comparison to prevent unnecessary re-renders
+  return (
+    prevProps.value === nextProps.value &&
+    prevProps.change === nextProps.change &&
+    prevProps.isLive === nextProps.isLive &&
+    prevProps.title === nextProps.title
+  );
+});
+
+ModernStatCard.displayName = 'ModernStatCard';
 
 export default ModernStatCard;

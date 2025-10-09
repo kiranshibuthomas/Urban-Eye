@@ -18,7 +18,9 @@ import {
   FiMail,
   FiPhone,
   FiMapPin,
-  FiCalendar
+  FiCalendar,
+  FiKey,
+  FiEyeOff
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -27,15 +29,24 @@ const FieldStaffManagement = () => {
   const [fieldStaff, setFieldStaff] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [resetPasswordData, setResetPasswordData] = useState({
+    newPassword: '',
+    confirmPassword: ''
+  });
   const [newStaff, setNewStaff] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
     department: '',
+    jobRole: '',
+    experience: 0,
+    maxWorkload: 10,
     phone: '',
     address: '',
     city: '',
@@ -46,10 +57,58 @@ const FieldStaffManagement = () => {
   const navigate = useNavigate();
 
   const departments = [
-    { value: 'sanitation', label: 'Sanitation', icon: '🧹', color: 'bg-green-100 text-green-800' },
-    { value: 'water_supply', label: 'Water Supply', icon: '💧', color: 'bg-blue-100 text-blue-800' },
-    { value: 'electricity', label: 'Electricity', icon: '⚡', color: 'bg-yellow-100 text-yellow-800' },
-    { value: 'public_works', label: 'Public Works', icon: '🔧', color: 'bg-purple-100 text-purple-800' }
+    { 
+      value: 'sanitation', 
+      label: 'Sanitation', 
+      icon: '🧹', 
+      color: 'bg-green-100 text-green-800',
+      jobRoles: [
+        { value: 'sanitation_worker', label: 'Sanitation Worker' },
+        { value: 'waste_collector', label: 'Waste Collector' },
+        { value: 'cleanup_specialist', label: 'Cleanup Specialist' }
+      ]
+    },
+    { 
+      value: 'water_supply', 
+      label: 'Water Supply', 
+      icon: '💧', 
+      color: 'bg-blue-100 text-blue-800',
+      jobRoles: [
+        { value: 'water_technician', label: 'Water Technician' },
+        { value: 'plumber', label: 'Plumber' },
+        { value: 'pipe_specialist', label: 'Pipe Specialist' }
+      ]
+    },
+    { 
+      value: 'electricity', 
+      label: 'Electricity', 
+      icon: '⚡', 
+      color: 'bg-yellow-100 text-yellow-800',
+      jobRoles: [
+        { value: 'electrician', label: 'Electrician' },
+        { value: 'power_technician', label: 'Power Technician' },
+        { value: 'lighting_technician', label: 'Lighting Technician' },
+        { value: 'street_light_specialist', label: 'Street Light Specialist' }
+      ]
+    },
+    { 
+      value: 'public_works', 
+      label: 'Public Works', 
+      icon: '🔧', 
+      color: 'bg-purple-100 text-purple-800',
+      jobRoles: [
+        { value: 'road_worker', label: 'Road Worker' },
+        { value: 'asphalt_specialist', label: 'Asphalt Specialist' },
+        { value: 'pavement_technician', label: 'Pavement Technician' },
+        { value: 'drainage_specialist', label: 'Drainage Specialist' },
+        { value: 'sewer_technician', label: 'Sewer Technician' },
+        { value: 'park_maintenance', label: 'Park Maintenance' },
+        { value: 'safety_inspector', label: 'Safety Inspector' },
+        { value: 'environmental_specialist', label: 'Environmental Specialist' },
+        { value: 'transport_coordinator', label: 'Transport Coordinator' },
+        { value: 'general_worker', label: 'General Worker' }
+      ]
+    }
   ];
 
   useEffect(() => {
@@ -122,6 +181,9 @@ const FieldStaffManagement = () => {
             password: '',
             confirmPassword: '',
             department: '',
+            jobRole: '',
+            experience: 0,
+            maxWorkload: 10,
             phone: '',
             address: '',
             city: '',
@@ -206,6 +268,69 @@ const FieldStaffManagement = () => {
     } catch (error) {
       console.error('Delete field staff error:', error);
       toast.error('Failed to deactivate field staff');
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+
+    // Validation
+    if (!resetPasswordData.newPassword || !resetPasswordData.confirmPassword) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    if (resetPasswordData.newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters long');
+      return;
+    }
+
+    // Password strength validation
+    const passwordChecks = {
+      hasLowercase: /[a-z]/.test(resetPasswordData.newPassword),
+      hasUppercase: /[A-Z]/.test(resetPasswordData.newPassword),
+      hasNumber: /[0-9]/.test(resetPasswordData.newPassword),
+      hasSpecial: /[^A-Za-z0-9]/.test(resetPasswordData.newPassword)
+    };
+
+    const passwordScore = Object.values(passwordChecks).filter(Boolean).length;
+    
+    if (passwordScore < 3) {
+      toast.error('Password must contain at least 3 of: lowercase, uppercase, number, special character');
+      return;
+    }
+
+    if (resetPasswordData.newPassword !== resetPasswordData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/users/${selectedStaff._id}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          newPassword: resetPasswordData.newPassword
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success(`Password reset successfully for ${selectedStaff.name}`);
+        setIsResetPasswordModalOpen(false);
+        setResetPasswordData({ newPassword: '', confirmPassword: '' });
+        setSelectedStaff(null);
+        setShowNewPassword(false);
+      } else {
+        toast.error(data.message || 'Failed to reset password');
+      }
+    } catch (error) {
+      console.error('Reset password error:', error);
+      toast.error('Failed to reset password');
     }
   };
 
@@ -318,7 +443,10 @@ const FieldStaffManagement = () => {
                       Staff Member
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Department
+                      Department & Role
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Experience & Workload
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Contact
@@ -353,9 +481,28 @@ const FieldStaffManagement = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${deptInfo.color}`}>
-                            {deptInfo.icon} {deptInfo.label}
-                          </span>
+                          <div className="space-y-1">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${deptInfo.color}`}>
+                              {deptInfo.icon} {deptInfo.label}
+                            </span>
+                            {staff.jobRole && (
+                              <div className="text-xs text-gray-600">
+                                {departments
+                                  .find(dept => dept.value === staff.department)
+                                  ?.jobRoles.find(role => role.value === staff.jobRole)?.label || staff.jobRole}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            <div className="flex items-center">
+                              <span className="font-medium">{staff.experience || 0} years</span>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Max: {staff.maxWorkload || 10} complaints
+                            </div>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
@@ -396,12 +543,24 @@ const FieldStaffManagement = () => {
                                 setIsEditModalOpen(true);
                               }}
                               className="text-blue-600 hover:text-blue-900"
+                              title="Edit Staff"
                             >
                               <FiEdit3 className="h-4 w-4" />
                             </button>
                             <button
+                              onClick={() => {
+                                setSelectedStaff(staff);
+                                setIsResetPasswordModalOpen(true);
+                              }}
+                              className="text-green-600 hover:text-green-900"
+                              title="Reset Password"
+                            >
+                              <FiKey className="h-4 w-4" />
+                            </button>
+                            <button
                               onClick={() => handleDeleteStaff(staff._id)}
                               className="text-red-600 hover:text-red-900"
+                              title="Deactivate Staff"
                             >
                               <FiTrash2 className="h-4 w-4" />
                             </button>
@@ -494,7 +653,7 @@ const FieldStaffManagement = () => {
                   <select
                     required
                     value={newStaff.department}
-                    onChange={(e) => setNewStaff({...newStaff, department: e.target.value})}
+                    onChange={(e) => setNewStaff({...newStaff, department: e.target.value, jobRole: ''})}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   >
                     <option value="">Select Department</option>
@@ -504,6 +663,60 @@ const FieldStaffManagement = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {newStaff.department && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Job Role *
+                    </label>
+                    <select
+                      required
+                      value={newStaff.jobRole}
+                      onChange={(e) => setNewStaff({...newStaff, jobRole: e.target.value})}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    >
+                      <option value="">Select Job Role</option>
+                      {departments
+                        .find(dept => dept.value === newStaff.department)
+                        ?.jobRoles.map(role => (
+                          <option key={role.value} value={role.value}>
+                            {role.label}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Experience (Years) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      max="50"
+                      value={newStaff.experience}
+                      onChange={(e) => setNewStaff({...newStaff, experience: parseInt(e.target.value) || 0})}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Max Workload (Complaints) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      max="50"
+                      value={newStaff.maxWorkload}
+                      onChange={(e) => setNewStaff({...newStaff, maxWorkload: parseInt(e.target.value) || 10})}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -627,7 +840,7 @@ const FieldStaffManagement = () => {
                   <select
                     required
                     value={selectedStaff.department}
-                    onChange={(e) => setSelectedStaff({...selectedStaff, department: e.target.value})}
+                    onChange={(e) => setSelectedStaff({...selectedStaff, department: e.target.value, jobRole: ''})}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   >
                     {departments.map(dept => (
@@ -636,6 +849,60 @@ const FieldStaffManagement = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {selectedStaff.department && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Job Role *
+                    </label>
+                    <select
+                      required
+                      value={selectedStaff.jobRole || ''}
+                      onChange={(e) => setSelectedStaff({...selectedStaff, jobRole: e.target.value})}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    >
+                      <option value="">Select Job Role</option>
+                      {departments
+                        .find(dept => dept.value === selectedStaff.department)
+                        ?.jobRoles.map(role => (
+                          <option key={role.value} value={role.value}>
+                            {role.label}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Experience (Years) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      max="50"
+                      value={selectedStaff.experience || 0}
+                      onChange={(e) => setSelectedStaff({...selectedStaff, experience: parseInt(e.target.value) || 0})}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Max Workload (Complaints) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      max="50"
+                      value={selectedStaff.maxWorkload || 10}
+                      onChange={(e) => setSelectedStaff({...selectedStaff, maxWorkload: parseInt(e.target.value) || 10})}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -713,6 +980,115 @@ const FieldStaffManagement = () => {
                     className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                   >
                     Update Staff
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {isResetPasswordModalOpen && selectedStaff && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Reset Password</h3>
+                <button
+                  onClick={() => {
+                    setIsResetPasswordModalOpen(false);
+                    setResetPasswordData({ newPassword: '', confirmPassword: '' });
+                    setSelectedStaff(null);
+                    setShowNewPassword(false);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="mb-4 p-3 bg-blue-50 rounded-md">
+                <p className="text-sm text-blue-800">
+                  <strong>Staff Member:</strong> {selectedStaff.name}
+                </p>
+                <p className="text-sm text-blue-600 mt-1">
+                  {selectedStaff.email}
+                </p>
+              </div>
+
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    New Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={resetPasswordData.newPassword}
+                      onChange={(e) => setResetPasswordData({
+                        ...resetPasswordData,
+                        newPassword: e.target.value
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter new password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700"
+                    >
+                      {showNewPassword ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Must be at least 8 characters with 3 of: lowercase, uppercase, number, special character
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirm Password <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={resetPasswordData.confirmPassword}
+                    onChange={(e) => setResetPasswordData({
+                      ...resetPasswordData,
+                      confirmPassword: e.target.value
+                    })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Confirm new password"
+                    required
+                  />
+                </div>
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                  <p className="text-xs text-yellow-800">
+                    <strong>⚠️ Note:</strong> This will immediately change the staff member's password. 
+                    Make sure to securely communicate the new password to them.
+                  </p>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsResetPasswordModalOpen(false);
+                      setResetPasswordData({ newPassword: '', confirmPassword: '' });
+                      setSelectedStaff(null);
+                      setShowNewPassword(false);
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    Reset Password
                   </button>
                 </div>
               </form>

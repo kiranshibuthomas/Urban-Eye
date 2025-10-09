@@ -5,8 +5,20 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}",
     "./public/index.html"
   ],
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   theme: {
     extend: {
+      // Responsive breakpoints
+      screens: {
+        'xs': '475px',
+        'sm': '640px',
+        'md': '768px',
+        'lg': '1024px',
+        'xl': '1280px',
+        '2xl': '1536px',
+      },
       colors: {
         primary: {
           50: '#f8fafc',   // Pale blue/gray
@@ -74,10 +86,10 @@ module.exports = {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       animation: {
-        'fade-in': 'fadeIn 0.5s ease-in-out',
-        'slide-up': 'slideUp 0.5s ease-out',
-        'slide-down': 'slideDown 0.5s ease-out',
-        'bounce-in': 'bounceIn 0.6s ease-out',
+        'fade-in': 'fadeIn 0.3s ease-in-out',
+        'slide-up': 'slideUp 0.3s ease-out',
+        'slide-down': 'slideDown 0.3s ease-out',
+        'bounce-in': 'bounceIn 0.4s ease-out',
       },
       keyframes: {
         fadeIn: {
@@ -85,21 +97,46 @@ module.exports = {
           '100%': { opacity: '1' },
         },
         slideUp: {
-          '0%': { transform: 'translateY(20px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
+          '0%': { transform: 'translate3d(0, 10px, 0)', opacity: '0' },
+          '100%': { transform: 'translate3d(0, 0, 0)', opacity: '1' },
         },
         slideDown: {
-          '0%': { transform: 'translateY(-20px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
+          '0%': { transform: 'translate3d(0, -10px, 0)', opacity: '0' },
+          '100%': { transform: 'translate3d(0, 0, 0)', opacity: '1' },
         },
         bounceIn: {
-          '0%': { transform: 'scale(0.3)', opacity: '0' },
-          '50%': { transform: 'scale(1.05)' },
-          '70%': { transform: 'scale(0.9)' },
+          '0%': { transform: 'scale(0.9)', opacity: '0' },
+          '50%': { transform: 'scale(1.02)' },
           '100%': { transform: 'scale(1)', opacity: '1' },
         },
+      },
+      // Optimized transition timing functions
+      transitionTimingFunction: {
+        'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
+      },
+      // Performance-optimized spacing
+      spacing: {
+        'safe-top': 'env(safe-area-inset-top)',
+        'safe-bottom': 'env(safe-area-inset-bottom)',
+        'safe-left': 'env(safe-area-inset-left)',
+        'safe-right': 'env(safe-area-inset-right)',
       },
     },
   },
   plugins: [],
+  // Purge unused styles in production
+  purge: {
+    enabled: process.env.NODE_ENV === 'production',
+    content: [
+      "./src/**/*.{js,jsx,ts,tsx}",
+      "./public/index.html"
+    ],
+    options: {
+      safelist: [
+        'animate-spin',
+        'animate-pulse',
+        'animate-bounce',
+      ],
+    },
+  },
 }

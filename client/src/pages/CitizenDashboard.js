@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiPlus, 
@@ -72,12 +72,9 @@ const CitizenDashboard = () => {
   const navigate = useNavigate();
 
 
-  // Set animation flag after initial render
+  // Set animation flag after initial render - reduced delay
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setHasAnimated(true);
-    }, 100);
-    return () => clearTimeout(timer);
+    setHasAnimated(true);
   }, []);
 
   // Fetch user's complaint statistics
@@ -379,8 +376,8 @@ const CitizenDashboard = () => {
     }
   };
 
-  // Refresh data function
-  const refreshData = async () => {
+  // Refresh data function - memoized
+  const refreshData = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -397,7 +394,7 @@ const CitizenDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="min-h-screen bg-white">
@@ -591,16 +588,16 @@ const CitizenDashboard = () => {
 
           <div className="relative z-10 w-full px-6 lg:px-8 text-center">
       <motion.div
-              initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+              initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
+              transition={{ duration: 0.4 }}
               className="space-y-8"
             >
               {/* Government Badge */}
               <motion.div
-                initial={hasAnimated ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
+                initial={hasAnimated ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2, duration: 0.6 }}
+                transition={{ delay: 0.1, duration: 0.3 }}
                 className="inline-flex items-center px-6 py-3 bg-[#CAD2C5]/80 backdrop-blur-sm border border-[#84A98C]/50 rounded-full text-[#354F52] text-sm font-medium shadow-lg"
               >
                 <FaCity className="w-4 h-4 mr-2" />
@@ -609,9 +606,9 @@ const CitizenDashboard = () => {
 
               {/* Main Headline */}
               <motion.h1
-                initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.8 }}
+                transition={{ delay: 0.2, duration: 0.4 }}
                 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-[#2F3E46] leading-tight"
               >
                 AI-Driven Support To Boost
@@ -622,9 +619,9 @@ const CitizenDashboard = () => {
 
               {/* Subtitle */}
               <motion.p
-                initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.8 }}
+                transition={{ delay: 0.3, duration: 0.4 }}
                 className="text-xl sm:text-2xl text-[#354F52] max-w-5xl mx-auto leading-relaxed"
               >
                 A platform that helps citizens and government leaders provide efficient, high-quality civic services at scale with AI assistance, improving speed and quality across all channels, 24/7.
@@ -632,38 +629,34 @@ const CitizenDashboard = () => {
 
               {/* CTA Buttons */}
       <motion.div
-                initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8, duration: 0.8 }}
+                transition={{ delay: 0.4, duration: 0.4 }}
                 className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6"
               >
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <button
                   onClick={() => navigate('/report-issue')}
-                  className="group bg-[#52796F] text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:bg-[#354F52] transition-all duration-300 flex items-center space-x-3 shadow-2xl"
+                  className="group bg-[#52796F] text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:bg-[#354F52] transition-colors duration-200 flex items-center space-x-3 shadow-2xl"
                 >
-                  <FiPlus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+                  <FiPlus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-200" />
                   <span>Report an Issue</span>
-                  <FiArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
-                </motion.button>
+                  <FiArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200" />
+                </button>
 
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <button
                   onClick={() => scrollToSection('services')}
-                  className="group bg-white/80 backdrop-blur-sm border border-[#84A98C] text-[#354F52] px-8 py-4 rounded-2xl font-semibold text-lg hover:bg-[#CAD2C5]/30 transition-all duration-300 flex items-center space-x-3 shadow-lg"
+                  className="group bg-white/80 backdrop-blur-sm border border-[#84A98C] text-[#354F52] px-8 py-4 rounded-2xl font-semibold text-lg hover:bg-[#CAD2C5]/30 transition-colors duration-200 flex items-center space-x-3 shadow-lg"
                 >
                   <FiEye className="w-5 h-5" />
                   <span>Explore Services</span>
-                </motion.button>
+                </button>
               </motion.div>
 
               {/* Welcome Message */}
               <motion.div
-                initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1, duration: 0.8 }}
+                transition={{ delay: 0.5, duration: 0.4 }}
                 className="mt-12 p-6 bg-white/60 backdrop-blur-sm border border-[#84A98C]/50 rounded-3xl max-w-3xl mx-auto shadow-lg"
               >
                 <div className="flex items-center justify-center mb-4">
@@ -721,14 +714,14 @@ const CitizenDashboard = () => {
               {impactStats.map((stat, index) => (
                 <motion.div
                   key={stat.label}
-                  initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                  initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 * index, duration: 0.6 }}
-                  whileHover={{ y: -8, scale: 1.02 }}
-                  className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 hover:shadow-2xl transition-all duration-300 group"
+                  transition={{ delay: 0.05 * index, duration: 0.3 }}
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 hover:shadow-2xl transition-shadow duration-200 group"
                 >
                   <div className="text-center">
-                    <div className={`w-16 h-16 ${stat.color} bg-opacity-10 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                    <div className={`w-16 h-16 ${stat.color} bg-opacity-10 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-105 transition-transform duration-200`}>
                       <stat.icon className={`w-8 h-8 ${stat.color}`} />
             </div>
                     <div className="text-4xl font-bold text-gray-900 mb-2">{stat.number}</div>
@@ -764,19 +757,19 @@ const CitizenDashboard = () => {
                 return (
                   <motion.div
                     key={service.title}
-                    initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                    initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 * index, duration: 0.6 }}
-                    whileHover={{ y: -8, scale: 1.02 }}
+                    transition={{ delay: 0.05 * index, duration: 0.3 }}
+                    whileHover={{ y: -4, transition: { duration: 0.2 } }}
                     onClick={() => executeAction(service.action)}
-                    className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 hover:shadow-2xl transition-all duration-300 cursor-pointer group"
+                    className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 hover:shadow-2xl transition-shadow duration-200 cursor-pointer group"
                   >
-                    <div className={`w-16 h-16 bg-gradient-to-r ${service.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                    <div className={`w-16 h-16 bg-gradient-to-r ${service.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-200`}>
                       <IconComponent className="w-8 h-8 text-white" />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-4">{service.title}</h3>
                     <p className="text-gray-600 mb-6">{service.description}</p>
-                    <div className="flex items-center text-sm font-semibold group-hover:translate-x-2 transition-transform duration-300">
+                    <div className="flex items-center text-sm font-semibold group-hover:translate-x-1 transition-transform duration-200">
                       <span className={service.textColor}>Get Started</span>
                       <FiArrowRight className="w-4 h-4 ml-2" />
                     </div>

@@ -41,6 +41,48 @@ const userSchema = new mongoose.Schema({
       return this.role === 'field_staff';
     }
   },
+  jobRole: {
+    type: String,
+    enum: [
+      // Sanitation roles
+      'sanitation_worker', 'waste_collector', 'cleanup_specialist',
+      // Water supply roles
+      'water_technician', 'plumber', 'pipe_specialist',
+      // Electricity roles
+      'electrician', 'power_technician', 'electrical_specialist', 'lighting_technician', 'street_light_specialist',
+      // Public works roles
+      'road_worker', 'asphalt_specialist', 'pavement_technician', 'drainage_specialist', 'sewer_technician', 
+      'flood_control_worker', 'park_maintenance', 'recreation_specialist', 'landscaper', 'safety_inspector', 
+      'security_specialist', 'public_safety_officer', 'noise_control_specialist', 'environmental_officer', 
+      'environmental_specialist', 'air_quality_technician', 'transport_coordinator', 'bus_maintenance', 
+      'transit_specialist', 'general_worker', 'maintenance_technician'
+    ],
+    required: function() {
+      return this.role === 'field_staff';
+    }
+  },
+  experience: {
+    type: Number,
+    min: 0,
+    max: 50,
+    default: 0,
+    required: function() {
+      return this.role === 'field_staff';
+    }
+  },
+  isOnLeave: {
+    type: Boolean,
+    default: false
+  },
+  maxWorkload: {
+    type: Number,
+    default: 10,
+    min: 1,
+    max: 50,
+    required: function() {
+      return this.role === 'field_staff';
+    }
+  },
   googleId: {
     type: String,
     sparse: true, // Allows multiple documents without this field
@@ -395,6 +437,13 @@ userSchema.virtual('complaints', {
   ref: 'Complaint',
   localField: '_id',
   foreignField: 'citizen'
+});
+
+// Virtual for field staff's assigned complaints
+userSchema.virtual('assignedComplaints', {
+  ref: 'Complaint',
+  localField: '_id',
+  foreignField: 'assignedToFieldStaff'
 });
 
 // Ensure virtual fields are serialized

@@ -1,95 +1,45 @@
 import toast from 'react-hot-toast';
-import { createRoot } from 'react-dom/client';
-import React from 'react';
-import SimpleAnimatedToast from '../components/SimpleAnimatedToast';
 
-// Custom toast function for success messages
-export const showSuccessToast = (message, options = {}) => {
-  const {
-    duration = 4000,
-    position = 'top-right',
-    theme = 'auto'
-  } = options;
-
-  // Create a container for our custom toast
-  const toastContainer = document.createElement('div');
-  toastContainer.style.position = 'fixed';
-  toastContainer.style.zIndex = '9999';
-  
-  // Position the toast
-  switch (position) {
-    case 'top-right':
-      toastContainer.style.top = '20px';
-      toastContainer.style.right = '20px';
-      break;
-    case 'top-left':
-      toastContainer.style.top = '20px';
-      toastContainer.style.left = '20px';
-      break;
-    case 'top-center':
-      toastContainer.style.top = '20px';
-      toastContainer.style.left = '50%';
-      toastContainer.style.transform = 'translateX(-50%)';
-      break;
-    case 'bottom-right':
-      toastContainer.style.bottom = '20px';
-      toastContainer.style.right = '20px';
-      break;
-    case 'bottom-left':
-      toastContainer.style.bottom = '20px';
-      toastContainer.style.left = '20px';
-      break;
-    case 'bottom-center':
-      toastContainer.style.bottom = '20px';
-      toastContainer.style.left = '50%';
-      toastContainer.style.transform = 'translateX(-50%)';
-      break;
-    default:
-      toastContainer.style.top = '20px';
-      toastContainer.style.right = '20px';
-  }
-
-  document.body.appendChild(toastContainer);
-
-  // Create root and render our custom toast
-  const root = createRoot(toastContainer);
-  
-  const handleClose = () => {
-    root.unmount();
-    document.body.removeChild(toastContainer);
-  };
-
-  root.render(
-    <SimpleAnimatedToast
-      message={message}
-      onClose={handleClose}
-      duration={duration}
-    />
-  );
-
-  // Return a toast ID for potential cancellation
-  return `custom-toast-${Date.now()}`;
+// Standard toast styles
+const baseStyle = {
+  borderRadius: '8px',
+  padding: '12px 16px',
+  fontSize: '14px',
+  fontWeight: '500',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
 };
 
-// Enhanced toast functions with custom animations
+// Clean, standard toast functions
 export const customToast = {
   success: (message, options = {}) => {
-    return showSuccessToast(message, options);
+    return toast.success(message, {
+      duration: 4000,
+      style: {
+        ...baseStyle,
+        background: '#fff',
+        color: '#065f46',
+        border: '1px solid #10b981',
+      },
+      iconTheme: {
+        primary: '#10b981',
+        secondary: '#fff',
+      },
+      ...options
+    });
   },
   
-  // Keep other toast types as regular react-hot-toast
   error: (message, options = {}) => {
     return toast.error(message, {
       duration: 4000,
       style: {
-        background: '#ef4444',
-        color: '#fff',
-        borderRadius: '12px',
-        padding: '16px',
-        fontSize: '14px',
-        fontWeight: '500',
-        boxShadow: '0 10px 25px rgba(239, 68, 68, 0.3)',
-        border: '1px solid rgba(239, 68, 68, 0.2)'
+        ...baseStyle,
+        background: '#fff',
+        color: '#991b1b',
+        border: '1px solid #ef4444',
+      },
+      iconTheme: {
+        primary: '#ef4444',
+        secondary: '#fff',
       },
       ...options
     });
@@ -98,14 +48,10 @@ export const customToast = {
   loading: (message, options = {}) => {
     return toast.loading(message, {
       style: {
-        background: '#3b82f6',
-        color: '#fff',
-        borderRadius: '12px',
-        padding: '16px',
-        fontSize: '14px',
-        fontWeight: '500',
-        boxShadow: '0 10px 25px rgba(59, 130, 246, 0.3)',
-        border: '1px solid rgba(59, 130, 246, 0.2)'
+        ...baseStyle,
+        background: '#fff',
+        color: '#1e40af',
+        border: '1px solid #3b82f6',
       },
       ...options
     });
@@ -114,15 +60,22 @@ export const customToast = {
   promise: (promise, messages, options = {}) => {
     return toast.promise(promise, messages, {
       style: {
-        borderRadius: '12px',
-        padding: '16px',
-        fontSize: '14px',
-        fontWeight: '500',
-        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-        border: '1px solid rgba(0, 0, 0, 0.1)'
+        ...baseStyle,
+        background: '#fff',
+        border: '1px solid #e5e7eb',
       },
       ...options
     });
+  },
+
+  // Dismiss a specific toast
+  dismiss: (toastId) => {
+    toast.dismiss(toastId);
+  },
+
+  // Dismiss all toasts
+  dismissAll: () => {
+    toast.dismiss();
   }
 };
 

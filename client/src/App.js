@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -8,25 +8,25 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LoadingSpinner from './components/LoadingSpinner';
 import OAuthHandler from './components/OAuthHandler';
 
-// Import pages
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import OTPVerificationPage from './pages/OTPVerificationPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import PasswordResetOTPPage from './pages/PasswordResetOTPPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import CitizenDashboard from './pages/CitizenDashboard';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminComplaintManagement from './pages/AdminComplaintManagement';
-import FieldStaffDashboard from './pages/FieldStaffDashboard';
-import FieldStaffManagement from './pages/FieldStaffManagement';
-import ReportIssue from './pages/ReportIssue';
-import ReportsHistory from './pages/ReportsHistory';
-import ComplaintDetail from './pages/ComplaintDetail';
-import SettingsPage from './pages/SettingsPage';
-import ProfilePage from './pages/ProfilePage';
-import AuditLogsPage from './pages/AuditLogsPage';
-import EmailVerification from './components/EmailVerification';
+// Lazy load pages for better performance and code splitting
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const OTPVerificationPage = lazy(() => import('./pages/OTPVerificationPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const PasswordResetOTPPage = lazy(() => import('./pages/PasswordResetOTPPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const CitizenDashboard = lazy(() => import('./pages/CitizenDashboard'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminComplaintManagement = lazy(() => import('./pages/AdminComplaintManagement'));
+const FieldStaffDashboard = lazy(() => import('./pages/FieldStaffDashboard'));
+const FieldStaffManagement = lazy(() => import('./pages/FieldStaffManagement'));
+const ReportIssue = lazy(() => import('./pages/ReportIssue'));
+const ReportsHistory = lazy(() => import('./pages/ReportsHistory'));
+const ComplaintDetail = lazy(() => import('./pages/ComplaintDetail'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
+const EmailVerification = lazy(() => import('./components/EmailVerification'));
 
 // Component to handle role-based default redirects
 const DefaultRedirect = () => {
@@ -69,15 +69,16 @@ function AppRoutes() {
   return (
     <>
       <OAuthHandler />
-      <Routes>
-        {/* Public routes */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/verify-otp" element={<OTPVerificationPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/verify-password-reset-otp" element={<PasswordResetOTPPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/verify-email/:token" element={<EmailVerification />} />
+      <Suspense fallback={<LoadingSpinner message="Loading page..." />}>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-otp" element={<OTPVerificationPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/verify-password-reset-otp" element={<PasswordResetOTPPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/verify-email/:token" element={<EmailVerification />} />
         
         {/* Protected routes */}
         <Route 
@@ -169,12 +170,13 @@ function AppRoutes() {
           } 
         />
 
-        {/* Default redirect */}
-        <Route path="/" element={<DefaultRedirect />} />
-        
-        {/* Catch all route */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Default redirect */}
+          <Route path="/" element={<DefaultRedirect />} />
+          
+          {/* Catch all route */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </>
   );
 }

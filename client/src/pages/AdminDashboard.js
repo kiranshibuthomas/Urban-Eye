@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { debounce } from '../utils/performanceUtils';
 import { 
   FiUsers, 
   FiFileText, 
@@ -40,7 +41,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import ModernStatCard from '../components/ModernStatCard';
 import ModernComplaintCard from '../components/ModernComplaintCard';
-import ModernStaffCard from '../components/ModernStaffCard';
 import ModernSearchFilter from '../components/ModernSearchFilter';
 import ModernQuickActions from '../components/ModernQuickActions';
 import ModernRecentActivity from '../components/ModernRecentActivity';
@@ -48,6 +48,10 @@ import AdminComplaintManagement from './AdminComplaintManagement';
 import UserManagement from './UserManagement';
 import FieldStaffManagement from './FieldStaffManagement';
 import AdminWorkApprovalList from '../components/AdminWorkApprovalList';
+import {
+  ComplaintsTrendChart,
+  StatusOverviewChart
+} from '../components/DashboardCharts';
 
 const AdminDashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -77,14 +81,24 @@ const AdminDashboard = () => {
     satisfactionRate: ''
   });
   const [allComplaints, setAllComplaints] = useState([]);
-  const [staffMembers, setStaffMembers] = useState([]);
-  const [realTimeEnabled, setRealTimeEnabled] = useState(true);
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [lastUpdate, setLastUpdate] = useState(null);
   const [isBackgroundUpdating, setIsBackgroundUpdating] = useState(false);
   const { user, logout } = useAuth();
   const { logout: sessionLogout } = useSession();
   const navigate = useNavigate();
+  
+  // Refs to track loading states without causing re-renders
+  const isLoadingRef = useRef(isLoading);
+  const isBackgroundUpdatingRef = useRef(isBackgroundUpdating);
+  
+  // Keep refs in sync with state
+  useEffect(() => {
+    isLoadingRef.current = isLoading;
+  }, [isLoading]);
+  
+  useEffect(() => {
+    isBackgroundUpdatingRef.current = isBackgroundUpdating;
+  }, [isBackgroundUpdating]);
 
   // Sync activeTab with URL parameters
   useEffect(() => {
@@ -113,7 +127,7 @@ const AdminDashboard = () => {
   }, [userMenuOpen]);
 
   // Fetch dashboard data
-  const fetchDashboardData = async (isBackground = false) => {
+  const fetchDashboardData = useCallback(async (isBackground = false) => {
     if (isBackground) {
       setIsBackgroundUpdating(true);
     } else {
@@ -121,17 +135,36 @@ const AdminDashboard = () => {
     }
     
     try {
-      // Fetch stats and complaints in parallel
-      const [statsResponse, complaintsResponse] = await Promise.all([
+      // Fetch stats, complaints, and analytics in parallel
+      const [statsResponse, complaintsResponse, analyticsResponse] = await Promise.all([
         fetch('/api/complaints/stats/overview', { credentials: 'include' }),
-        fetch('/api/complaints?limit=10', { credentials: 'include' })
+        fetch('/api/complaints?limit=10', { credentials: 'include' }),
+        fetch('/api/analytics/dashboard', { credentials: 'include' })
       ]);
 
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
         if (statsData.success) {
           console.log('Dashboard stats received:', statsData.stats);
-          setStats(statsData.stats);
+          
+          // Fetch analytics data and merge with stats
+          let mergedStats = { ...statsData.stats };
+          
+          if (analyticsResponse.ok) {
+            const analyticsData = await analyticsResponse.json();
+            if (analyticsData.success) {
+              console.log('📊 Analytics data received:', analyticsData.data);
+              console.log('📈 Trend data array:', analyticsData.data.trendData);
+              mergedStats = {
+                ...mergedStats,
+                trendData: analyticsData.data.trendData
+              };
+            }
+          } else {
+            console.error('❌ Analytics API failed with status:', analyticsResponse.status);
+          }
+          
+          setStats(mergedStats);
         }
       }
 
@@ -141,9 +174,6 @@ const AdminDashboard = () => {
           setAllComplaints(complaintsData.complaints);
         }
       }
-
-      // For now, keeping empty staff data (can be implemented later)
-      setStaffMembers([]);
       
       setLastUpdate(new Date());
       
@@ -169,21 +199,21 @@ const AdminDashboard = () => {
         setIsLoading(false);
       }
     }
-  };
+  }, []);
 
   // Fetch dashboard data on component mount
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [fetchDashboardData]);
 
-  // Smart background refresh - only when tab is active and user is idle
+  // Optimized background refresh - less aggressive, more efficient
   useEffect(() => {
     let interval;
     let lastActivity = Date.now();
     
-    const resetActivityTimer = () => {
+    const resetActivityTimer = debounce(() => {
       lastActivity = Date.now();
-    };
+    }, 2000); // Debounce activity tracking
     
     const checkAndRefresh = () => {
       const now = Date.now();
@@ -191,40 +221,40 @@ const AdminDashboard = () => {
       
       // Only refresh if:
       // 1. Tab is visible (user is on the page)
-      // 2. User has been idle for at least 2 minutes
+      // 2. User has been idle for at least 5 minutes (reduced frequency)
       // 3. No loading is in progress
       if (document.visibilityState === 'visible' && 
-          timeSinceActivity > 120000 && 
-          !isLoading && 
-          !isBackgroundUpdating) {
+          timeSinceActivity > 300000 && // 5 minutes instead of 2
+          !isLoadingRef.current && 
+          !isBackgroundUpdatingRef.current) {
         fetchDashboardData(true); // Background update
         lastActivity = now; // Reset activity timer after refresh
       }
     };
     
-    // Set up activity tracking
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    // Set up activity tracking with minimal events
+    const events = ['mousedown', 'keypress', 'touchstart'];
     events.forEach(event => {
-      document.addEventListener(event, resetActivityTimer, true);
+      document.addEventListener(event, resetActivityTimer, { passive: true });
     });
     
-    // Check every 30 seconds
-    interval = setInterval(checkAndRefresh, 30000);
+    // Check every 60 seconds instead of 30 (reduced frequency)
+    interval = setInterval(checkAndRefresh, 60000);
     
     return () => {
       clearInterval(interval);
       events.forEach(event => {
-        document.removeEventListener(event, resetActivityTimer, true);
+        document.removeEventListener(event, resetActivityTimer);
       });
     };
-  }, [isLoading, isBackgroundUpdating]);
+  }, [fetchDashboardData]); // fetchDashboardData is stable due to useCallback
 
 
 
 
 
 
-  const getStatusColor = (status) => {
+  const getStatusColor = useCallback((status) => {
     switch (status) {
       case 'pending':
         return 'bg-amber-50 text-amber-700 border-amber-200';
@@ -235,9 +265,9 @@ const AdminDashboard = () => {
       default:
         return 'bg-gray-50 text-gray-700 border-gray-200';
     }
-  };
+  }, []);
 
-  const getPriorityColor = (priority) => {
+  const getPriorityColor = useCallback((priority) => {
     switch (priority) {
       case 'urgent':
         return 'bg-red-50 text-red-700 border-red-200';
@@ -250,9 +280,9 @@ const AdminDashboard = () => {
       default:
         return 'bg-gray-50 text-gray-700 border-gray-200';
     }
-  };
+  }, []);
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = useCallback((status) => {
     switch (status) {
       case 'pending':
         return <FiClock className="h-4 w-4" />;
@@ -263,11 +293,11 @@ const AdminDashboard = () => {
       default:
         return <FiFileText className="h-4 w-4" />;
     }
-  };
+  }, []);
 
   // Using ModernStatCard component instead of inline StatCard
 
-  const OverviewTab = () => (
+  const OverviewTab = useMemo(() => (
     <div className="space-y-8">
       {/* Enhanced Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -312,6 +342,12 @@ const AdminDashboard = () => {
           isLive={true}
         />
           </div>
+
+      {/* Analytics & Charts Section - KEY INSIGHTS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <ComplaintsTrendChart data={stats.trendData} />
+        <StatusOverviewChart stats={stats} />
+      </div>
 
       {/* Performance Metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -375,10 +411,10 @@ const AdminDashboard = () => {
             allComplaints.filter(c => c.priority === 'urgent' || c.priority === 'high').map((complaint, index) => (
             <motion.div
               key={complaint._id || complaint.id}
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.8 + index * 0.1 }}
-              className="p-6 hover:bg-gray-50 transition-colors duration-200"
+              transition={{ delay: Math.min(0.05 * index, 0.3), duration: 0.3 }}
+              className="p-6 hover:bg-gray-50 transition-colors duration-150"
             >
               <div className="flex items-center justify-between">
               <div className="flex-1">
@@ -407,14 +443,12 @@ const AdminDashboard = () => {
                   <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(complaint.status)}`}>
                     {complaint.status.replace('-', ' ')}
                 </span>
-                  <motion.button
+                  <button
                     type="button"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 font-medium"
                   >
                   Assign
-                  </motion.button>
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -429,93 +463,13 @@ const AdminDashboard = () => {
         </div>
       </motion.div>
     </div>
-  );
+  ), [stats, allComplaints, getStatusColor, getPriorityColor, getStatusIcon]);
 
-  const ComplaintsTab = () => (
+  const AlertsTab = useMemo(() => (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      {/* Enhanced Header with Search and Filters */}
-      <ModernSearchFilter
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        selectedFilters={selectedFilters}
-        setSelectedFilters={setSelectedFilters}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-      />
-
-      {/* Complaints Grid/List */}
-      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
-        {allComplaints.length > 0 ? (
-          allComplaints.map((complaint, index) => (
-            <ModernComplaintCard
-            key={complaint._id || complaint.id}
-              complaint={complaint}
-              getStatusColor={getStatusColor}
-              getPriorityColor={getPriorityColor}
-              getStatusIcon={getStatusIcon}
-              index={index}
-            />
-          ))
-        ) : (
-          <div className="col-span-full text-center py-12">
-            <FiFileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No complaints found</h3>
-            <p className="text-gray-500">Complaints will appear here when citizens submit them</p>
-                </div>
-        )}
-      </div>
-    </motion.div>
-  );
-
-  const StaffTab = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-          <h3 className="text-xl font-semibold text-gray-900">Staff Management</h3>
-          <motion.button
-            type="button"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center space-x-2"
-          >
-            <FiPlus className="h-4 w-4" />
-            <span>Add New Staff</span>
-          </motion.button>
-        </div>
-      </div>
-
-      <div className="grid gap-6">
-        {staffMembers.length > 0 ? (
-          staffMembers.map((staff, index) => (
-            <ModernStaffCard
-            key={staff.id}
-              staff={staff}
-              index={index}
-            />
-          ))
-        ) : (
-          <div className="text-center py-12">
-            <FiUsers className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No staff members found</h3>
-            <p className="text-gray-500">Staff members will appear here when they are added</p>
-                </div>
-        )}
-      </div>
-    </motion.div>
-  );
-
-  const AlertsTab = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
       className="max-w-4xl mx-auto"
     >
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -608,47 +562,41 @@ const AdminDashboard = () => {
           </div>
 
           <div className="flex justify-end space-x-4 pt-6 border-t border-gray-100">
-            <motion.button
+            <button
               type="button"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium"
+              className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-150 font-medium"
             >
             Save as Draft
-            </motion.button>
-            <motion.button
+            </button>
+            <button
               type="submit"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center space-x-2"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 font-medium flex items-center space-x-2"
             >
               <FiSend className="h-4 w-4" />
               <span>Send Alert Now</span>
-            </motion.button>
+            </button>
         </div>
-      </form>
+        </form>
       </div>
     </motion.div>
-  );
+  ), []);
 
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <OverviewTab />;
+        return OverviewTab;
       case 'complaints':
         return <AdminComplaintManagement />;
       case 'work-approval':
         return <AdminWorkApprovalList />;
       case 'users':
         return <UserManagement />;
-      case 'staff':
-        return <StaffTab />;
       case 'field-staff':
         return <FieldStaffManagement />;
       case 'alerts':
-        return <AlertsTab />;
+        return AlertsTab;
       default:
-        return <OverviewTab />;
+        return OverviewTab;
     }
   };
 
@@ -681,17 +629,15 @@ const AdminDashboard = () => {
               </div>
 
               {/* Refresh Button */}
-              <motion.button
+              <button
                 type="button"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
                 onClick={() => fetchDashboardData(false)}
                 disabled={isLoading}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FiRefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                 <span>Refresh</span>
-              </motion.button>
+              </button>
 
               {/* Tab Navigation */}
               <div className="flex items-center space-x-1 bg-gray-100 p-1 rounded-lg">
@@ -700,20 +646,17 @@ const AdminDashboard = () => {
                   { key: 'complaints', label: 'Complaints', icon: FiFileText },
                   { key: 'work-approval', label: 'Work Approval', icon: FiCheckCircle },
                   { key: 'users', label: 'Users', icon: FiUsers },
-                  { key: 'staff', label: 'Staff', icon: FiUserCheck },
                   { key: 'field-staff', label: 'Field Staff', icon: FiShield },
                   { key: 'alerts', label: 'Alerts', icon: FiSend }
                 ].map((tab) => (
-                  <motion.button
+                  <button
                     key={tab.key}
                     type="button"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
                     onClick={() => {
                       setActiveTab(tab.key);
                       setSearchParams({ tab: tab.key });
                     }}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-md text-base font-medium transition-all duration-200 ${
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-md text-base font-medium transition-all duration-150 ${
                       activeTab === tab.key
                         ? 'bg-white text-blue-600 shadow-sm'
                         : 'text-gray-600 hover:text-gray-900'
@@ -721,22 +664,20 @@ const AdminDashboard = () => {
                   >
                     <tab.icon className="h-4 w-4" />
                     <span>{tab.label}</span>
-                  </motion.button>
+                  </button>
                 ))}
               </div>
 
             {/* User Menu Dropdown */}
             <div className="relative user-menu-dropdown group">
-              <motion.button
+              <button
                 type="button"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   setUserMenuOpen(!userMenuOpen);
                 }}
-                className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-100 transition-all duration-200"
+                className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-100 transition-all duration-150"
               >
                   <div className="h-8 w-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center overflow-hidden">
                     {user?.avatar ? (
@@ -753,8 +694,8 @@ const AdminDashboard = () => {
                     <p className="text-base font-medium text-gray-900">{user?.name || 'Admin'}</p>
                     <p className="text-sm text-gray-500">Administrator</p>
                   </div>
-                  <FiChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
-                </motion.button>
+                  <FiChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
 
                 {/* Dropdown Menu */}
                 <AnimatePresence>
