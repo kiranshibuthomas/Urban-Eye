@@ -208,25 +208,17 @@ const ProfilePage = () => {
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className="flex items-center space-x-3 p-3 rounded-xl hover:bg-[#CAD2C5]/20 transition-all duration-200"
               >
-                <div className="h-10 w-10 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-xl flex items-center justify-center overflow-hidden">
-                  {user?.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt={user.name}
-                      className="h-10 w-10 rounded-xl object-cover"
-                      onError={(e) => {
-                        console.error('Profile header avatar failed to load:', user.avatar);
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                      onLoad={() => {
-                        console.log('Profile header avatar loaded successfully:', user.avatar);
-                      }}
-                    />
-                  ) : null}
-                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${user?.avatar ? 'hidden' : 'flex'}`}>
-                    <FiUser className="h-5 w-5 text-white" />
-                  </div>
+                <img
+                  src={user?.avatar}
+                  alt={user?.name || 'User'}
+                  className="h-10 w-10 rounded-xl object-cover bg-gradient-to-r from-[#84A98C] to-[#52796F]"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextElementSibling.style.display = 'flex';
+                  }}
+                />
+                <div className="hidden h-10 w-10 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-xl items-center justify-center text-white text-sm font-semibold">
+                  {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
                 </div>
                 <div className="hidden sm:block text-left">
                   <p className="text-base font-medium text-gray-900">{user?.name}</p>
@@ -301,23 +293,17 @@ const ProfilePage = () => {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-6">
                   <div className="h-24 w-24 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-2xl flex items-center justify-center overflow-hidden">
-                    {user?.avatar ? (
-                      <img
-                        src={user.avatar}
-                        alt={user.name}
-                        className="h-24 w-24 rounded-2xl object-cover"
-                        onError={(e) => {
-                          console.error('Profile main avatar failed to load:', user.avatar);
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
-                        }}
-                        onLoad={() => {
-                          console.log('Profile main avatar loaded successfully:', user.avatar);
-                        }}
-                      />
-                    ) : null}
-                    <div className={`h-24 w-24 rounded-2xl flex items-center justify-center ${user?.avatar ? 'hidden' : 'flex'}`}>
-                      <FiUser className="h-12 w-12 text-white" />
+                    <img
+                      src={user?.avatar}
+                      alt={user?.name || 'User'}
+                      className="h-24 w-24 rounded-2xl object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextElementSibling.style.display = 'flex';
+                      }}
+                    />
+                    <div className="hidden h-24 w-24 rounded-2xl items-center justify-center text-white text-3xl font-bold">
+                      {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
                     </div>
                   </div>
                   <div>

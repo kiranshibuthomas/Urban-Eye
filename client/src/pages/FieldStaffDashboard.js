@@ -291,10 +291,17 @@ const FieldStaffDashboard = () => {
                 className="flex items-center space-x-3 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 <img
-                  src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name}&size=40&background=random`}
-                  alt="User avatar"
-                  className="h-8 w-8 rounded-full"
+                  src={user?.avatar}
+                  alt={user?.name || 'User'}
+                  className="h-8 w-8 rounded-full object-cover bg-gradient-to-r from-[#84A98C] to-[#52796F]"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextElementSibling.style.display = 'flex';
+                  }}
                 />
+                <div className="hidden h-8 w-8 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-full items-center justify-center text-white text-xs font-semibold">
+                  {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                </div>
                 <span className="text-gray-700">{user?.name}</span>
                 <FiMoreVertical className="h-4 w-4 text-gray-400" />
               </button>

@@ -679,16 +679,17 @@ const AdminDashboard = () => {
                 }}
                 className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-100 transition-all duration-150"
               >
-                  <div className="h-8 w-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center overflow-hidden">
-                    {user?.avatar ? (
-                      <img
-                        src={user.avatar}
-                        alt={user.name}
-                        className="h-8 w-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <FiUser className="h-4 w-4 text-white" />
-                    )}
+                  <img
+                    src={user?.avatar}
+                    alt={user?.name || 'User'}
+                    className="h-8 w-8 rounded-full object-cover bg-gradient-to-r from-blue-500 to-indigo-500"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextElementSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div className="hidden h-8 w-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full items-center justify-center text-white text-xs font-semibold">
+                    {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
                   </div>
                   <div className="text-left">
                     <p className="text-base font-medium text-gray-900">{user?.name || 'Admin'}</p>

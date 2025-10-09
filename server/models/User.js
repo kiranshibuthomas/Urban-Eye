@@ -227,11 +227,13 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 userSchema.methods.getLiveAvatarUrl = function() {
   // Priority 1: Custom uploaded avatar
   if (this.customAvatar) {
+    console.log(`[Avatar] User ${this.email}: Using custom avatar - ${this.customAvatar}`);
     return this.customAvatar;
   }
   
   // Priority 2: Google OAuth photo
   if (this.googleId && this.googlePhotoUrl) {
+    console.log(`[Avatar] User ${this.email}: Has Google ID and photo URL - ${this.googlePhotoUrl}`);
     // Make sure it's not the invalid placeholder
     if (this.googlePhotoUrl !== 'https://lh3.googleusercontent.com/a/default-user=s400') {
       // Try to fix the Google photo URL to make it more accessible
@@ -241,18 +243,15 @@ userSchema.methods.getLiveAvatarUrl = function() {
       if (googleUrl.includes('googleusercontent.com')) {
         // Remove any existing size parameters and add s400-c for better compatibility
         googleUrl = googleUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400-c';
-        
-        // Add additional parameters to make the image more accessible
-        if (!googleUrl.includes('?')) {
-          googleUrl += '?sz=400';
-        }
       }
       
+      console.log(`[Avatar] User ${this.email}: Returning Google photo - ${googleUrl}`);
       return googleUrl;
     }
   }
   
   // Priority 3: Fallback to initials-based avatar service
+  console.log(`[Avatar] User ${this.email}: Using fallback initials avatar`);
   const initials = this.name ? this.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U';
   const colors = ['FF6B6B', '4ECDC4', '45B7D1', '96CEB4', 'FFEAA7', 'DDA0DD', '98D8C8', 'F7DC6F'];
   const colorIndex = this.email ? this.email.charCodeAt(0) % colors.length : 0;

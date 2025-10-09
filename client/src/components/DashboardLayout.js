@@ -112,35 +112,17 @@ const DashboardLayout = ({ children, title, actions }) => {
             <div className="flex items-center p-4 bg-gradient-to-r from-primary-50 to-teal-50 rounded-2xl">
               <div className="relative">
                 <div className="h-12 w-12 bg-gradient-to-r from-primary-500 to-teal-500 rounded-full flex items-center justify-center ring-4 ring-white shadow-lg overflow-hidden">
-                  {user?.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt={user.name}
-                      className="h-12 w-12 rounded-full object-cover"
-                      onError={(e) => {
-                        console.error('Avatar image failed to load:', user.avatar);
-                        console.error('Error details:', e);
-                        // Hide the image and show the fallback
-                        e.target.style.display = 'none';
-                        const fallback = e.target.nextSibling;
-                        if (fallback) {
-                          fallback.style.display = 'flex';
-                        }
-                      }}
-                      onLoad={(e) => {
-                        console.log('Avatar image loaded successfully:', user.avatar);
-                        // Hide the fallback when image loads successfully
-                        const fallback = e.target.nextSibling;
-                        if (fallback) {
-                          fallback.style.display = 'none';
-                        }
-                      }}
-                    />
-                  ) : null}
-                  <div className={`h-12 w-12 rounded-full flex items-center justify-center ${user?.avatar ? 'hidden' : 'flex'}`}>
-                    <span className="text-white font-semibold text-lg">
-                      {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U'}
-                    </span>
+                  <img
+                    src={user?.avatar}
+                    alt={user?.name || 'User'}
+                    className="h-12 w-12 rounded-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextElementSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div className="hidden h-12 w-12 rounded-full items-center justify-center text-white font-semibold text-lg">
+                    {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
                   </div>
                 </div>
                 <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-teal-400 rounded-full border-2 border-white"></div>
@@ -274,25 +256,17 @@ const DashboardLayout = ({ children, title, actions }) => {
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
                   >
-                    <div className="h-10 w-10 bg-gradient-to-r from-primary-500 to-teal-500 rounded-full flex items-center justify-center ring-2 ring-primary-100 overflow-hidden">
-                      {user?.avatar ? (
-                        <img
-                          src={user.avatar}
-                          alt={user.name}
-                          className="h-10 w-10 rounded-full object-cover"
-                          onError={(e) => {
-                            console.error('User menu avatar failed to load:', user.avatar);
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
-                          onLoad={() => {
-                            console.log('User menu avatar loaded successfully:', user.avatar);
-                          }}
-                        />
-                      ) : null}
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center ${user?.avatar ? 'hidden' : 'flex'}`}>
-                        <FiUser className="h-5 w-5 text-white" />
-                      </div>
+                    <img
+                      src={user?.avatar}
+                      alt={user?.name || 'User'}
+                      className="h-10 w-10 rounded-full object-cover bg-gradient-to-r from-primary-500 to-teal-500 ring-2 ring-primary-100"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextElementSibling.style.display = 'flex';
+                      }}
+                    />
+                    <div className="hidden h-10 w-10 bg-gradient-to-r from-primary-500 to-teal-500 rounded-full items-center justify-center ring-2 ring-primary-100 text-white text-sm font-semibold">
+                      {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
                     </div>
                     <FiChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
                   </motion.button>
@@ -310,19 +284,17 @@ const DashboardLayout = ({ children, title, actions }) => {
                       <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
                         <div className="flex items-center space-x-3">
                           <div className="h-12 w-12 bg-gradient-to-r from-primary-500 to-teal-500 rounded-full flex items-center justify-center overflow-hidden">
-                            {user?.avatar ? (
-                              <img
-                                src={user.avatar}
-                                alt={user.name}
-                                className="h-12 w-12 rounded-full object-cover"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  e.target.nextSibling.style.display = 'flex';
-                                }}
-                              />
-                            ) : null}
-                            <div className={`h-12 w-12 rounded-full flex items-center justify-center ${user?.avatar ? 'hidden' : 'flex'}`}>
-                              <FiUser className="h-6 w-6 text-white" />
+                            <img
+                              src={user?.avatar}
+                              alt={user?.name || 'User'}
+                              className="h-12 w-12 rounded-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextElementSibling.style.display = 'flex';
+                              }}
+                            />
+                            <div className="hidden h-12 w-12 rounded-full items-center justify-center text-white font-semibold text-lg">
+                              {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
                             </div>
                           </div>
                                                       <div>

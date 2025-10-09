@@ -80,6 +80,7 @@ const ProfileImageUpload = forwardRef(({ user, onAvatarUpdate }, ref) => {
 
   const handleDelete = async () => {
     if (!user.customAvatar) {
+      toast.error('No custom avatar to delete');
       return { success: false, message: 'No custom avatar to delete' };
     }
 
@@ -93,15 +94,24 @@ const ProfileImageUpload = forwardRef(({ user, onAvatarUpdate }, ref) => {
       const data = await response.json();
 
       if (data.success) {
+        // Determine the fallback message
+        const fallbackMessage = user.googleId && user.googlePhotoUrl 
+          ? 'Custom avatar deleted. Reverted to Google profile picture.'
+          : 'Custom avatar deleted. Reverted to default avatar.';
+        
+        toast.success(fallbackMessage);
+        
         if (onAvatarUpdate) {
           onAvatarUpdate(data.user);
         }
         return { success: true, user: data.user };
       } else {
+        toast.error(data.message || 'Failed to delete avatar');
         return { success: false, message: data.message || 'Failed to delete avatar' };
       }
     } catch (error) {
       console.error('Delete error:', error);
+      toast.error('Failed to delete avatar');
       return { success: false, message: 'Failed to delete avatar' };
     } finally {
       setIsDeleting(false);
@@ -142,6 +152,9 @@ const ProfileImageUpload = forwardRef(({ user, onAvatarUpdate }, ref) => {
             <button
               onClick={handleDelete}
               disabled={isDeleting}
+              title={user?.googleId && user?.googlePhotoUrl 
+                ? 'Remove custom avatar (will revert to Google profile picture)' 
+                : 'Remove custom avatar (will revert to default avatar)'}
               className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors disabled:opacity-50"
             >
               <FiTrash2 className="h-3 w-3" />
@@ -152,7 +165,11 @@ const ProfileImageUpload = forwardRef(({ user, onAvatarUpdate }, ref) => {
         <div>
           <h3 className="text-lg font-medium text-gray-900">Profile Picture</h3>
           <p className="text-sm text-gray-500">
-            {user?.customAvatar ? 'Custom uploaded image' : 'Using default avatar'}
+            {user?.customAvatar 
+              ? 'Custom uploaded image' 
+              : user?.googleId && user?.googlePhotoUrl 
+                ? 'Google profile picture' 
+                : 'Default avatar'}
           </p>
         </div>
       </div>
@@ -200,6 +217,11 @@ const ProfileImageUpload = forwardRef(({ user, onAvatarUpdate }, ref) => {
         <p>• Supported formats: JPG, PNG, GIF</p>
         <p>• Maximum file size: 5MB</p>
         <p>• Recommended size: 400x400 pixels</p>
+        {user?.googleId && user?.googlePhotoUrl && !user?.customAvatar && (
+          <p className="mt-2 text-blue-600">
+            ℹ️ You're using your Google profile picture. Upload a custom image to replace it.
+          </p>
+        )}
       </div>
     </div>
   );

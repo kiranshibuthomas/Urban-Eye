@@ -493,16 +493,17 @@ const ReportsHistory = () => {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-xl hover:bg-[#CAD2C5]/20 transition-all duration-200 group"
                 >
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-xl flex items-center justify-center overflow-hidden shadow-md">
-                    {user?.avatar ? (
-                      <img
-                        src={user.avatar}
-                        alt={user.name}
-                        className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl object-cover"
-                      />
-                    ) : (
-                      <FiUser className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-                    )}
+                  <img
+                    src={user?.avatar}
+                    alt={user?.name || 'User'}
+                    className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl object-cover bg-gradient-to-r from-[#84A98C] to-[#52796F] shadow-md"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextElementSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div className="hidden h-8 w-8 sm:h-10 sm:w-10 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-xl items-center justify-center text-white text-xs sm:text-sm font-semibold shadow-md">
+                    {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
                   </div>
                   <div className="hidden sm:block text-left">
                     <p className="text-sm sm:text-base font-medium text-gray-900">{user?.name}</p>

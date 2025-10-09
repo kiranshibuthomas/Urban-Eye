@@ -401,16 +401,19 @@ const UserManagement = () => {
       <div className="p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
-              {user.avatar ? (
-                <img
-                  src={user.avatar}
-                  alt={user.name}
-                  className="h-10 w-10 rounded-full object-cover"
-                />
-              ) : (
-                <FiUser className="h-5 w-5 text-gray-600" />
-              )}
+            <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
+              <img
+                src={user.avatar}
+                alt={user.name || 'User'}
+                className="h-10 w-10 rounded-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextElementSibling.style.display = 'flex';
+                }}
+              />
+              <div className="hidden h-10 w-10 rounded-full items-center justify-center text-gray-600 font-semibold text-sm">
+                {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+              </div>
             </div>
             <div>
               <h4 className="font-medium text-gray-900">{user.name}</h4>
