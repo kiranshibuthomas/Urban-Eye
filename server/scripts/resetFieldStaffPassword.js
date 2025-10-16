@@ -8,10 +8,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-});
+mongoose.connect(process.env.MONGODB_URI);
 
 async function resetPassword(email, newPassword) {
   try {

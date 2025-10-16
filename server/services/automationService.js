@@ -1,7 +1,16 @@
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
-const AIService = require('./aiService');
+
+// Try to load AI service, but don't fail if it's not available
+let AIService;
+try {
+  AIService = require('./aiService');
+} catch (error) {
+  // AI Service not available - using fallback methods
+  AIService = null;
+}
+
 const { 
   sendComplaintAssignedToFieldStaffEmail,
   sendComplaintInProgressEmail 
@@ -15,7 +24,7 @@ class AutomationService {
    */
   static async processComplaint(complaint) {
     try {
-      console.log(`Starting automated processing for complaint: ${complaint._id}`);
+      // Starting automated processing for complaint
       
       // Step 1: AI Analysis
       const analysisResult = await this.performAIAnalysis(complaint);
@@ -63,13 +72,32 @@ class AutomationService {
         images: complaint.images
       };
 
-      const analysisResult = await AIService.analyzeComplaint(complaintData);
-      
-      console.log(`AI Analysis completed for complaint ${complaint._id}:`, {
-        category: analysisResult.category,
-        priority: analysisResult.priority,
-        confidence: analysisResult.confidence
-      });
+      let analysisResult;
+      if (AIService) {
+        try {
+          analysisResult = await AIService.analyzeComplaint(complaintData);
+          
+          // AI Analysis completed for complaint
+        } catch (error) {
+          // AI Analysis failed for complaint
+          // Fallback to basic analysis
+          analysisResult = {
+            category: 'general',
+            priority: 'medium',
+            confidence: 0.5,
+            reasoning: 'AI analysis failed, using default values'
+          };
+        }
+      } else {
+        // AI Service not available, using fallback analysis
+        // Fallback to basic analysis
+        analysisResult = {
+          category: 'general',
+          priority: 'medium',
+          confidence: 0.5,
+          reasoning: 'AI service unavailable, using default values'
+        };
+      }
 
       return analysisResult;
       
@@ -114,7 +142,7 @@ class AutomationService {
       complaint.lastUpdated = new Date();
       await complaint.save();
       
-      console.log(`Updated complaint ${complaint._id} with AI analysis`);
+      // Updated complaint with AI analysis
       
     } catch (error) {
       console.error('Error updating complaint with analysis:', error);
@@ -134,7 +162,7 @@ class AutomationService {
       const availableStaff = await this.getAvailableFieldStaff(complaint.category);
       
       if (availableStaff.length === 0) {
-        console.log(`No available field staff for category: ${complaint.category}`);
+        // No available field staff for category
         return {
           success: false,
           message: 'No available field staff for this category',
@@ -143,10 +171,23 @@ class AutomationService {
       }
 
       // Find best field staff using AI service
-      const bestStaff = AIService.findBestFieldStaff(complaint.category, availableStaff);
+      let bestStaff;
+      if (AIService) {
+        try {
+          bestStaff = AIService.findBestFieldStaff(complaint.category, availableStaff);
+        } catch (error) {
+          // AI field staff selection failed
+          // Fallback to first available staff
+          bestStaff = availableStaff[0];
+        }
+      } else {
+        // AI Service not available, using first available staff
+        // Fallback to first available staff
+        bestStaff = availableStaff[0];
+      }
       
       if (!bestStaff) {
-        console.log(`No suitable field staff found for category: ${complaint.category}`);
+        // No suitable field staff found for category
         return {
           success: false,
           message: 'No suitable field staff found',
@@ -169,13 +210,13 @@ class AutomationService {
           bestStaff.name, 
           bestStaff.department
         );
-        console.log(`Assignment email sent to citizen: ${complaint.citizen.email}`);
+        // Assignment email sent to citizen
       } catch (emailError) {
         console.error('Failed to send assignment email:', emailError);
         // Don't fail the assignment if email fails
       }
 
-      console.log(`Auto-assigned complaint ${complaint._id} to field staff: ${bestStaff.name}`);
+      // Auto-assigned complaint to field staff
       
       return {
         success: true,
@@ -234,11 +275,11 @@ class AutomationService {
         const currentWorkload = staff.assignedComplaints ? staff.assignedComplaints.length : 0;
         const maxWorkload = staff.maxWorkload || 10; // Default max workload
         
-        console.log(`Staff ${staff.name}: ${currentWorkload}/${maxWorkload} workload`);
+        // Staff workload calculated
         return currentWorkload < maxWorkload;
       });
 
-      console.log(`Found ${availableStaff.length} available staff in ${targetDepartment} department`);
+      // Found available staff in target department
       return availableStaff;
       
     } catch (error) {
@@ -281,7 +322,7 @@ class AutomationService {
         userAgent: 'UrbanEye-Automation-System'
       });
       
-      console.log(`Logged automation for complaint: ${complaint._id}`);
+      // Logged automation for complaint
       
     } catch (error) {
       console.error('Error logging automation:', error);
@@ -327,7 +368,7 @@ class AutomationService {
    */
   static async processPendingComplaints() {
     try {
-      console.log('Starting batch processing of pending complaints...');
+      // Starting batch processing of pending complaints
       
       // Find complaints that are pending and haven't been processed by AI
       const pendingComplaints = await Complaint.find({
@@ -336,7 +377,7 @@ class AutomationService {
         'adminNotes.note': { $not: { $regex: /AI Analysis:/ } }
       }).limit(10); // Process max 10 at a time
 
-      console.log(`Found ${pendingComplaints.length} complaints to process`);
+      // Found complaints to process
 
       const results = {
         processed: 0,
@@ -374,7 +415,7 @@ class AutomationService {
         }
       }
 
-      console.log('Batch processing completed:', results);
+      // Batch processing completed
       return results;
       
     } catch (error) {

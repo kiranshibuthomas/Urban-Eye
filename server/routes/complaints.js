@@ -96,7 +96,7 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
     // Validate location is within Kanjirapally panchayath (Geofencing)
     const geofenceCheck = isWithinKottayam(lat, lng); // Using backward compatible function name
     if (!geofenceCheck.isInside) {
-      console.log(`Geofence violation: User ${req.user._id} attempted to submit complaint from outside Kanjirapally panchayath at ${lat}, ${lng}`);
+      // Geofence violation detected
       return res.status(403).json({
         success: false,
         message: geofenceCheck.message,
@@ -155,7 +155,7 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
     // Send email notification to user
     try {
       await sendComplaintSubmittedEmail(complaint, user);
-      console.log('Complaint submission email sent to:', user.email);
+      // Complaint submission email sent
     } catch (emailError) {
       console.error('Failed to send complaint submission email:', emailError);
       // Don't fail the request if email fails
@@ -164,7 +164,7 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
     // Trigger automated processing (async, don't wait for it)
     AutomationService.processComplaint(complaint)
       .then(result => {
-        console.log(`Automated processing completed for complaint ${complaint._id}:`, result.success ? 'Success' : 'Failed');
+        // Automated processing completed for complaint
       })
       .catch(error => {
         console.error(`Automated processing failed for complaint ${complaint._id}:`, error);
@@ -775,16 +775,16 @@ router.put('/:id/status', authenticateToken, requireRole('admin'), async (req, r
       
       if (status === 'in_progress' && previousStatus !== 'in_progress') {
         await sendComplaintInProgressEmail(complaint, user, req.user.name);
-        console.log('Complaint in progress email sent to:', user.email);
+        // Complaint in progress email sent
       } else if (status === 'resolved' && previousStatus !== 'resolved') {
         await sendComplaintResolvedEmail(complaint, user, resolutionNotes);
-        console.log('Complaint resolved email sent to:', user.email);
+        // Complaint resolved email sent
       } else if (status === 'rejected' && previousStatus !== 'rejected') {
         await sendComplaintRejectedEmail(complaint, user, rejectionReason);
-        console.log('Complaint rejected email sent to:', user.email);
+        // Complaint rejected email sent
       } else if (status === 'closed' && previousStatus !== 'closed') {
         await sendComplaintClosedEmail(complaint, user);
-        console.log('Complaint closed email sent to:', user.email);
+        // Complaint closed email sent
       }
     } catch (emailError) {
       console.error('Failed to send status update email:', emailError);
@@ -847,7 +847,7 @@ router.put('/:id/assign', authenticateToken, requireRole('admin'), async (req, r
     try {
       const user = complaint.citizen;
       await sendComplaintInProgressEmail(complaint, user, admin.name);
-      console.log('Complaint assignment email sent to:', user.email);
+      // Complaint assignment email sent
     } catch (emailError) {
       console.error('Failed to send assignment email:', emailError);
       // Don't fail the request if email fails
@@ -928,7 +928,7 @@ router.put('/:id/assign-field-staff', authenticateToken, requireRole('admin'), a
     try {
       const user = complaint.citizen;
       await sendComplaintAssignedToFieldStaffEmail(complaint, user, fieldStaff.name, fieldStaff.department);
-      console.log('Field staff assignment email sent to:', user.email);
+      // Field staff assignment email sent
     } catch (emailError) {
       console.error('Failed to send field staff assignment email:', emailError);
       // Don't fail the request if email fails
@@ -984,7 +984,7 @@ router.put('/:id/approve-work', authenticateToken, requireRole('admin'), async (
       const user = complaint.citizen;
       const admin = await User.findById(req.user._id);
       await sendWorkApprovedEmail(complaint, user, admin.name, approvalNotes || '');
-      console.log('Work approval email sent to:', user.email);
+      // Work approval email sent
     } catch (emailError) {
       console.error('Failed to send work approval email:', emailError);
       // Don't fail the request if email fails

@@ -197,12 +197,7 @@ router.put('/complaints/:id/update-status', async (req, res) => {
     const complaintId = req.params.id;
     const { status, notes } = req.body;
 
-    console.log('Field staff update status request:', {
-      fieldStaffId,
-      complaintId,
-      status,
-      notes
-    });
+    // Field staff update status request
 
     const validStatuses = ['in_progress'];
     if (!validStatuses.includes(status)) {
@@ -218,12 +213,7 @@ router.put('/complaints/:id/update-status', async (req, res) => {
       isDeleted: false
     });
 
-    console.log('Found complaint:', complaint ? {
-      id: complaint._id,
-      status: complaint.status,
-      assignedToFieldStaff: complaint.assignedToFieldStaff,
-      fieldStaffId
-    } : 'Not found');
+    // Found complaint
 
     if (!complaint) {
       return res.status(404).json({
@@ -327,7 +317,7 @@ router.post('/complaints/:id/complete-work', upload.array('proofImages', 5), asy
       const user = complaint.citizen;
       const fieldStaff = await User.findById(fieldStaffId);
       await sendWorkCompletedEmail(complaint, user, fieldStaff.name, completionNotes.trim());
-      console.log('Work completion email sent to:', user.email);
+      // Work completion email sent
     } catch (emailError) {
       console.error('Failed to send work completion email:', emailError);
       // Don't fail the request if email fails

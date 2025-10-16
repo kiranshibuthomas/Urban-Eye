@@ -105,6 +105,7 @@ router.get('/field-staff', async (req, res) => {
       .select('-password -otpCode -otpExpires -otpAttempts -passwordResetOTP -passwordResetExpires -passwordResetAttempts -emailVerificationToken -emailVerificationExpires')
       .sort({ name: 1 });
 
+
     // Transform users to include public profile data
     const transformedFieldStaff = fieldStaff.map(user => user.getPublicProfile());
 
@@ -340,13 +341,7 @@ router.post('/', async (req, res) => {
         });
       }
 
-      // Validate job role
-      if (!jobRole) {
-        return res.status(400).json({
-          success: false,
-          message: 'Job role is required for field staff'
-        });
-      }
+      // Job role is now optional - no validation needed
 
       // Validate experience
       if (experience === undefined || experience < 0 || experience > 50) {
@@ -713,7 +708,7 @@ router.post('/:id/resend-verification', async (req, res) => {
     // Send OTP via email
     try {
       await sendOTPVerificationEmail(user, otp);
-      console.log(`Verification OTP resent to ${user.email}: ${otp}`);
+      // Verification OTP resent to user
     } catch (emailError) {
       console.error('Failed to send verification email:', emailError);
       // Still return success as OTP is generated

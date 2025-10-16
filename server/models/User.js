@@ -57,9 +57,7 @@ const userSchema = new mongoose.Schema({
       'environmental_specialist', 'air_quality_technician', 'transport_coordinator', 'bus_maintenance', 
       'transit_specialist', 'general_worker', 'maintenance_technician'
     ],
-    required: function() {
-      return this.role === 'field_staff';
-    }
+    required: false // Made optional - no longer required for field staff
   },
   experience: {
     type: Number,
@@ -225,15 +223,20 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 
 // Instance method to get live avatar URL
 userSchema.methods.getLiveAvatarUrl = function() {
+  console.log(`[Avatar Debug] User ${this.email}:`);
+  console.log(`  - customAvatar: ${this.customAvatar}`);
+  console.log(`  - googleId: ${this.googleId}`);
+  console.log(`  - googlePhotoUrl: ${this.googlePhotoUrl}`);
+  
   // Priority 1: Custom uploaded avatar
   if (this.customAvatar) {
-    console.log(`[Avatar] User ${this.email}: Using custom avatar - ${this.customAvatar}`);
+    console.log(`[Avatar Debug] Using custom avatar: ${this.customAvatar}`);
     return this.customAvatar;
   }
   
   // Priority 2: Google OAuth photo
   if (this.googleId && this.googlePhotoUrl) {
-    console.log(`[Avatar] User ${this.email}: Has Google ID and photo URL - ${this.googlePhotoUrl}`);
+    console.log(`[Avatar Debug] Has Google ID and photo URL`);
     // Make sure it's not the invalid placeholder
     if (this.googlePhotoUrl !== 'https://lh3.googleusercontent.com/a/default-user=s400') {
       // Try to fix the Google photo URL to make it more accessible
@@ -241,21 +244,22 @@ userSchema.methods.getLiveAvatarUrl = function() {
       
       // Ensure the URL has proper size parameter and is public
       if (googleUrl.includes('googleusercontent.com')) {
-        // Remove any existing size parameters and add s400-c for better compatibility
-        googleUrl = googleUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400-c';
+        // Remove any existing size parameters and add s400 for better compatibility
+        googleUrl = googleUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400';
       }
       
-      console.log(`[Avatar] User ${this.email}: Returning Google photo - ${googleUrl}`);
+      console.log(`[Avatar Debug] Returning Google photo: ${googleUrl}`);
       return googleUrl;
+    } else {
+      console.log(`[Avatar Debug] Google photo URL is invalid placeholder`);
     }
+  } else {
+    console.log(`[Avatar Debug] No Google ID or photo URL`);
   }
   
-  // Priority 3: Fallback to initials-based avatar service
-  console.log(`[Avatar] User ${this.email}: Using fallback initials avatar`);
-  const initials = this.name ? this.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U';
-  const colors = ['FF6B6B', '4ECDC4', '45B7D1', '96CEB4', 'FFEAA7', 'DDA0DD', '98D8C8', 'F7DC6F'];
-  const colorIndex = this.email ? this.email.charCodeAt(0) % colors.length : 0;
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&size=400&background=${colors[colorIndex]}&color=fff&bold=true`;
+  // Return null if no avatar is available - let frontend handle fallback
+  console.log(`[Avatar Debug] Returning null - no avatar available`);
+  return null;
 };
 
 // Instance method to refresh Google photo URL
@@ -265,13 +269,8 @@ userSchema.methods.refreshGooglePhotoUrl = function() {
     let googleUrl = this.googlePhotoUrl;
     
     if (googleUrl.includes('googleusercontent.com')) {
-      // Remove any existing size parameters and add s400-c for better compatibility
-      googleUrl = googleUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400-c';
-      
-      // Add additional parameters to make the image more accessible
-      if (!googleUrl.includes('?')) {
-        googleUrl += '?sz=400';
-      }
+      // Remove any existing size parameters and add s400 for better compatibility
+      googleUrl = googleUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400';
       
       // Update the stored URL
       this.googlePhotoUrl = googleUrl;

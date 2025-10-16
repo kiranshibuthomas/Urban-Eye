@@ -12,20 +12,20 @@ class SchedulerService {
    */
   start() {
     if (this.isRunning) {
-      console.log('Scheduler service is already running');
+      // Scheduler service is already running
       return;
     }
 
-    console.log('Starting scheduler service...');
+    // Starting scheduler service
 
     // Schedule automated complaint processing every 5 minutes
     const complaintProcessingJob = cron.schedule('*/5 * * * *', async () => {
       try {
-        console.log('Running scheduled complaint processing...');
+        // Running scheduled complaint processing
         const result = await AutomationService.processPendingComplaints();
         
         if (result.processed > 0) {
-          console.log(`Scheduled processing completed: ${result.successful}/${result.processed} successful`);
+          // Scheduled processing completed
         }
       } catch (error) {
         console.error('Scheduled complaint processing error:', error);
@@ -40,7 +40,7 @@ class SchedulerService {
     // Schedule system health check every hour
     const healthCheckJob = cron.schedule('0 * * * *', async () => {
       try {
-        console.log('Running system health check...');
+        // Running system health check
         await this.performHealthCheck();
       } catch (error) {
         console.error('Health check error:', error);
@@ -55,11 +55,11 @@ class SchedulerService {
     // Start all jobs
     this.jobs.forEach((job, name) => {
       job.start();
-      console.log(`Started scheduled job: ${name}`);
+      // Started scheduled job
     });
 
     this.isRunning = true;
-    console.log('Scheduler service started successfully');
+    // Scheduler service started successfully
   }
 
   /**
@@ -67,20 +67,20 @@ class SchedulerService {
    */
   stop() {
     if (!this.isRunning) {
-      console.log('Scheduler service is not running');
+      // Scheduler service is not running
       return;
     }
 
-    console.log('Stopping scheduler service...');
+    // Stopping scheduler service
 
     this.jobs.forEach((job, name) => {
       job.stop();
-      console.log(`Stopped scheduled job: ${name}`);
+      // Stopped scheduled job
     });
 
     this.jobs.clear();
     this.isRunning = false;
-    console.log('Scheduler service stopped');
+    // Scheduler service stopped
   }
 
   /**
@@ -112,16 +112,11 @@ class SchedulerService {
       const automationStats = await AutomationService.getAutomationStats();
       
       // Log health status
-      console.log('System Health Check:', {
-        timestamp: new Date().toISOString(),
-        automationStats,
-        memoryUsage: process.memoryUsage(),
-        uptime: process.uptime()
-      });
+      // System Health Check completed
 
       // Alert if error rate is too high
       if (automationStats.successRate < 80 && automationStats.totalAutomated > 10) {
-        console.warn(`High automation error rate detected: ${automationStats.successRate}%`);
+        // High automation error rate detected
         // Here you could send alerts to administrators
       }
 
@@ -138,15 +133,15 @@ class SchedulerService {
     try {
       switch (jobName) {
         case 'complaintProcessing':
-          console.log('Manually triggering complaint processing...');
+          // Manually triggering complaint processing
           const result = await AutomationService.processPendingComplaints();
-          console.log('Manual complaint processing completed:', result);
+          // Manual complaint processing completed
           return result;
 
         case 'healthCheck':
-          console.log('Manually triggering health check...');
+          // Manually triggering health check
           await this.performHealthCheck();
-          console.log('Manual health check completed');
+          // Manual health check completed
           return { success: true };
 
         default:
@@ -178,9 +173,9 @@ class SchedulerService {
 
     if (this.isRunning) {
       job.start();
-      console.log(`Added and started new job: ${name}`);
+      // Added and started new job
     } else {
-      console.log(`Added new job: ${name} (will start when scheduler starts)`);
+      // Added new job (will start when scheduler starts)
     }
 
     return job;
@@ -198,7 +193,7 @@ class SchedulerService {
 
     job.stop();
     this.jobs.delete(name);
-    console.log(`Removed job: ${name}`);
+    // Removed job
   }
 }
 

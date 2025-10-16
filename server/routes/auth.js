@@ -104,7 +104,7 @@ router.post('/send-otp', async (req, res) => {
     // Send OTP via email
     try {
       await sendOTPVerificationEmail(user, otp);
-      console.log(`OTP sent to ${email}: ${otp}`);
+      // OTP sent to user
     } catch (emailError) {
       console.error('Failed to send OTP email:', emailError);
       // Still return success as OTP is generated, but log the error
@@ -238,7 +238,7 @@ router.post('/forgot-password', async (req, res) => {
     // Send OTP via email
     try {
       await sendPasswordResetOTPEmail(user, otp);
-      console.log(`Password reset OTP sent to ${email}: ${otp}`);
+      // Password reset OTP sent to user
     } catch (emailError) {
       console.error('Failed to send password reset OTP email:', emailError);
       // Still return success as OTP is generated, but log the error
@@ -526,7 +526,7 @@ router.post('/register', async (req, res) => {
     // Send OTP via email
     try {
       await sendOTPVerificationEmail(user, otp);
-      console.log(`OTP sent to ${email}: ${otp}`);
+      // OTP sent to user
     } catch (emailError) {
       console.error('Failed to send OTP email:', emailError);
       // Still return success as OTP is generated, but log the error
@@ -716,6 +716,32 @@ router.get('/me', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Get profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Debug endpoint to check Google photo URLs
+router.get('/debug-avatar', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password');
+    
+    res.json({
+      success: true,
+      debug: {
+        email: user.email,
+        googleId: user.googleId,
+        googlePhotoUrl: user.googlePhotoUrl,
+        customAvatar: user.customAvatar,
+        liveAvatarUrl: user.getLiveAvatarUrl(),
+        hasGooglePhoto: !!(user.googleId && user.googlePhotoUrl),
+        isDefaultPlaceholder: user.googlePhotoUrl === 'https://lh3.googleusercontent.com/a/default-user=s400'
+      }
+    });
+  } catch (error) {
+    console.error('Debug avatar error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -1101,7 +1127,7 @@ router.post('/resend-verification', authenticateToken, async (req, res) => {
     await user.save();
 
     // TODO: Send verification email here
-    console.log('New email verification token:', verificationToken);
+    // New email verification token generated
 
     res.json({
       success: true,

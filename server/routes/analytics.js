@@ -42,11 +42,11 @@ router.get('/dashboard', authenticateToken, authorizeRoles('admin'), async (req,
       });
     }
     
-    console.log('📊 Analytics Trend Data Generated:', JSON.stringify(trendData, null, 2));
+    // Analytics trend data generated
     
     // If no data exists, provide a helpful empty state
     if (trendData.every(day => day.complaints === 0 && day.resolved === 0)) {
-      console.log('ℹ️  No complaint data found for the last 7 days');
+      // No complaint data found for the last 7 days
     }
 
     res.status(200).json({

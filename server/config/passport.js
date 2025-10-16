@@ -29,30 +29,31 @@ passport.use(new GoogleStrategy({
   callbackURL: "/api/auth/google/callback"
 }, async (accessToken, refreshToken, profile, done) => {
   try {
-    console.log('Google Profile:', profile);
+    // Google Profile received
 
     // Check if user already exists with this Google ID
     let existingUser = await User.findOne({ googleId: profile.id });
     
     if (existingUser) {
-      console.log('[Google OAuth] Existing user found:', existingUser.email);
+      // Google OAuth: Existing user found
       // Update last login and refresh profile photo
       existingUser.lastLogin = new Date();
       // Always update the Google profile photo URL on each login
       if (profile.photos && profile.photos[0] && profile.photos[0].value) {
         let photoUrl = profile.photos[0].value;
-        console.log('[Google OAuth] Original photo URL:', photoUrl);
+        // Google OAuth: Original photo URL
         // Ensure proper formatting for Google photo URLs
         if (photoUrl.includes('googleusercontent.com')) {
-          photoUrl = photoUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400-c';
+          // Remove any existing size parameters and add s400 for better compatibility
+          photoUrl = photoUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400';
         }
-        console.log('[Google OAuth] Formatted photo URL:', photoUrl);
+        // Google OAuth: Formatted photo URL
         existingUser.googlePhotoUrl = photoUrl;
       } else {
-        console.log('[Google OAuth] No photo in profile');
+        // Google OAuth: No photo in profile
       }
       await existingUser.save();
-      console.log('[Google OAuth] User saved with googlePhotoUrl:', existingUser.googlePhotoUrl);
+      // Google OAuth: User saved with googlePhotoUrl
       return done(null, existingUser);
     }
 
@@ -60,43 +61,44 @@ passport.use(new GoogleStrategy({
     const emailUser = await User.findOne({ email: profile.emails[0].value });
     
     if (emailUser) {
-      console.log('[Google OAuth] Linking Google account to existing user:', emailUser.email);
+      // Google OAuth: Linking Google account to existing user
       // Link Google account to existing email account
       emailUser.googleId = profile.id;
       // Store Google profile photo URL
       if (profile.photos && profile.photos[0] && profile.photos[0].value) {
         let photoUrl = profile.photos[0].value;
-        console.log('[Google OAuth] Original photo URL:', photoUrl);
+        // Google OAuth: Original photo URL
         // Ensure proper formatting for Google photo URLs
         if (photoUrl.includes('googleusercontent.com')) {
-          photoUrl = photoUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400-c';
+          // Remove any existing size parameters and add s400 for better compatibility
+          photoUrl = photoUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400';
         }
-        console.log('[Google OAuth] Formatted photo URL:', photoUrl);
+        // Google OAuth: Formatted photo URL
         emailUser.googlePhotoUrl = photoUrl;
       } else {
-        console.log('[Google OAuth] No photo in profile');
+        // Google OAuth: No photo in profile
       }
       emailUser.isEmailVerified = true;
       emailUser.lastLogin = new Date();
       await emailUser.save();
-      console.log('[Google OAuth] User linked with googlePhotoUrl:', emailUser.googlePhotoUrl);
+      // Google OAuth: User linked with googlePhotoUrl
       return done(null, emailUser);
     }
 
     // Create new user
-    console.log('[Google OAuth] Creating new user for:', profile.emails[0].value);
+    // Google OAuth: Creating new user
     const photoUrl = (() => {
       if (profile.photos && profile.photos[0] && profile.photos[0].value) {
         let url = profile.photos[0].value;
-        console.log('[Google OAuth] Original photo URL:', url);
+        // Google OAuth: Original photo URL
         // Ensure proper formatting for Google photo URLs
         if (url.includes('googleusercontent.com')) {
           url = url.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400-c';
         }
-        console.log('[Google OAuth] Formatted photo URL:', url);
+        // Google OAuth: Formatted photo URL
         return url;
       }
-      console.log('[Google OAuth] No photo available in profile');
+      // Google OAuth: No photo available in profile
       return null;
     })();
 
@@ -111,7 +113,7 @@ passport.use(new GoogleStrategy({
     });
 
     await newUser.save();
-    console.log('[Google OAuth] New user created with googlePhotoUrl:', newUser.googlePhotoUrl);
+    // Google OAuth: New user created with googlePhotoUrl
     return done(null, newUser);
 
   } catch (error) {

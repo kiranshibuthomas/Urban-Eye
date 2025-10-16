@@ -1,16 +1,24 @@
-const OpenAI = require('openai');
+// Load environment variables
+require('dotenv').config({ path: './config.env' });
+
+// Try to load OpenAI, but don't fail if it's not available
+let OpenAI;
+try {
+  OpenAI = require('openai');
+} catch (error) {
+  // OpenAI module not available - AI features disabled
+  OpenAI = null;
+}
+
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs').promises;
 
-// Load environment variables
-require('dotenv').config({ path: './config.env' });
-
 const { config: aiConfig, helpers } = require('../config/aiConfig');
 
-// Initialize OpenAI only if API key is available
+// Initialize OpenAI only if API key is available and module is loaded
 let openai = null;
-if (process.env.OPENAI_API_KEY) {
+if (OpenAI && process.env.OPENAI_API_KEY) {
   openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
   });
@@ -106,12 +114,12 @@ class AIService {
           // Try AI analysis first
           textAnalysis = await this.analyzeTextContent(textContent);
         } catch (aiError) {
-          console.log('AI analysis failed, using fallback:', aiError.message);
+          // AI analysis failed, using fallback
           textAnalysis = this.fallbackTextAnalysis(textContent);
         }
       } else {
         // Use fallback analysis directly
-        console.log('Using fallback analysis (AI quota exceeded or disabled)');
+        // Using fallback analysis (AI quota exceeded or disabled)
         textAnalysis = this.fallbackTextAnalysis(textContent);
       }
       
@@ -121,7 +129,7 @@ class AIService {
         try {
           imageAnalysis = await this.analyzeImages(images);
         } catch (imageError) {
-          console.log('Image analysis failed, skipping:', imageError.message);
+          // Image analysis failed, skipping
         }
       }
       
@@ -159,7 +167,7 @@ class AIService {
   static shouldUseAI() {
     // Check if OpenAI API key is available
     if (!process.env.OPENAI_API_KEY || !openai) {
-      console.log('AI not available: OpenAI API key missing or invalid');
+      // AI not available: OpenAI API key missing or invalid
       return false;
     }
     
@@ -629,7 +637,7 @@ class AIService {
     const targetDepartment = categoryInfo.department;
     const targetJobRoles = categoryInfo.jobRoles;
 
-    console.log(`Looking for staff for category: ${category} (${categoryInfo.description})`);
+    // Looking for staff for category
 
     // Filter staff by department and active status
     const departmentStaff = availableStaff.filter(staff => 
@@ -639,11 +647,11 @@ class AIService {
     );
 
     if (departmentStaff.length === 0) {
-      console.log(`No active staff found in ${targetDepartment} department`);
+      // No active staff found in target department
       // Fallback to any active staff from any department
       const fallbackStaff = availableStaff.find(staff => staff.isActive);
       if (fallbackStaff) {
-        console.log(`Using fallback staff: ${fallbackStaff.name} from ${fallbackStaff.department}`);
+        // Using fallback staff
       }
       return fallbackStaff || null;
     }
@@ -673,7 +681,7 @@ class AIService {
     });
 
     const selectedStaff = departmentStaff[0];
-    console.log(`Selected staff: ${selectedStaff.name} (${selectedStaff.department}) for ${category}`);
+    // Selected staff for category
     
     return selectedStaff;
   }

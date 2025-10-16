@@ -7,10 +7,7 @@ require('dotenv').config({ path: './config.env' });
 const mongoose = require('mongoose');
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-});
+mongoose.connect(process.env.MONGODB_URI);
 
 async function listFieldStaff() {
   try {

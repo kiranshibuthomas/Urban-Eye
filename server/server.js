@@ -61,8 +61,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/urbaneye'
   maxPoolSize: 10,
   minPoolSize: 5,
 })
-.then(() => console.log('✅ MongoDB connected successfully'))
-.catch(err => console.error('❌ MongoDB connection error:', err));
+.then(() => console.log('MongoDB connected successfully'))
+.catch(err => console.error('MongoDB connection error:', err));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -124,12 +124,12 @@ app.use('*', (req, res) => {
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   
   // Start scheduler service
   schedulerService.start();
-  console.log('🤖 Automation scheduler started');
+  console.log('Automation scheduler started');
 });
 
 module.exports = app;

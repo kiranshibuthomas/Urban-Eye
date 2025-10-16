@@ -189,7 +189,7 @@ geofenceConfigSchema.statics.getActiveConfig = async function() {
       country: 'India',
       centerLatitude: 9.5595,
       centerLongitude: 76.7874,
-      radiusKm: 18,
+      radiusKm: 15,
       bufferKm: 2,
       isActive: true
     });
