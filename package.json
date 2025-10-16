@@ -39,7 +39,7 @@
     "url": ""
   },
   "dependencies": {
-    "mongodb": "^6.18.0",
+    "axios": "^1.12.2",
     "bcryptjs": "^2.4.3",
     "connect-mongo": "^5.1.0",
     "cookie-parser": "^1.4.6",
@@ -52,10 +52,14 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.5.0",
     "multer": "^1.4.5-lts.1",
+    "node-cron": "^4.2.1",
+    "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.6",
+    "openai": "^4.104.0",
     "passport": "^0.6.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
+    "sharp": "^0.32.6",
     "uuid": "^9.0.1"
   }
 }
