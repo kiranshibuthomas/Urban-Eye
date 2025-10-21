@@ -6,9 +6,13 @@ yarn-error.log*
 
 # Environment variables
 .env
+.env.*
 .env.local
+.env.development
 .env.development.local
+.env.test
 .env.test.local
+.env.production
 .env.production.local
 
 # Build outputs
@@ -110,6 +114,8 @@ Thumbs.db
 config.env
 server/config.env
 client/.env
+server/.env
+server/.env.*
 
 # SSL certificates
 *.pem
