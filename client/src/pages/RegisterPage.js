@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { InlineSpinner } from '../components/LoadingSpinner';
 import PhoneInput from '../components/PhoneInput';
 import AuthLayout from '../components/AuthLayout';
+import { getApiURL } from '../utils/apiConfig';
 import toast from 'react-hot-toast';
 
 const RegisterPage = () => {
@@ -66,7 +67,7 @@ const RegisterPage = () => {
         }));
 
         try {
-          const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/check-email`, {
+          const response = await fetch(`${getApiURL()}/auth/check-email`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -341,7 +342,7 @@ const RegisterPage = () => {
 
   const handleGoogleLogin = () => {
     // Redirect to backend Google OAuth endpoint
-    window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/google`;
+    window.location.href = `${getApiURL()}/auth/google`;
   };
 
   const isFieldValid = (fieldName) => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getBaseURL } from '../utils/apiConfig';
 import toast from 'react-hot-toast';
 import { 
   FiMapPin, 
@@ -284,7 +285,7 @@ const ComplaintDetail = () => {
                         onClick={() => setSelectedImage(image)}
                       >
                         <img
-                          src={`http://localhost:5000${image.url}`}
+                          src={`${getBaseURL()}${image.url}`}
                           alt={`Complaint image ${index + 1}`}
                           className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                         />
@@ -515,7 +516,7 @@ const ComplaintDetail = () => {
             </button>
             <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src={`http://localhost:5000${selectedImage.url}`}
+                src={`${getBaseURL()}${selectedImage.url}`}
                 alt="Complaint image"
                 className="max-w-full max-h-[80vh] object-contain"
               />

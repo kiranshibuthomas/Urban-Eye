@@ -6,6 +6,7 @@ import { FaCity } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { InlineSpinner } from '../components/LoadingSpinner';
 import AuthLayout from '../components/AuthLayout';
+import { getApiURL } from '../utils/apiConfig';
 import toast from 'react-hot-toast';
 
 const LoginPage = () => {
@@ -110,7 +111,7 @@ const LoginPage = () => {
 
   const handleGoogleLogin = () => {
     // Redirect to backend Google OAuth endpoint
-    window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/google`;
+    window.location.href = `${getApiURL()}/auth/google`;
   };
 
   return (

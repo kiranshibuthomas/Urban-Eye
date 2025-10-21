@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { customToast } from '../utils/customToast';
+import { getApiURL } from '../utils/apiConfig';
 
 // Initial state
 const initialState = {
@@ -75,7 +76,7 @@ const authReducer = (state, action) => {
 const AuthContext = createContext();
 
 // Configure axios defaults
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+axios.defaults.baseURL = getApiURL();
 axios.defaults.withCredentials = true;
 
 // Auth Provider
