@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getBaseURL } from '../utils/apiConfig';
 import { 
   FiCheckCircle,
   FiXCircle,
@@ -204,7 +205,7 @@ const AdminWorkApproval = ({ complaint, onApprove, onReject, onClose }) => {
                       onClick={() => setSelectedImage(image)}
                     >
                       <img
-                        src={`http://localhost:5000${image.url}`}
+                        src={`${getBaseURL()}${image.url}`}
                         alt={`Work proof ${index + 1}`}
                         className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -247,7 +248,7 @@ const AdminWorkApproval = ({ complaint, onApprove, onReject, onClose }) => {
                       onClick={() => setSelectedImage(image)}
                     >
                       <img
-                        src={`http://localhost:5000${image.url}`}
+                        src={`${getBaseURL()}${image.url}`}
                         alt={`Original image ${index + 1}`}
                         className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -442,7 +443,7 @@ const AdminWorkApproval = ({ complaint, onApprove, onReject, onClose }) => {
             </button>
             <div className="bg-white rounded-xl overflow-hidden shadow-2xl">
               <img
-                src={`http://localhost:5000${selectedImage.url}`}
+                src={`${getBaseURL()}${selectedImage.url}`}
                 alt="Work proof"
                 className="max-w-full max-h-[80vh] object-contain"
               />

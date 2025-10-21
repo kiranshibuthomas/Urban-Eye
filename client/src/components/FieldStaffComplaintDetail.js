@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getBaseURL } from '../utils/apiConfig';
 import { 
   FiMapPin, 
   FiCalendar, 
@@ -230,7 +231,7 @@ const FieldStaffComplaintDetail = ({ complaint, onClose, onStatusUpdate, onWorkC
                       onClick={() => setSelectedImage(image)}
                     >
                       <img
-                        src={`http://localhost:5000${image.url}`}
+                        src={`${getBaseURL()}${image.url}`}
                         alt={`Complaint image ${index + 1}`}
                         className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -260,7 +261,7 @@ const FieldStaffComplaintDetail = ({ complaint, onClose, onStatusUpdate, onWorkC
                       onClick={() => setSelectedImage(image)}
                     >
                       <img
-                        src={`http://localhost:5000${image.url}`}
+                        src={`${getBaseURL()}${image.url}`}
                         alt={`Work proof ${index + 1}`}
                         className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -575,7 +576,7 @@ const FieldStaffComplaintDetail = ({ complaint, onClose, onStatusUpdate, onWorkC
             </button>
             <div className="bg-white rounded-xl overflow-hidden shadow-2xl">
               <img
-                src={`http://localhost:5000${selectedImage.url}`}
+                src={`${getBaseURL()}${selectedImage.url}`}
                 alt="Complaint image"
                 className="max-w-full max-h-[80vh] object-contain"
               />

@@ -5,6 +5,7 @@ import { FiArrowLeft, FiMail } from 'react-icons/fi';
 import { FaCity } from 'react-icons/fa';
 import { InlineSpinner } from '../components/LoadingSpinner';
 import AuthLayout from '../components/AuthLayout';
+import { getApiURL } from '../utils/apiConfig';
 import toast from 'react-hot-toast';
 
 const ForgotPasswordPage = () => {
@@ -34,7 +35,7 @@ const ForgotPasswordPage = () => {
     setError('');
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/forgot-password`, {
+      const response = await fetch(`${getApiURL()}/auth/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

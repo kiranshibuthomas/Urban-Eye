@@ -6,6 +6,7 @@ import { FaCity } from 'react-icons/fa';
 import { InlineSpinner } from '../components/LoadingSpinner';
 import AuthLayout from '../components/AuthLayout';
 import { useAuth } from '../context/AuthContext';
+import { getApiURL } from '../utils/apiConfig';
 import toast from 'react-hot-toast';
 
 const OTPVerificationPage = () => {
@@ -121,7 +122,7 @@ const OTPVerificationPage = () => {
     setError('');
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/send-otp`, {
+      const response = await fetch(`${getApiURL()}/auth/send-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
