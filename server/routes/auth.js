@@ -877,6 +877,21 @@ router.get('/google', passport.authenticate('google', {
   scope: ['profile', 'email']
 }));
 
+// @route   GET /api/auth/debug-config
+// @desc    Debug OAuth configuration
+// @access  Public
+router.get('/debug-config', (req, res) => {
+  res.json({
+    NODE_ENV: process.env.NODE_ENV,
+    SERVER_URL: process.env.SERVER_URL,
+    CLIENT_URL: process.env.CLIENT_URL,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Not Set',
+    expectedCallbackURL: process.env.NODE_ENV === 'production' 
+      ? `${process.env.SERVER_URL || 'https://urbaneye-zt7y.onrender.com'}/api/auth/google/callback`
+      : "/api/auth/google/callback"
+  });
+});
+
 // @route   POST /api/auth/google
 // @desc    Google OAuth login for mobile
 // @access  Public
