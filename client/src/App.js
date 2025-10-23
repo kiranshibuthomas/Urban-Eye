@@ -25,6 +25,8 @@ const FieldStaffManagement = lazy(() => import('./pages/FieldStaffManagement'));
 const ReportIssue = lazy(() => import('./pages/ReportIssue'));
 const ReportsHistory = lazy(() => import('./pages/ReportsHistory'));
 const ComplaintDetail = lazy(() => import('./pages/ComplaintDetail'));
+const CitizenComplaintDetail = lazy(() => import('./pages/CitizenComplaintDetail'));
+const AdminComplaintDetail = lazy(() => import('./pages/AdminComplaintDetail'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
@@ -160,6 +162,22 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <ComplaintDetail />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/complaint-detail/:id" 
+          element={
+            <ProtectedRoute requiredRole="citizen">
+              <CitizenComplaintDetail />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/complaint-detail/:id" 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminComplaintDetail />
             </ProtectedRoute>
           } 
         />

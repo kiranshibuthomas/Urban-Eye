@@ -30,7 +30,7 @@ import {
   FiCopy,
   FiExternalLink
 } from 'react-icons/fi';
-import GoogleMapModal from '../components/GoogleMapModal';
+import LeafletMapModal from '../components/LeafletMapModal';
 
 const ComplaintDetail = () => {
   const { id } = useParams();
@@ -43,28 +43,7 @@ const ComplaintDetail = () => {
 
   useEffect(() => {
     fetchComplaint();
-    loadGoogleMapsScript();
   }, [id]);
-
-  const loadGoogleMapsScript = () => {
-    if (window.google) return; // Already loaded
-
-    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-    
-    // Only load Google Maps if API key is properly configured
-    if (apiKey && apiKey !== 'your_google_maps_api_key_here' && apiKey !== 'YOUR_API_KEY') {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      script.onerror = () => {
-        console.warn('Failed to load Google Maps API. Interactive maps will not be available.');
-      };
-      document.head.appendChild(script);
-    } else {
-      console.warn('Google Maps API key not configured. Interactive maps will not be available.');
-    }
-  };
 
   const fetchComplaint = async () => {
     try {
@@ -525,9 +504,9 @@ const ComplaintDetail = () => {
         </div>
       )}
 
-      {/* Google Maps Modal */}
+      {/* Leaflet Map Modal */}
       {showMap && complaint && (
-        <GoogleMapModal
+        <LeafletMapModal
           isOpen={showMap}
           onClose={() => setShowMap(false)}
           latitude={complaint.location.coordinates[1]}

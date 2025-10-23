@@ -29,7 +29,7 @@ import {
   FiCamera,
   FiNavigation
 } from 'react-icons/fi';
-import GoogleMapModal from './GoogleMapModal';
+import LeafletMapModal from './LeafletMapModal';
 import toast from 'react-hot-toast';
 
 const FieldStaffComplaintDetail = ({ complaint, onClose, onStatusUpdate, onWorkComplete }) => {
@@ -585,9 +585,9 @@ const FieldStaffComplaintDetail = ({ complaint, onClose, onStatusUpdate, onWorkC
         </div>
       )}
 
-      {/* Google Maps Modal */}
+      {/* Leaflet Map Modal */}
       {showMap && complaint && (
-        <GoogleMapModal
+        <LeafletMapModal
           isOpen={showMap}
           onClose={() => setShowMap(false)}
           latitude={complaint.location.coordinates[1]}

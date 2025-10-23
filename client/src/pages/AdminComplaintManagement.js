@@ -21,7 +21,7 @@ import {
   FiThumbsDown
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import GoogleMapModal from '../components/GoogleMapModal';
+import LeafletMapModal from '../components/LeafletMapModal';
 
 const AdminComplaintManagement = () => {
   const navigate = useNavigate();
@@ -63,7 +63,6 @@ const AdminComplaintManagement = () => {
     fetchComplaints();
     fetchStats();
     fetchFieldStaff();
-    loadGoogleMapsScript();
   }, [filters, showDeleted]);
 
   // Smart background refresh - only when tab is active and user is idle
@@ -109,15 +108,6 @@ const AdminComplaintManagement = () => {
     };
   }, [loading]);
 
-  const loadGoogleMapsScript = () => {
-    if (window.google) return; // Already loaded
-
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY'}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-  };
 
   const fetchComplaints = async () => {
     try {
@@ -777,7 +767,7 @@ const AdminComplaintManagement = () => {
                 <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <button
-                      onClick={() => navigate(`/complaint/${complaint._id}`)}
+                      onClick={() => navigate(`/admin/complaint-detail/${complaint._id}`)}
                       className="flex items-center px-3 py-1.5 text-base text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors duration-200"
                     >
                       <FiEye className="h-4 w-4 mr-1" />
@@ -868,9 +858,9 @@ const AdminComplaintManagement = () => {
           )}
         </div>
 
-        {/* Google Maps Modal */}
+        {/* Leaflet Map Modal */}
         {showMap && selectedComplaint && (
-          <GoogleMapModal
+          <LeafletMapModal
             isOpen={showMap}
             onClose={() => {
               setShowMap(false);

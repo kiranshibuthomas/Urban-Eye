@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSession } from '../context/SessionContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import GoogleMapModal from '../components/GoogleMapModal';
 import { 
   FiArrowLeft,
   FiSearch,
@@ -72,10 +71,8 @@ const ReportsHistory = () => {
     if (category !== categoryFilter) setCategoryFilter(category);
     if (sort !== sortBy) setSortBy(sort);
   }, [searchParams, searchTerm, statusFilter, categoryFilter, sortBy]);
-  const [selectedReport, setSelectedReport] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [showMap, setShowMap] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   // API Functions
@@ -114,44 +111,6 @@ const ReportsHistory = () => {
     }
   };
 
-  const fetchReportDetails = async (reportId) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const response = await fetch(`/api/complaints/${reportId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const complaint = data.complaint;
-      
-      // Ensure the complaint has the expected structure
-      if (complaint) {
-        return {
-          ...complaint,
-          images: complaint.images || [],
-          comments: complaint.comments || [],
-          statusHistory: complaint.statusHistory || []
-        };
-      }
-      
-      return complaint;
-    } catch (error) {
-      console.error('Error fetching report details:', error);
-      throw error;
-    }
-  };
 
   const refreshReports = async () => {
     setRefreshing(true);
@@ -842,7 +801,8 @@ const ReportsHistory = () => {
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.4, delay: index * 0.05 }}
                   whileHover={{ y: -2 }}
-                  className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[#84A98C]/30 p-6 hover:shadow-xl transition-all duration-300 group"
+                  onClick={() => navigate(`/complaint-detail/${report.id}`)}
+                  className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[#84A98C]/30 p-6 hover:shadow-xl transition-all duration-300 group cursor-pointer"
                 >
                   <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-6">
                     {/* Main Content */}
@@ -923,50 +883,12 @@ const ReportsHistory = () => {
                       )}
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex flex-col sm:flex-row xl:flex-col gap-3 xl:min-w-[200px]">
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={async () => {
-                          try {
-                            const detailedReport = await fetchReportDetails(report.id);
-                            setSelectedReport(detailedReport);
-                          } catch (error) {
-                            console.error('Error fetching report details:', error);
-                            setSelectedReport(report);
-                          }
-                        }}
-                        className="flex items-center justify-center px-4 py-3 bg-gradient-to-r from-[#52796F] to-[#354F52] text-white rounded-xl hover:from-[#354F52] hover:to-[#2F3E46] transition-all duration-200 font-medium shadow-lg hover:shadow-[#84A98C]/30"
-                      >
+                    {/* Click Indicator */}
+                    <div className="flex flex-col sm:flex-row xl:flex-col gap-3 xl:min-w-[200px] items-center justify-center">
+                      <div className="flex items-center justify-center px-4 py-3 bg-gradient-to-r from-[#52796F] to-[#354F52] text-white rounded-xl font-medium shadow-lg">
                         <FiEye className="h-4 w-4 mr-2" />
-                        View Details
-                      </motion.button>
-                      
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => {
-                          setSelectedReport(report);
-                          setShowMap(true);
-                        }}
-                        className="flex items-center justify-center px-4 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-[#CAD2C5]/20 hover:border-[#52796F] hover:text-[#52796F] transition-all duration-200 font-medium"
-                        title="View on Map"
-                      >
-                        <FiMap className="h-4 w-4 mr-2" />
-                        View Map
-                      </motion.button>
-                      
-                      {report.status === 'resolved' && (
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="flex items-center justify-center px-4 py-3 border-2 border-[#84A98C]/50 text-[#52796F] rounded-xl hover:bg-[#CAD2C5]/20 hover:border-[#52796F] transition-all duration-200 font-medium"
-                        >
-                          <FiThumbsUp className="h-4 w-4 mr-2" />
-                          Rate Service
-                        </motion.button>
-                      )}
+                        Click to View Details
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -1041,251 +963,7 @@ const ReportsHistory = () => {
         </div>
       </div>
 
-      {/* Report Detail Modal */}
-      <AnimatePresence>
-        {selectedReport && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setSelectedReport(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-[#52796F] to-[#354F52] p-6 text-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="h-12 w-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                      <FiFileText className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold">Report Details</h2>
-                      <p className="text-white/80 text-sm">Issue #{selectedReport.id?.slice(-8) || 'N/A'}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSelectedReport(null)}
-                    className="p-3 hover:bg-white/20 rounded-2xl transition-colors duration-200"
-                  >
-                    <FiXCircle className="h-6 w-6" />
-                  </button>
-                </div>
-              </div>
 
-              {/* Content */}
-              <div className="overflow-y-auto max-h-[calc(95vh-120px)]">
-                <div className="p-8 space-y-8">
-                {/* Report Info */}
-                <div className="bg-gradient-to-r from-[#CAD2C5]/20 to-[#84A98C]/20 rounded-2xl p-6">
-                  <div className="mb-6">
-                    <h3 className="text-2xl font-bold text-[#2F3E46] mb-3">{selectedReport.title}</h3>
-                    <p className="text-[#354F52] text-lg leading-relaxed">{selectedReport.description}</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white/60 rounded-xl p-4">
-                      <label className="block text-sm font-semibold text-[#354F52] mb-2">Status</label>
-                      <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold ${statusConfig[selectedReport.status]?.bgColor || 'bg-gray-50'} ${statusConfig[selectedReport.status]?.color || 'text-gray-600'} border ${statusConfig[selectedReport.status]?.borderColor || 'border-gray-200'}`}>
-                        {getStatusIcon(selectedReport.status)}
-                        <span className="ml-2">{statusConfig[selectedReport.status]?.label || selectedReport.status || 'Unknown'}</span>
-                      </span>
-                    </div>
-                    <div className="bg-white/60 rounded-xl p-4">
-                      <label className="block text-sm font-semibold text-[#354F52] mb-2">Priority</label>
-                      <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold ${priorityConfig[selectedReport.priority]?.bgColor || 'bg-gray-50'} ${priorityConfig[selectedReport.priority]?.color || 'text-gray-600'}`}>
-                        {priorityConfig[selectedReport.priority]?.label || selectedReport.priority || 'Unknown'}
-                      </span>
-                    </div>
-                    <div className="bg-white/60 rounded-xl p-4">
-                      <label className="block text-sm font-semibold text-[#354F52] mb-2">Category</label>
-                      <span className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold bg-[#CAD2C5]/30 text-[#354F52]">
-                        <span className="mr-2">{getCategoryIcon(selectedReport.category)}</span>
-                        {categories?.find(cat => cat.value === selectedReport.category)?.label || selectedReport.category || 'Unknown'}
-                      </span>
-                    </div>
-                    <div className="bg-white/60 rounded-xl p-4">
-                      <label className="block text-sm font-semibold text-[#354F52] mb-2">Submitted</label>
-                      <span className="text-[#2F3E46] font-medium">{formatDate(selectedReport.createdAt)}</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white/60 rounded-xl p-4">
-                      <label className="block text-sm font-semibold text-[#354F52] mb-2">Location</label>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center text-[#2F3E46] flex-1">
-                          <FiMapPin className="h-5 w-5 mr-2 text-[#52796F]" />
-                          <span className="font-medium">{selectedReport.address}, {selectedReport.city} - {selectedReport.pincode}</span>
-                        </div>
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setShowMap(true)}
-                          className="ml-3 px-3 py-2 bg-gradient-to-r from-[#84A98C] to-[#52796F] text-white rounded-lg hover:from-[#52796F] hover:to-[#354F52] transition-all duration-200 flex items-center space-x-2 text-sm font-medium"
-                        >
-                          <FiMap className="h-4 w-4" />
-                          <span>View Map</span>
-                        </motion.button>
-                      </div>
-                    </div>
-
-                    {selectedReport.assignedTo && (
-                      <div className="bg-white/60 rounded-xl p-4">
-                        <label className="block text-sm font-semibold text-[#354F52] mb-2">Assigned To</label>
-                        <span className="text-[#2F3E46] font-medium">{selectedReport.assignedTo}</span>
-                      </div>
-                    )}
-
-                    {selectedReport.estimatedResolution && (
-                      <div className="bg-white/60 rounded-xl p-4">
-                        <label className="block text-sm font-semibold text-[#354F52] mb-2">Estimated Resolution</label>
-                        <span className="text-[#2F3E46] font-medium">{formatDate(selectedReport.estimatedResolution)}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                </div>
-
-                {/* Progress */}
-                {selectedReport.status === 'in_progress' && (
-                  <div className="bg-gradient-to-r from-[#CAD2C5]/20 to-[#84A98C]/20 rounded-2xl p-6">
-                    <label className="block text-sm font-semibold text-[#354F52] mb-4">Progress</label>
-                    <div className="w-full bg-white/60 rounded-full h-3 mb-2">
-                      <div 
-                        className="bg-gradient-to-r from-[#84A98C] to-[#52796F] h-3 rounded-full transition-all duration-300"
-                        style={{ width: `${selectedReport.progress}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-[#2F3E46] font-medium">{selectedReport.progress}% complete</p>
-                  </div>
-                )}
-
-                {/* Images */}
-                {selectedReport.images && selectedReport.images.length > 0 && (
-                  <div className="bg-gradient-to-r from-[#CAD2C5]/20 to-[#84A98C]/20 rounded-2xl p-6">
-                    <label className="block text-sm font-semibold text-[#354F52] mb-4">Photos ({selectedReport.images.length})</label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {selectedReport.images.map((image, index) => (
-                        <motion.div 
-                          key={index} 
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="group relative aspect-square bg-gray-100 rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300"
-                          onClick={() => window.open(image.url, '_blank')}
-                        >
-                          <img 
-                            src={image.url} 
-                            alt={`Report photo ${index + 1}`}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-gray-100 flex items-center justify-center" style={{ display: 'none' }}>
-                            <div className="text-center">
-                              <FiImage className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                              <p className="text-xs text-gray-500">Image not available</p>
-                            </div>
-                          </div>
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                              <FiEye className="h-6 w-6 text-white" />
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Comments */}
-                {selectedReport.comments && selectedReport.comments.length > 0 && (
-                  <div className="bg-gradient-to-r from-[#CAD2C5]/20 to-[#84A98C]/20 rounded-2xl p-6">
-                    <label className="block text-sm font-semibold text-[#354F52] mb-4">Updates & Comments</label>
-                    <div className="space-y-4">
-                      {selectedReport.comments.map((comment, index) => (
-                        <div key={index} className="bg-white/60 rounded-xl p-4 border border-[#84A98C]/20">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center space-x-2">
-                              <div className="h-8 w-8 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-full flex items-center justify-center">
-                                <span className="text-white text-sm font-semibold">{comment.author?.charAt(0) || 'A'}</span>
-                              </div>
-                              <span className="font-semibold text-[#2F3E46]">{comment.author}</span>
-                            </div>
-                            <span className="text-sm text-[#354F52]">{formatDate(comment.timestamp)}</span>
-                          </div>
-                          <p className="text-[#354F52] leading-relaxed">{comment.message}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Rejection Reason */}
-                {selectedReport.status === 'rejected' && selectedReport.rejectionReason && (
-                  <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
-                    <label className="block text-sm font-semibold text-red-800 mb-4">Reason for Rejection</label>
-                    <div className="bg-white/60 rounded-xl p-4 border border-red-200">
-                      <p className="text-red-700 leading-relaxed">{selectedReport.rejectionReason}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="bg-[#CAD2C5]/20 border-t border-[#84A98C]/30 p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="h-10 w-10 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-xl flex items-center justify-center">
-                      <FiFileText className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-[#354F52] font-medium">Report #{selectedReport.id?.slice(-8) || 'N/A'}</p>
-                      <p className="text-[#354F52] text-sm">Last updated: {formatDate(selectedReport.updatedAt || selectedReport.createdAt)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => window.print()}
-                      className="px-4 py-2 bg-white/60 text-[#354F52] rounded-xl hover:bg-white/80 transition-colors duration-200 font-medium"
-                    >
-                      <FiDownload className="h-4 w-4 mr-2 inline" />
-                      Print
-                    </button>
-                    <button
-                      onClick={() => setSelectedReport(null)}
-                      className="px-6 py-2 bg-gradient-to-r from-[#52796F] to-[#354F52] text-white rounded-xl hover:from-[#354F52] hover:to-[#2F3E46] transition-all duration-200 font-medium"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Map Modal */}
-      {selectedReport && (
-        <GoogleMapModal
-          isOpen={showMap}
-          onClose={() => setShowMap(false)}
-          latitude={selectedReport.location?.coordinates?.[1] || selectedReport.latitude}
-          longitude={selectedReport.location?.coordinates?.[0] || selectedReport.longitude}
-          address={`${selectedReport.address}, ${selectedReport.city} - ${selectedReport.pincode}`}
-          title={selectedReport.title}
-        />
-      )}
     </div>
   );
 };
