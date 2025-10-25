@@ -303,7 +303,7 @@ const CitizenComplaintDetail = () => {
             </div>
           </motion.div>
 
-          {/* Images Gallery */}
+          {/* Original Complaint Images Gallery */}
           {complaint.images && complaint.images.length > 0 && (
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
@@ -314,7 +314,7 @@ const CitizenComplaintDetail = () => {
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-3 py-2 border-b border-gray-200 -m-4 mb-3">
                 <h2 className="text-base font-bold text-gray-900 flex items-center">
                   <FiImage className="h-4 w-4 mr-2 text-green-600" />
-                  Photos ({complaint.images.length})
+                  Original Photos ({complaint.images.length})
                 </h2>
               </div>
               <div className="p-4 -m-4 mt-0">
@@ -346,6 +346,134 @@ const CitizenComplaintDetail = () => {
                     </div>
                   )}
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Work Completion Proof Images */}
+          {complaint.workProofImages && complaint.workProofImages.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.25 }}
+              className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-[#84A98C]/30 p-4"
+            >
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 px-3 py-2 border-b border-gray-200 -m-4 mb-3">
+                <h2 className="text-base font-bold text-gray-900 flex items-center">
+                  <FiCheckCircle className="h-4 w-4 mr-2 text-purple-600" />
+                  Work Completion Proof ({complaint.workProofImages.length})
+                </h2>
+                <p className="text-xs text-gray-600 mt-1">Photos submitted by field staff as proof of completed work</p>
+              </div>
+              <div className="p-4 -m-4 mt-0">
+                <div className="grid grid-cols-3 gap-2">
+                  {complaint.workProofImages.slice(0, 6).map((image, index) => (
+                    <div
+                      key={index}
+                      className="relative cursor-pointer group rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                      onClick={() => setSelectedImage(image)}
+                    >
+                      <img
+                        src={`${getBaseURL()}${image.url}`}
+                        alt={`Proof image ${index + 1}`}
+                        className="w-full h-20 object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
+                        <div className="bg-white bg-opacity-90 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <FiEye className="h-3 w-3 text-gray-800" />
+                        </div>
+                      </div>
+                      <div className="absolute top-1 right-1 bg-purple-600 bg-opacity-90 text-white text-xs px-1 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        P{index + 1}
+                      </div>
+                      <div className="absolute bottom-1 left-1 bg-green-600 text-white text-xs px-1 py-0.5 rounded-full">
+                        <FiCheckCircle className="h-3 w-3" />
+                      </div>
+                    </div>
+                  ))}
+                  {complaint.workProofImages.length > 6 && (
+                    <div className="flex items-center justify-center bg-purple-100 rounded-lg h-20">
+                      <span className="text-xs text-purple-600 font-medium">+{complaint.workProofImages.length - 6}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Work Completion Details */}
+          {complaint.workCompletedAt && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-[#84A98C]/30 p-4"
+            >
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 px-3 py-2 border-b border-gray-200 -m-4 mb-3">
+                <h2 className="text-base font-bold text-gray-900 flex items-center">
+                  <FiCheckCircle className="h-4 w-4 mr-2 text-blue-600" />
+                  Work Completion Details
+                </h2>
+              </div>
+              <div className="p-4 -m-4 mt-0 space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2">Completion Notes:</h3>
+                  <p className="text-gray-700 text-sm leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    {complaint.workCompletionNotes}
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                    <div className="flex items-center mb-1">
+                      <FiCalendar className="h-4 w-4 mr-2 text-blue-600" />
+                      <span className="text-sm font-semibold text-gray-800">Completed At</span>
+                    </div>
+                    <p className="text-sm text-gray-700">{formatDate(complaint.workCompletedAt)}</p>
+                  </div>
+                  
+                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                    <div className="flex items-center mb-1">
+                      <FiClock className="h-4 w-4 mr-2 text-green-600" />
+                      <span className="text-sm font-semibold text-gray-800">Status</span>
+                    </div>
+                    <p className="text-sm text-gray-700 capitalize">
+                      {complaint.status === 'resolved' ? 'Work Approved & Resolved' : 'Work Completed (Pending Approval)'}
+                    </p>
+                  </div>
+                </div>
+
+                {complaint.workApprovedAt && (
+                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                    <div className="flex items-center mb-1">
+                      <FiCheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                      <span className="text-sm font-semibold text-gray-800">Approved At</span>
+                    </div>
+                    <p className="text-sm text-gray-700">{formatDate(complaint.workApprovedAt)}</p>
+                    {complaint.workApprovalNotes && (
+                      <div className="mt-2">
+                        <span className="text-sm font-semibold text-gray-800">Approval Notes:</span>
+                        <p className="text-sm text-gray-700 mt-1">{complaint.workApprovalNotes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {complaint.workRejectedAt && (
+                  <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                    <div className="flex items-center mb-1">
+                      <FiXCircle className="h-4 w-4 mr-2 text-red-600" />
+                      <span className="text-sm font-semibold text-gray-800">Work Rejected</span>
+                    </div>
+                    <p className="text-sm text-gray-700">{formatDate(complaint.workRejectedAt)}</p>
+                    {complaint.workRejectionReason && (
+                      <div className="mt-2">
+                        <span className="text-sm font-semibold text-gray-800">Rejection Reason:</span>
+                        <p className="text-sm text-gray-700 mt-1">{complaint.workRejectionReason}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
           )}

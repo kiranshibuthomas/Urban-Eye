@@ -55,6 +55,7 @@ const CitizenDashboard = () => {
     totalComplaints: 0,
     pending: 0,
     inProgress: 0,
+    workCompleted: 0,
     resolved: 0
   });
   const [recentComplaints, setRecentComplaints] = useState([]);
@@ -87,6 +88,7 @@ const CitizenDashboard = () => {
           totalComplaints: 0,
           pending: 0,
           inProgress: 0,
+          workCompleted: 0,
           resolved: 0
         });
         return;
@@ -112,6 +114,7 @@ const CitizenDashboard = () => {
           totalComplaints: 0,
           pending: 0,
           inProgress: 0,
+          workCompleted: 0,
           resolved: 0
         });
       }
@@ -822,6 +825,10 @@ const CitizenDashboard = () => {
                       <span className="text-2xl font-bold">{stats.inProgress}</span>
                     </div>
                     <div className="flex justify-between items-center">
+                      <span className="text-emerald-100">Work Completed</span>
+                      <span className="text-2xl font-bold">{stats.workCompleted}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
                       <span className="text-emerald-100">Pending</span>
                       <span className="text-2xl font-bold">{stats.pending}</span>
                     </div>
@@ -874,10 +881,11 @@ const CitizenDashboard = () => {
                               <h4 className="font-semibold text-gray-900">{complaint.title}</h4>
                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                                 complaint.status === 'resolved' ? 'bg-emerald-100 text-emerald-800' :
+                                complaint.status === 'work_completed' ? 'bg-purple-100 text-purple-800' :
                                 complaint.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
                                 'bg-yellow-100 text-yellow-800'
                               }`}>
-                                {complaint.status.replace('-', ' ')}
+                                {complaint.status === 'work_completed' ? 'Work Completed' : complaint.status.replace('-', ' ')}
                               </span>
             </div>
                             <div className="flex items-center space-x-4 text-sm text-gray-600">
