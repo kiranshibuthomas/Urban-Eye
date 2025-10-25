@@ -222,21 +222,32 @@ router.put('/complaints/:id/update-status', async (req, res) => {
       });
     }
 
-    // Check if complaint is in assigned status
-    if (complaint.status !== 'assigned') {
+    // Check if complaint is in assigned or in_progress status
+    if (!['assigned', 'in_progress'].includes(complaint.status)) {
       return res.status(400).json({
         success: false,
-        message: `Can only start work on assigned complaints. Current status: ${complaint.status}`
+        message: `Can only update progress on assigned or in-progress complaints. Current status: ${complaint.status}`
       });
     }
 
-    // Update status
-    complaint.status = status;
+    // Update status only if not already in progress
+    if (complaint.status !== 'in_progress') {
+      complaint.status = status;
+    }
     complaint.lastUpdated = new Date();
 
     // Add notes if provided
     if (notes && notes.trim()) {
-      complaint.addAdminNote(notes.trim(), fieldStaffId);
+      try {
+        complaint.adminNotes.push({
+          note: notes.trim(),
+          addedBy: fieldStaffId,
+          addedAt: new Date()
+        });
+      } catch (noteError) {
+        console.error('Error adding note:', noteError);
+        // Continue without failing the entire operation
+      }
     }
 
     await complaint.save();
@@ -256,6 +267,68 @@ router.put('/complaints/:id/update-status', async (req, res) => {
   }
 });
 
+// @route   PUT /api/field-staff/complaints/:id/update-progress
+// @desc    Update progress notes for in-progress complaints
+// @access  Private (Field Staff only)
+router.put('/complaints/:id/update-progress', async (req, res) => {
+  try {
+    const fieldStaffId = req.user._id;
+    const complaintId = req.params.id;
+    const { notes } = req.body;
+
+    if (!notes || !notes.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Progress notes are required'
+      });
+    }
+
+    const complaint = await Complaint.findOne({
+      _id: complaintId,
+      assignedToFieldStaff: fieldStaffId,
+      isDeleted: false
+    });
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found or not assigned to you'
+      });
+    }
+
+    // Check if complaint is in progress
+    if (complaint.status !== 'in_progress') {
+      return res.status(400).json({
+        success: false,
+        message: `Can only update progress on in-progress complaints. Current status: ${complaint.status}`
+      });
+    }
+
+    // Add progress notes
+    complaint.adminNotes.push({
+      note: notes.trim(),
+      addedBy: fieldStaffId,
+      addedAt: new Date()
+    });
+    complaint.lastUpdated = new Date();
+
+    await complaint.save();
+
+    res.json({
+      success: true,
+      message: 'Progress updated successfully',
+      complaint
+    });
+
+  } catch (error) {
+    console.error('Update progress error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating progress'
+    });
+  }
+});
+
 // @route   POST /api/field-staff/complaints/:id/complete-work
 // @desc    Mark work as completed and upload proof
 // @access  Private (Field Staff only)
@@ -269,6 +342,14 @@ router.post('/complaints/:id/complete-work', upload.array('proofImages', 5), asy
       return res.status(400).json({
         success: false,
         message: 'Completion notes are required'
+      });
+    }
+
+    // Check if proof images are provided
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Proof images are mandatory for work completion'
       });
     }
 

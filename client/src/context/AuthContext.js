@@ -388,7 +388,6 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.get('/auth/debug-avatar');
       if (response.data.success) {
         const debugInfo = response.data.debug;
-        console.log('Avatar refresh debug info:', debugInfo);
         
         // Update user with fresh avatar URL
         dispatch({

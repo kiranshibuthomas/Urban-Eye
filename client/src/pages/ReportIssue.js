@@ -351,14 +351,14 @@ const ReportIssue = () => {
     try {
       const submitData = new FormData();
       
-      // Add form data (excluding category and priority as they're auto-determined)
+      // Add form data (category and priority will be set by admin during review)
       Object.keys(formData).forEach(key => {
         submitData.append(key, formData[key]);
       });
       
-      // Set default values for AI processing
-      submitData.append('category', 'other'); // Will be overridden by AI
-      submitData.append('priority', 'medium'); // Will be overridden by AI
+      // Set default values for manual review
+      submitData.append('category', 'other'); // Will be reviewed and updated by admin
+      submitData.append('priority', 'medium'); // Will be reviewed and updated by admin
 
       // Add location
       submitData.append('latitude', currentLocation.latitude);
@@ -378,7 +378,7 @@ const ReportIssue = () => {
       const data = await response.json();
 
       if (data.success) {
-        toast.success('Issue reported successfully! Our AI system is analyzing your report and will assign it to the appropriate field staff automatically.');
+        toast.success('Issue reported successfully! Your complaint has been submitted and is awaiting admin review.');
         navigate('/citizen-dashboard');
       } else {
         toast.error(data.message || 'Failed to report issue');
@@ -812,42 +812,42 @@ const ReportIssue = () => {
                 </div>
               </div>
 
-              {/* AI Automation Information */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+              {/* Manual Review Information */}
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-6">
                 <div className="flex items-start space-x-4">
                   <div className="flex-shrink-0">
-                    <div className="h-12 w-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                    <div className="h-12 w-12 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
                       <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">🤖 AI-Powered Processing</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">📋 Manual Review Process</h3>
                     <p className="text-gray-700 mb-3">
-                      Our intelligent system will automatically analyze your report and images to:
+                      Your complaint will be reviewed by our admin team who will:
                     </p>
                     <ul className="space-y-2 text-sm text-gray-600">
                       <li className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span><strong>Detect the category</strong> (Road Issues, Water Supply, Electricity, etc.)</span>
+                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                        <span><strong>Review and categorize</strong> your complaint appropriately</span>
                       </li>
                       <li className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span><strong>Determine priority level</strong> (Low, Medium, High, Urgent)</span>
+                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                        <span><strong>Determine priority level</strong> based on severity and urgency</span>
                       </li>
                       <li className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span><strong>Assign to appropriate field staff</strong> based on expertise and workload</span>
+                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                        <span><strong>Assign to qualified field staff</strong> with relevant expertise</span>
                       </li>
                       <li className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span><strong>Process within minutes</strong> for faster response times</span>
+                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                        <span><strong>Provide personalized attention</strong> to ensure quality service</span>
                       </li>
                     </ul>
-                    <div className="mt-4 p-3 bg-blue-100 rounded-lg">
-                      <p className="text-sm text-blue-800">
-                        <strong>💡 Tip:</strong> Provide clear descriptions and upload relevant photos for the most accurate AI analysis and faster processing.
+                    <div className="mt-4 p-3 bg-amber-100 rounded-lg">
+                      <p className="text-sm text-amber-800">
+                        <strong>💡 Tip:</strong> Provide clear descriptions and upload relevant photos to help our admin team process your complaint more efficiently.
                       </p>
                     </div>
                   </div>
@@ -876,7 +876,7 @@ const ReportIssue = () => {
             <div className="mb-6 space-y-3">
               <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
                 <p className="text-gray-700">
-                  <strong>📸 For Best AI Analysis:</strong> Upload clear photos that show the issue from different angles. This helps our AI system accurately categorize and prioritize your report.
+                  <strong>📸 For Better Review:</strong> Upload clear photos that show the issue from different angles. This helps our admin team understand and process your complaint more effectively.
                 </p>
               </div>
               <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">

@@ -114,7 +114,8 @@ const FieldStaffComplaintDetail = ({ complaint, onClose, onStatusUpdate, onWorkC
       await onStatusUpdate(complaint._id, 'in_progress', 'Started working on the complaint');
       toast.success('Work started successfully');
     } catch (error) {
-      toast.error('Failed to start work');
+      console.error('Start work error:', error);
+      toast.error(`Failed to start work: ${error.message || 'Unknown error'}`);
     } finally {
       setIsUpdatingStatus(false);
     }

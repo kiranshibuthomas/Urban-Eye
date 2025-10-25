@@ -16,7 +16,6 @@ const {
   sendComplaintClosedEmail,
   sendWorkApprovedEmail
 } = require('../services/emailService');
-const AutomationService = require('../services/automationService');
 const { isWithinKottayam } = require('../utils/geofencing');
 
 const router = express.Router();
@@ -161,18 +160,9 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
       // Don't fail the request if email fails
     }
 
-    // Trigger automated processing (async, don't wait for it)
-    AutomationService.processComplaint(complaint)
-      .then(result => {
-        // Automated processing completed for complaint
-      })
-      .catch(error => {
-        console.error(`Automated processing failed for complaint ${complaint._id}:`, error);
-      });
-
     res.status(201).json({
       success: true,
-      message: 'Complaint submitted successfully and is being processed automatically',
+      message: 'Complaint submitted successfully and is awaiting admin review',
       complaint: complaint
     });
 
@@ -612,6 +602,147 @@ router.delete('/audit-logs', authenticateToken, requireRole('admin'), async (req
   }
 });
 
+// @route   GET /api/complaints/heatmap-data
+// @desc    Get complaint location data for heatmap visualization (Admin only)
+// @access  Private (Admin only)
+router.get('/heatmap-data', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { 
+      category, 
+      status, 
+      priority, 
+      startDate, 
+      endDate,
+      includeDeleted = false 
+    } = req.query;
+
+    // Build filter object
+    const filter = {};
+
+    // Exclude deleted complaints by default
+    if (!includeDeleted || includeDeleted === 'false') {
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { isDeleted: false },
+          { isDeleted: { $exists: false } }
+        ]
+      });
+    }
+
+    // Apply filters
+    if (category) filter.category = category;
+    if (status) filter.status = status;
+    if (priority) filter.priority = priority;
+
+    // Date range filter
+    if (startDate || endDate) {
+      filter.submittedAt = {};
+      if (startDate) {
+        filter.submittedAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        filter.submittedAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Get complaint locations with basic info
+    const complaints = await Complaint.find(filter)
+      .select('location coordinates category status priority submittedAt address city')
+      .lean();
+
+    // Transform data for heatmap
+    const heatmapData = complaints
+      .filter(complaint => complaint.location && complaint.location.coordinates)
+      .map(complaint => ({
+        lat: complaint.location.coordinates[1], // latitude
+        lng: complaint.location.coordinates[0], // longitude
+        intensity: getIntensityByPriority(complaint.priority),
+        category: complaint.category,
+        status: complaint.status,
+        priority: complaint.priority,
+        submittedAt: complaint.submittedAt,
+        address: complaint.address,
+        city: complaint.city
+      }));
+
+    // Get statistics for the filtered data
+    const stats = await Complaint.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          totalComplaints: { $sum: 1 },
+          byCategory: {
+            $push: {
+              category: '$category',
+              priority: '$priority',
+              status: '$status'
+            }
+          }
+        }
+      }
+    ]);
+
+    // Process category statistics
+    const categoryStats = {};
+    const priorityStats = {};
+    const statusStats = {};
+
+    if (stats.length > 0 && stats[0].byCategory) {
+      stats[0].byCategory.forEach(item => {
+        // Category stats
+        categoryStats[item.category] = (categoryStats[item.category] || 0) + 1;
+        
+        // Priority stats
+        priorityStats[item.priority] = (priorityStats[item.priority] || 0) + 1;
+        
+        // Status stats
+        statusStats[item.status] = (statusStats[item.status] || 0) + 1;
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        heatmapData,
+        statistics: {
+          totalComplaints: stats[0]?.totalComplaints || 0,
+          categoryStats,
+          priorityStats,
+          statusStats
+        },
+        filters: {
+          category,
+          status,
+          priority,
+          startDate,
+          endDate,
+          includeDeleted
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get heatmap data error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching heatmap data'
+    });
+  }
+});
+
+// Helper function to determine heatmap intensity based on priority
+function getIntensityByPriority(priority) {
+  const intensityMap = {
+    'urgent': 1.0,
+    'high': 0.8,
+    'medium': 0.6,
+    'low': 0.4
+  };
+  return intensityMap[priority] || 0.5;
+}
+
 // @route   GET /api/complaints/:id
 // @desc    Get a specific complaint
 // @access  Private
@@ -864,6 +995,142 @@ router.put('/:id/assign', authenticateToken, requireRole('admin'), async (req, r
     res.status(500).json({
       success: false,
       message: 'Server error while assigning complaint'
+    });
+  }
+});
+
+// @route   PUT /api/complaints/:id/approve-work
+// @desc    Approve completed work by admin
+// @access  Private (Admin only)
+router.put('/:id/approve-work', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const complaintId = req.params.id;
+    const { approvalNotes } = req.body;
+    const adminId = req.user._id;
+
+    if (!approvalNotes || !approvalNotes.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Approval notes are required'
+      });
+    }
+
+    const complaint = await Complaint.findById(complaintId);
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    // Check if complaint is in work_completed status
+    if (complaint.status !== 'work_completed') {
+      return res.status(400).json({
+        success: false,
+        message: `Can only approve work on completed complaints. Current status: ${complaint.status}`
+      });
+    }
+
+    // Approve the work
+    await complaint.approveWork(adminId, approvalNotes.trim());
+
+    // Populate citizen information for email
+    await complaint.populate('citizen', 'name email preferences');
+    await complaint.populate('assignedToFieldStaff', 'name email');
+
+    // Send approval email to citizen
+    try {
+      const user = complaint.citizen;
+      const fieldStaff = complaint.assignedToFieldStaff;
+      await sendWorkApprovedEmail(complaint, user, fieldStaff.name, approvalNotes.trim());
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    res.json({
+      success: true,
+      message: 'Work approved successfully',
+      complaint
+    });
+
+  } catch (error) {
+    console.error('Approve work error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while approving work'
+    });
+  }
+});
+
+// @route   PUT /api/complaints/:id/reject-work
+// @desc    Reject completed work by admin
+// @access  Private (Admin only)
+router.put('/:id/reject-work', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const complaintId = req.params.id;
+    const { rejectionReason } = req.body;
+    const adminId = req.user._id;
+
+    if (!rejectionReason || !rejectionReason.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rejection reason is required'
+      });
+    }
+
+    const complaint = await Complaint.findById(complaintId);
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    // Check if complaint is in work_completed status
+    if (complaint.status !== 'work_completed') {
+      return res.status(400).json({
+        success: false,
+        message: `Can only reject work on completed complaints. Current status: ${complaint.status}`
+      });
+    }
+
+    // Reject the work and reassign to field staff
+    complaint.status = 'in_progress';
+    complaint.workRejectedAt = new Date();
+    complaint.workRejectionReason = rejectionReason.trim();
+    complaint.lastUpdated = new Date();
+
+    // Add admin note about rejection
+    complaint.addAdminNote(`Work rejected: ${rejectionReason.trim()}`, adminId);
+
+    await complaint.save();
+
+    // Populate field staff information for email
+    await complaint.populate('assignedToFieldStaff', 'name email');
+
+    // Send rejection email to field staff
+    try {
+      const fieldStaff = complaint.assignedToFieldStaff;
+      await sendWorkRejectedEmail(complaint, fieldStaff, rejectionReason.trim());
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    res.json({
+      success: true,
+      message: 'Work rejected successfully',
+      complaint
+    });
+
+  } catch (error) {
+    console.error('Reject work error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while rejecting work'
     });
   }
 });
@@ -1289,79 +1556,6 @@ router.delete('/:id/hard-delete', authenticateToken, requireRole('admin'), async
 });
 
 
-// @route   POST /api/complaints/process-pending
-// @desc    Process pending complaints with automation (Admin only)
-// @access  Private (Admin only)
-router.post('/process-pending', authenticateToken, requireRole('admin'), async (req, res) => {
-  try {
-    const result = await AutomationService.processPendingComplaints();
-    
-    res.json({
-      success: true,
-      message: 'Batch processing completed',
-      result
-    });
-    
-  } catch (error) {
-    console.error('Process pending complaints error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during batch processing'
-    });
-  }
-});
-
-// @route   GET /api/complaints/automation-stats
-// @desc    Get automation statistics (Admin only)
-// @access  Private (Admin only)
-router.get('/automation-stats', authenticateToken, requireRole('admin'), async (req, res) => {
-  try {
-    const stats = await AutomationService.getAutomationStats();
-    
-    res.json({
-      success: true,
-      stats
-    });
-    
-  } catch (error) {
-    console.error('Get automation stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching automation statistics'
-    });
-  }
-});
-
-// @route   POST /api/complaints/:id/reprocess
-// @desc    Reprocess a complaint with automation (Admin only)
-// @access  Private (Admin only)
-router.post('/:id/reprocess', authenticateToken, requireRole('admin'), async (req, res) => {
-  try {
-    const complaint = await Complaint.findById(req.params.id);
-    
-    if (!complaint) {
-      return res.status(404).json({
-        success: false,
-        message: 'Complaint not found'
-      });
-    }
-
-    const result = await AutomationService.processComplaint(complaint);
-    
-    res.json({
-      success: true,
-      message: 'Complaint reprocessed successfully',
-      result
-    });
-    
-  } catch (error) {
-    console.error('Reprocess complaint error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during reprocessing'
-    });
-  }
-});
 
 module.exports = router;
 

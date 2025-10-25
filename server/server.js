@@ -5,7 +5,7 @@ const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const passport = require('passport');
 const path = require('path');
-require('dotenv').config({ path: './config.env' });
+require('dotenv').config({ path: './.env' });
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -14,15 +14,12 @@ const statsRoutes = require('./routes/stats');
 const servicesRoutes = require('./routes/services');
 const userRoutes = require('./routes/users');
 const fieldStaffRoutes = require('./routes/fieldStaff');
-const schedulerRoutes = require('./routes/scheduler');
 const analyticsRoutes = require('./routes/analytics');
 const geofenceConfigRoutes = require('./routes/geofenceConfig');
 
 // Import passport configuration
 require('./config/passport');
 
-// Import scheduler service
-const schedulerService = require('./services/schedulerService');
 
 const app = express();
 
@@ -71,7 +68,6 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/services', servicesRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/field-staff', fieldStaffRoutes);
-app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/geofence-config', geofenceConfigRoutes);
 
@@ -127,9 +123,6 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   
-  // Start scheduler service
-  schedulerService.start();
-  console.log('Automation scheduler started');
 });
 
 module.exports = app;

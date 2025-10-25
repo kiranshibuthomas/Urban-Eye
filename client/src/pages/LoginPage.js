@@ -36,8 +36,7 @@ const LoginPage = () => {
         redirectPath = user.role === 'admin' ? '/admin-dashboard' : '/citizen-dashboard';
       }
       
-      // Debug logging
-      console.log('Already authenticated redirect:', { from, userRole: user.role, redirectPath });
+      // Already authenticated, redirect to appropriate dashboard
       
       navigate(redirectPath, { replace: true });
     }
@@ -97,8 +96,7 @@ const LoginPage = () => {
           }
         }
         
-        // Debug logging
-        console.log('Login redirect:', { from, userRole: result.user.role, redirectPath });
+        // Redirect after successful login
         
         navigate(redirectPath, { replace: true });
       }

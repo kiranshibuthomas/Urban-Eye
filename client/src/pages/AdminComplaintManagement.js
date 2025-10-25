@@ -18,7 +18,8 @@ import {
   FiBarChart2,
   FiMap,
   FiTrash2,
-  FiThumbsDown
+  FiThumbsDown,
+  FiX
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import LeafletMapModal from '../components/LeafletMapModal';
@@ -144,7 +145,6 @@ const AdminComplaintManagement = () => {
       const data = await response.json();
 
       if (data.success) {
-        console.log('Stats received:', data.stats);
         setStats(data.stats);
       } else {
         console.error('Failed to fetch stats:', data.message);
@@ -161,13 +161,18 @@ const AdminComplaintManagement = () => {
       const response = await fetch('/api/users/field-staff', {
         credentials: 'include'
       });
+      
       const data = await response.json();
 
       if (data.success) {
         setFieldStaff(data.fieldStaff);
+      } else {
+        console.error('Failed to fetch field staff:', data.message);
+        toast.error('Failed to fetch field staff: ' + (data.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error fetching field staff:', error);
+      toast.error('Error fetching field staff: ' + error.message);
     }
   };
 
@@ -486,6 +491,27 @@ const AdminComplaintManagement = () => {
           <p className="text-base text-gray-600">Manage and track all reported issues</p>
         </div>
 
+        {/* Manual Assignment Notice */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <FiAlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-amber-800">
+                Manual Assignment Required
+              </h3>
+              <div className="mt-2 text-sm text-amber-700">
+                <p>
+                  All new complaints require manual review and assignment by admin staff. 
+                  Please review each complaint and assign it to the appropriate field staff member 
+                  based on the complaint category and staff expertise.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           <motion.div
@@ -787,11 +813,11 @@ const AdminComplaintManagement = () => {
                       <>
                         <button
                           onClick={() => handleAssignToFieldStaff(complaint)}
-                          className="flex items-center px-3 py-1.5 text-base text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md transition-colors duration-200"
+                          className="flex items-center px-4 py-2 text-base text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors duration-200 font-medium shadow-sm"
                           title="Assign to Field Staff"
                         >
-                          <FiUser className="h-4 w-4 mr-1" />
-                          <span className="hidden sm:inline">Assign</span>
+                          <FiUser className="h-4 w-4 mr-2" />
+                          <span>Assign Staff</span>
                         </button>
                         <button
                           onClick={() => handleRejectComplaint(complaint)}
@@ -1005,79 +1031,167 @@ const AdminComplaintManagement = () => {
           </div>
         )}
 
-        {/* Field Staff Assignment Modal */}
+        {/* Enhanced Field Staff Assignment Modal */}
         {showAssignDialog && complaintToAssign && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-lg p-6 w-full max-w-md mx-4"
+              className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
             >
-              <div className="text-center">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Assign to Field Staff
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Select a field staff member to assign this complaint to.
-                </p>
-                
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Complaint: {complaintToAssign.title}
-                  </label>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category: {complaintToAssign.category.replace('_', ' ')}
-                  </label>
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Field Staff Member *
-                  </label>
-                  <select
-                    value={selectedFieldStaff}
-                    onChange={(e) => setSelectedFieldStaff(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Field Staff</option>
-                    {fieldStaff
-                      .filter(staff => {
-                        // Filter field staff based on complaint category
-                        const categoryToDepartmentMap = {
-                          'waste_management': 'sanitation',
-                          'water_supply': 'water_supply',
-                          'electricity': 'electricity',
-                          'street_lighting': 'electricity',
-                          'road_issues': 'public_works',
-                          'drainage': 'public_works',
-                          'parks_recreation': 'public_works'
-                        };
-                        const expectedDepartment = categoryToDepartmentMap[complaintToAssign.category];
-                        return !expectedDepartment || staff.department === expectedDepartment;
-                      })
-                      .map(staff => (
-                        <option key={staff._id} value={staff._id}>
-                          {staff.name} ({staff.department.replace('_', ' ')})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="flex justify-end space-x-3">
+              <div className="p-6">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      Assign Complaint to Field Staff
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Select the most appropriate field staff member for this complaint
+                    </p>
+                  </div>
                   <button
                     onClick={() => {
                       setShowAssignDialog(false);
                       setComplaintToAssign(null);
                       setSelectedFieldStaff('');
                     }}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200"
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <FiX className="h-6 w-6" />
+                  </button>
+                </div>
+
+                {/* Complaint Info */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">Complaint Details</h4>
+                      <p className="text-sm text-gray-700 mb-1">
+                        <strong>Title:</strong> {complaintToAssign.title}
+                      </p>
+                      <p className="text-sm text-gray-700 mb-1">
+                        <strong>Category:</strong> {complaintToAssign.category.replace('_', ' ')}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <strong>Priority:</strong> {complaintToAssign.priority}
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2">Location</h4>
+                      <p className="text-sm text-gray-700">
+                        {complaintToAssign.address}, {complaintToAssign.city}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Field Staff Selection */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Select Field Staff Member *
+                  </label>
+                  
+                  {/* Recommended Staff */}
+                  <div className="mb-4">
+                    <h5 className="text-sm font-medium text-green-700 mb-2">
+                      🎯 Recommended for this category:
+                    </h5>
+                    <div className="space-y-2">
+                      {fieldStaff
+                        .filter(staff => {
+                          const categoryToDepartmentMap = {
+                            'waste_management': 'sanitation',
+                            'water_supply': 'water_supply',
+                            'electricity': 'electricity',
+                            'street_lighting': 'electricity',
+                            'road_issues': 'public_works',
+                            'drainage': 'public_works',
+                            'parks_recreation': 'public_works'
+                          };
+                          const expectedDepartment = categoryToDepartmentMap[complaintToAssign.category];
+                          return expectedDepartment && staff.department === expectedDepartment;
+                        })
+                        .map(staff => (
+                          <div
+                            key={staff._id}
+                            className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                              selectedFieldStaff === staff._id
+                                ? 'border-indigo-500 bg-indigo-50'
+                                : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-25'
+                            }`}
+                            onClick={() => setSelectedFieldStaff(staff._id)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-gray-900">{staff.name}</p>
+                                <p className="text-sm text-gray-600">
+                                  {staff.department.replace('_', ' ')} • {staff.jobRole || 'Field Staff'}
+                                </p>
+                                {staff.experience && (
+                                  <p className="text-xs text-gray-500">
+                                    {staff.experience} years experience
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <div className="w-4 h-4 border-2 rounded-full flex items-center justify-center">
+                                  {selectedFieldStaff === staff._id && (
+                                    <div className="w-2 h-2 bg-indigo-600 rounded-full"></div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* All Available Staff */}
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-700 mb-2">
+                      All Available Staff:
+                    </h5>
+                    {fieldStaff.length > 0 ? (
+                      <select
+                        value={selectedFieldStaff}
+                        onChange={(e) => setSelectedFieldStaff(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        <option value="">Select Field Staff</option>
+                        {fieldStaff.map(staff => (
+                          <option key={staff._id} value={staff._id}>
+                            {staff.name} - {staff.department.replace('_', ' ')} {staff.jobRole ? `(${staff.jobRole})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-800">
+                          <strong>No field staff available.</strong> Please ensure there are active field staff members in the system.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => {
+                      setShowAssignDialog(false);
+                      setComplaintToAssign(null);
+                      setSelectedFieldStaff('');
+                    }}
+                    className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmAssignToFieldStaff}
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors duration-200"
+                    disabled={!selectedFieldStaff}
+                    className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors duration-200"
                   >
                     Assign Complaint
                   </button>

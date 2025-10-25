@@ -135,3 +135,11 @@ TEMP_*.md
 # Test files (keep in dedicated test directories)
 test-*.js
 *.test.backup.js
+
+# Playwright test results and configs
+client/test-results/
+client/playwright-report/
+client/test-results.json
+client/test-results.xml
+client/playwright.config.js
+client/tests/

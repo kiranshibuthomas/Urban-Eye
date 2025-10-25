@@ -48,6 +48,7 @@ import AdminComplaintManagement from './AdminComplaintManagement';
 import UserManagement from './UserManagement';
 import FieldStaffManagement from './FieldStaffManagement';
 import AdminWorkApprovalList from '../components/AdminWorkApprovalList';
+import ComplaintHeatmap from '../components/ComplaintHeatmap';
 import {
   ComplaintsTrendChart,
   StatusOverviewChart
@@ -587,6 +588,8 @@ const AdminDashboard = () => {
         return OverviewTab;
       case 'complaints':
         return <AdminComplaintManagement />;
+      case 'heatmap':
+        return <ComplaintHeatmap />;
       case 'work-approval':
         return <AdminWorkApprovalList />;
       case 'users':
@@ -644,6 +647,7 @@ const AdminDashboard = () => {
                 {[
                   { key: 'overview', label: 'Overview', icon: FiTrendingUp },
                   { key: 'complaints', label: 'Complaints', icon: FiFileText },
+                  { key: 'heatmap', label: 'Complaint Map', icon: FiMapPin },
                   { key: 'work-approval', label: 'Work Approval', icon: FiCheckCircle },
                   { key: 'users', label: 'Users', icon: FiUsers },
                   { key: 'field-staff', label: 'Field Staff', icon: FiShield },
