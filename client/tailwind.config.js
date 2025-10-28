@@ -124,19 +124,5 @@ module.exports = {
     },
   },
   plugins: [],
-  // Purge unused styles in production
-  purge: {
-    enabled: process.env.NODE_ENV === 'production',
-    content: [
-      "./src/**/*.{js,jsx,ts,tsx}",
-      "./public/index.html"
-    ],
-    options: {
-      safelist: [
-        'animate-spin',
-        'animate-pulse',
-        'animate-bounce',
-      ],
-    },
-  },
+  // Purge unused styles in production (using content array above)
 }
