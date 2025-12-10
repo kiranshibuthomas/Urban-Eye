@@ -723,31 +723,7 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
-// Debug endpoint to check Google photo URLs
-router.get('/debug-avatar', authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).select('-password');
-    
-    res.json({
-      success: true,
-      debug: {
-        email: user.email,
-        googleId: user.googleId,
-        googlePhotoUrl: user.googlePhotoUrl,
-        customAvatar: user.customAvatar,
-        liveAvatarUrl: user.getLiveAvatarUrl(),
-        hasGooglePhoto: !!(user.googleId && user.googlePhotoUrl),
-        isDefaultPlaceholder: user.googlePhotoUrl === 'https://lh3.googleusercontent.com/a/default-user=s400'
-      }
-    });
-  } catch (error) {
-    console.error('Debug avatar error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-});
+
 
 // @route   PUT /api/auth/profile
 // @desc    Update user profile
@@ -877,20 +853,7 @@ router.get('/google', passport.authenticate('google', {
   scope: ['profile', 'email']
 }));
 
-// @route   GET /api/auth/debug-config
-// @desc    Debug OAuth configuration
-// @access  Public
-router.get('/debug-config', (req, res) => {
-  res.json({
-    NODE_ENV: process.env.NODE_ENV,
-    SERVER_URL: process.env.SERVER_URL,
-    CLIENT_URL: process.env.CLIENT_URL,
-    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Not Set',
-    expectedCallbackURL: process.env.NODE_ENV === 'production' 
-      ? `${process.env.SERVER_URL || 'https://urbaneye-zt7y.onrender.com'}/api/auth/google/callback`
-      : "/api/auth/google/callback"
-  });
-});
+
 
 // @route   POST /api/auth/google
 // @desc    Google OAuth login for mobile
@@ -1200,45 +1163,7 @@ router.post('/refresh-google-avatar', authenticateToken, async (req, res) => {
   }
 });
 
-// @route   GET /api/auth/debug-avatar
-// @desc    Debug avatar information for current user
-// @access  Private
-router.get('/debug-avatar', authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id);
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    const debugInfo = {
-      userId: user._id,
-      name: user.name,
-      email: user.email,
-      googleId: user.googleId,
-      googlePhotoUrl: user.googlePhotoUrl,
-      generatedAvatarUrl: user.getLiveAvatarUrl(),
-      publicProfile: user.getPublicProfile(),
-      hasGooglePhoto: !!(user.googleId && user.googlePhotoUrl),
-      avatarSource: user.googleId && user.googlePhotoUrl ? 'google' : 'initials'
-    };
-    
-    res.json({
-      success: true,
-      debug: debugInfo
-    });
-    
-  } catch (error) {
-    console.error('Debug avatar error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during avatar debug'
-    });
-  }
-});
+
 
 // @route   PUT /api/auth/change-password
 // @desc    Change user password

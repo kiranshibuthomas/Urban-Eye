@@ -223,20 +223,13 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 
 // Instance method to get live avatar URL
 userSchema.methods.getLiveAvatarUrl = function() {
-  console.log(`[Avatar Debug] User ${this.email}:`);
-  console.log(`  - customAvatar: ${this.customAvatar}`);
-  console.log(`  - googleId: ${this.googleId}`);
-  console.log(`  - googlePhotoUrl: ${this.googlePhotoUrl}`);
-  
   // Priority 1: Custom uploaded avatar
   if (this.customAvatar) {
-    console.log(`[Avatar Debug] Using custom avatar: ${this.customAvatar}`);
     return this.customAvatar;
   }
   
   // Priority 2: Google OAuth photo
   if (this.googleId && this.googlePhotoUrl) {
-    console.log(`[Avatar Debug] Has Google ID and photo URL`);
     // Make sure it's not the invalid placeholder
     if (this.googlePhotoUrl !== 'https://lh3.googleusercontent.com/a/default-user=s400') {
       // Try to fix the Google photo URL to make it more accessible
@@ -248,17 +241,11 @@ userSchema.methods.getLiveAvatarUrl = function() {
         googleUrl = googleUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '') + '=s400';
       }
       
-      console.log(`[Avatar Debug] Returning Google photo: ${googleUrl}`);
       return googleUrl;
-    } else {
-      console.log(`[Avatar Debug] Google photo URL is invalid placeholder`);
     }
-  } else {
-    console.log(`[Avatar Debug] No Google ID or photo URL`);
   }
   
   // Return null if no avatar is available - let frontend handle fallback
-  console.log(`[Avatar Debug] Returning null - no avatar available`);
   return null;
 };
 

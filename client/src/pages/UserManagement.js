@@ -35,6 +35,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import ProfileImageUpload from '../components/ProfileImageUpload';
+import UserDeletionModal from '../components/UserDeletionModal';
 
 // Memoized StatCard component to prevent re-renders
 const StatCard = React.memo(({ icon: Icon, title, value, color, delay = 0 }) => (
@@ -88,6 +89,7 @@ const UserManagement = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeletionModal, setShowDeletionModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const profileImageRef = useRef(null);
   const [formData, setFormData] = useState({
@@ -259,29 +261,34 @@ const UserManagement = () => {
     }
   };
 
-  const handleDeleteUser = useCallback(async (userId) => {
-    if (!window.confirm('Are you sure you want to deactivate this user?')) {
-      return;
-    }
-
+  const handleSoftDelete = useCallback(async (userId) => {
     try {
-      const response = await fetch(`/api/users/${userId}`, {
-        method: 'DELETE',
+      const response = await fetch(`/api/users/${userId}/toggle-status`, {
+        method: 'PUT',
         credentials: 'include'
       });
 
       const data = await response.json();
 
       if (data.success) {
-        toast.success('User deactivated successfully');
+        toast.success(data.message);
         fetchUsers(pagination.currentPage);
         fetchStats();
       } else {
-        toast.error(data.message || 'Failed to deactivate user');
+        toast.error(data.message || 'Failed to update user status');
       }
     } catch (error) {
-      console.error('Error deleting user:', error);
-      toast.error('Failed to deactivate user');
+      console.error('Error updating user status:', error);
+      toast.error('Failed to update user status');
+    }
+  }, [fetchUsers, fetchStats, pagination.currentPage]);
+
+  const handleHardDelete = useCallback(async (userId, deleteData) => {
+    // This function is now handled directly in the UserDeletionModal
+    // Just refresh the data if deletion was successful
+    if (deleteData && deleteData.success) {
+      fetchUsers(pagination.currentPage);
+      fetchStats();
     }
   }, [fetchUsers, fetchStats, pagination.currentPage]);
 
@@ -455,7 +462,8 @@ const UserManagement = () => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleDeleteUser(user._id);
+                setSelectedUser(user);
+                setShowDeletionModal(true);
               }}
               className="p-1 text-gray-400 hover:text-red-600 transition-colors"
             >
@@ -481,7 +489,7 @@ const UserManagement = () => {
         </div>
       </div>
     </motion.div>
-  ), [openEditModal, openViewModal, handleDeleteUser, handleResendVerification]);
+  ), [openEditModal, openViewModal, handleResendVerification]);
 
   return (
     <div className="space-y-8">
@@ -1196,7 +1204,10 @@ const UserManagement = () => {
                         </button>
                         
                         <button
-                          onClick={() => handleDeleteUser(selectedUser._id)}
+                          onClick={() => {
+                            setShowViewModal(false);
+                            setShowDeletionModal(true);
+                          }}
                           className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 rounded-lg border border-gray-200 hover:border-red-200 transition-all duration-200 group"
                         >
                           <FiTrash2 className="h-4 w-4 mr-3 text-gray-400 group-hover:text-red-600" />
@@ -1222,6 +1233,18 @@ const UserManagement = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* User Deletion Modal */}
+      <UserDeletionModal
+        isOpen={showDeletionModal}
+        onClose={() => {
+          setShowDeletionModal(false);
+          setSelectedUser(null);
+        }}
+        user={selectedUser}
+        onSoftDelete={handleSoftDelete}
+        onHardDelete={handleHardDelete}
+      />
     </div>
   );
 };

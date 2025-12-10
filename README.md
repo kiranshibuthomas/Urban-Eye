@@ -9,7 +9,6 @@ A comprehensive platform for citizens and administrators to report, track, and m
 - [Tech Stack](#-tech-stack)
 - [Quick Start](#-quick-start)
 - [MongoDB Setup](#-mongodb-setup)
-- [AI Automation Setup](#-ai-automation-setup-optional)
 - [Project Structure](#-project-structure)
 - [Performance](#-performance)
 - [API Documentation](#-api-documentation)
@@ -41,11 +40,7 @@ A comprehensive platform for citizens and administrators to report, track, and m
 - Automated workflows
 - Advanced filtering
 
-### 🤖 AI Automation (Optional)
-- Auto-categorization of complaints
-- Intelligent priority detection
-- Automatic field staff assignment
-- Scheduled processing
+
 
 ---
 
@@ -62,7 +57,6 @@ A comprehensive platform for citizens and administrators to report, track, and m
 - MongoDB + Mongoose
 - JWT Authentication
 - Multer (file uploads)
-- OpenAI API (optional AI features)
 
 ---
 
@@ -111,8 +105,7 @@ EMAIL_PASS=your_app_password
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 
-# OpenAI (optional - for AI features)
-OPENAI_API_KEY=your_openai_api_key
+
 ```
 
 ### Start Development Servers
@@ -174,50 +167,7 @@ MONGODB_URI=mongodb://localhost:27017/urbaneye
 
 ---
 
-## 🤖 AI Automation Setup (Optional)
 
-The system includes AI-powered automation for complaint processing.
-
-### Features
-- Auto-categorization using GPT-3.5
-- Image analysis with GPT-4-vision
-- Intelligent priority detection
-- Automatic field staff assignment
-
-### Setup
-
-1. **Get OpenAI API Key**:
-   - Visit [OpenAI Platform](https://platform.openai.com/)
-   - Create account and generate API key
-
-2. **Install Dependencies**:
-```bash
-cd server
-npm install openai sharp
-```
-
-3. **Add to config.env**:
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-```
-
-4. **Restart Server**
-
-### Category Mapping
-- **waste_management** → Sanitation dept
-- **water_supply** → Water dept
-- **electricity** → Electrical dept
-- **road_issues** → Public works
-- **drainage** → Public works
-
-### Cost Estimate
-- Text analysis: ~$0.001-0.002 per complaint
-- Image analysis: ~$0.01-0.02 per image
-- Monthly: $10-50 for moderate usage
-
-**Note**: AI features are optional. System works without OpenAI API.
-
----
 
 ## 📁 Project Structure
 
@@ -240,7 +190,6 @@ Urban-Eye/
 │   ├── models/            # MongoDB models
 │   ├── routes/            # API routes
 │   ├── services/          # Business logic
-│   │   ├── aiService.js         # AI automation
 │   │   ├── automationService.js # Workflow automation
 │   │   └── emailService.js      # Email notifications
 │   ├── scripts/           # Utility scripts
@@ -339,7 +288,7 @@ Error:
    - JWT_SECRET
    - PORT
    - NODE_ENV=production
-   - (Optional) OPENAI_API_KEY
+
 
 2. **Build Command**: `npm install`
 
@@ -434,10 +383,7 @@ MIT License - feel free to use this project for learning or production.
 - Check connection string in config.env
 - Ensure network access in Atlas
 
-### OpenAI API Errors
-- Verify API key is correct
-- Check if you have sufficient credits
-- Review API usage limits
+
 
 ### Build Errors
 - Delete node_modules and package-lock.json

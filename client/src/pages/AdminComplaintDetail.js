@@ -970,3 +970,4 @@ const AdminComplaintDetail = () => {
 export default AdminComplaintDetail;
 
 
+

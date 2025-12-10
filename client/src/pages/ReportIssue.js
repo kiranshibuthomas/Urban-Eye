@@ -52,6 +52,8 @@ const ReportIssue = () => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [fieldTouched, setFieldTouched] = useState({});
+  
+  const [predictedPriority, setPredictedPriority] = useState('medium');
 
 
   // Get current location on component mount
@@ -329,6 +331,8 @@ const ReportIssue = () => {
     return true;
   };
 
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -356,9 +360,10 @@ const ReportIssue = () => {
         submitData.append(key, formData[key]);
       });
       
-      // Set default values for manual review
+      // Use selected priority or default to medium
+      const finalPriority = predictedPriority || 'medium';
       submitData.append('category', 'other'); // Will be reviewed and updated by admin
-      submitData.append('priority', 'medium'); // Will be reviewed and updated by admin
+      submitData.append('priority', finalPriority); // Use selected priority or default
 
       // Add location
       submitData.append('latitude', currentLocation.latitude);
@@ -981,6 +986,8 @@ const ReportIssue = () => {
               </div>
             </div>
           </motion.div>
+
+
 
           {/* Submit Button */}
           <motion.div 

@@ -1,5 +1,10 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
+const fs = require('fs').promises;
+const path = require('path');
 const User = require('../models/User');
+const Complaint = require('../models/Complaint');
+const AuditLog = require('../models/AuditLog');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { sendOTPVerificationEmail } = require('../services/emailService');
 
@@ -640,16 +645,171 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// @route   DELETE /api/users/:id
-// @desc    Delete user (soft delete by deactivating)
+// @route   PUT /api/users/:id/toggle-status
+// @desc    Toggle user active status (soft delete/restore)
 // @access  Private (Admin only)
-router.delete('/:id', async (req, res) => {
+router.put('/:id/toggle-status', async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
+      });
+    }
+
+    // Prevent admin from deactivating their own account
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot deactivate your own account'
+      });
+    }
+
+    // Toggle active status
+    user.isActive = !user.isActive;
+    await user.save();
+
+    const action = user.isActive ? 'activated' : 'deactivated';
+    
+    res.json({
+      success: true,
+      message: `User ${action} successfully`,
+      user: {
+        _id: user._id,
+        isActive: user.isActive
+      }
+    });
+
+  } catch (error) {
+    console.error('Toggle user status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating user status'
+    });
+  }
+});
+
+// @route   POST /api/users/:id/export-data
+// @desc    Export user data before deletion (GDPR compliance)
+// @access  Private (Admin only)
+router.post('/:id/export-data', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Get user's complaints
+    const complaints = await Complaint.find({ citizen: user._id })
+      .select('title description category status priority submittedAt resolvedAt')
+      .lean();
+
+    // Create export data
+    const exportData = {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        createdAt: user.createdAt,
+        lastLogin: user.lastLogin,
+        isEmailVerified: user.isEmailVerified
+      },
+      complaints: complaints,
+      exportedAt: new Date(),
+      exportedBy: req.user.email
+    };
+
+    res.json({
+      success: true,
+      data: exportData,
+      message: 'User data exported successfully'
+    });
+
+  } catch (error) {
+    console.error('Export user data error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while exporting user data'
+    });
+  }
+});
+
+// @route   DELETE /api/users/:id/hard-delete
+// @desc    Permanently delete user and all associated data
+// @access  Private (Admin only)
+router.delete('/:id/hard-delete', async (req, res) => {
+  try {
+    const { confirmationCode, reason, adminPassword, dataExported } = req.body;
+
+    // Validate required fields
+    if (!confirmationCode || !reason || !adminPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required',
+        field: 'general'
+      });
+    }
+
+    // Validate field lengths and content
+    if (reason.trim().length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Deletion reason must be at least 10 characters long',
+        field: 'reason'
+      });
+    }
+
+    if (adminPassword.trim().length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin password is required',
+        field: 'adminPassword'
+      });
+    }
+
+    // Data export is optional (for compliance purposes)
+    // No validation required - admin can choose to export or not
+
+    // Get user first to validate confirmation code
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify confirmation code (should be user's email)
+    if (confirmationCode !== user.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid confirmation code. Please enter the user\'s email address exactly.',
+        field: 'confirmationCode'
+      });
+    }
+
+    // Verify admin password
+    const admin = await User.findById(req.user._id).select('+password');
+    if (!admin || !admin.password) {
+      return res.status(401).json({
+        success: false,
+        message: 'Admin user not found or invalid'
+      });
+    }
+    
+    const isPasswordValid = await bcrypt.compare(adminPassword, admin.password);
+    
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid admin password. Please check your password and try again.',
+        field: 'adminPassword'
       });
     }
 
@@ -661,20 +821,90 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    // Soft delete by deactivating the user
-    user.isActive = false;
-    await user.save();
+    // Log the deletion action for audit trail
+    try {
+      await AuditLog.logAction({
+        action: 'hard_delete_user',
+        entityType: 'user',
+        entityId: user._id,
+        performedBy: req.user._id,
+        performedByEmail: req.user.email,
+        reason: reason || 'No reason provided',
+        details: {
+          deletedUserName: user.name,
+          deletedUserEmail: user.email,
+          deletedUserRole: user.role,
+          deletedUserCreatedAt: user.createdAt,
+          confirmationCode: confirmationCode
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+    } catch (auditError) {
+      console.error('Failed to log audit action:', auditError);
+      // Continue with deletion even if audit logging fails
+    }
+
+    // Delete user's complaints and associated data
+    // Get user's complaints to delete associated files
+    const userComplaints = await Complaint.find({ citizen: user._id });
+    
+    // Delete complaint images
+    for (const complaint of userComplaints) {
+      if (complaint.images && complaint.images.length > 0) {
+        for (const image of complaint.images) {
+          try {
+            const imagePath = path.join(__dirname, '../uploads/complaints', image.filename);
+            await fs.unlink(imagePath);
+          } catch (error) {
+            console.error('Error deleting complaint image:', error);
+          }
+        }
+      }
+      
+      if (complaint.resolutionImages && complaint.resolutionImages.length > 0) {
+        for (const image of complaint.resolutionImages) {
+          try {
+            const imagePath = path.join(__dirname, '../uploads/complaints', image.filename);
+            await fs.unlink(imagePath);
+          } catch (error) {
+            console.error('Error deleting resolution image:', error);
+          }
+        }
+      }
+    }
+
+    // Delete user's avatar if it exists
+    if (user.customAvatar) {
+      try {
+        const avatarPath = path.join(__dirname, '../uploads/avatars', path.basename(user.customAvatar));
+        await fs.unlink(avatarPath);
+      } catch (error) {
+        console.error('Error deleting user avatar:', error);
+      }
+    }
+
+    // Delete all user's complaints
+    await Complaint.deleteMany({ citizen: user._id });
+
+    // Delete the user
+    await User.findByIdAndDelete(req.params.id);
 
     res.json({
       success: true,
-      message: 'User deactivated successfully'
+      message: 'User and all associated data permanently deleted',
+      deletedUser: {
+        name: user.name,
+        email: user.email,
+        deletedAt: new Date()
+      }
     });
 
   } catch (error) {
-    console.error('Delete user error:', error);
+    console.error('Hard delete user error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error while deleting user'
+      message: 'Server error while permanently deleting user'
     });
   }
 });

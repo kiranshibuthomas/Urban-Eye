@@ -385,9 +385,9 @@ export const AuthProvider = ({ children }) => {
 
   const refreshAvatar = useCallback(async () => {
     try {
-      const response = await axios.get('/auth/debug-avatar');
+      const response = await axios.get('/auth/me');
       if (response.data.success) {
-        const debugInfo = response.data.debug;
+        const debugInfo = response.data.user;
         
         // Update user with fresh avatar URL
         dispatch({
