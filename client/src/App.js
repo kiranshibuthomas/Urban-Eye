@@ -31,6 +31,8 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
 const EmailVerification = lazy(() => import('./components/EmailVerification'));
+const PublicFeedPage = lazy(() => import('./pages/PublicFeedPage'));
+const PublicComplaintDetailPage = lazy(() => import('./pages/PublicComplaintDetailPage'));
 
 // Component to handle role-based default redirects
 const DefaultRedirect = () => {
@@ -83,6 +85,24 @@ function AppRoutes() {
           <Route path="/verify-password-reset-otp" element={<PasswordResetOTPPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email/:token" element={<EmailVerification />} />
+          
+          {/* Public Feed routes - accessible to all authenticated users */}
+          <Route 
+            path="/public-feed" 
+            element={
+              <ProtectedRoute>
+                <PublicFeedPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/public-feed/:id" 
+            element={
+              <ProtectedRoute>
+                <PublicComplaintDetailPage />
+              </ProtectedRoute>
+            } 
+          />
         
         {/* Protected routes */}
         <Route 

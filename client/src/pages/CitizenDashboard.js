@@ -222,6 +222,15 @@ const CitizenDashboard = () => {
           action: "navigate('/report-issue')"
         },
         {
+          title: "Public Feed",
+          description: "View and engage with civic issues reported by your community",
+          icon: "FiGlobe",
+          color: "from-blue-500 to-indigo-500",
+          bgColor: "from-blue-50 to-indigo-50",
+          textColor: "text-blue-600",
+          action: "navigate('/public-feed')"
+        },
+        {
           title: "Track Progress",
           description: "Monitor the status of your submitted reports and requests",
           icon: "FiTrendingUp",
@@ -434,6 +443,12 @@ const CitizenDashboard = () => {
                 className="text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base"
               >
                 Services
+              </button>
+              <button 
+                onClick={() => navigate('/public-feed')}
+                className="text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base"
+              >
+                Public Feed
               </button>
               <button 
                 onClick={() => navigate('/reports-history')}

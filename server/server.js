@@ -16,6 +16,7 @@ const userRoutes = require('./routes/users');
 const fieldStaffRoutes = require('./routes/fieldStaff');
 const analyticsRoutes = require('./routes/analytics');
 const geofenceConfigRoutes = require('./routes/geofenceConfig');
+const publicFeedRoutes = require('./routes/publicFeed');
 // const mlRoutes = require('./routes/ml'); // ML service removed
 
 // Import passport configuration
@@ -71,6 +72,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/field-staff', fieldStaffRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/geofence-config', geofenceConfigRoutes);
+app.use('/api/public-feed', publicFeedRoutes);
 // app.use('/api/ml', mlRoutes); // ML service removed
 
 // Serve uploaded files
