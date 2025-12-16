@@ -1,0 +1,154 @@
+{
+  "header": {
+    "dashboard": "Dashboard",
+    "publicFeed": "Public Feed",
+    "reportIssue": "Report Issue",
+    "myReports": "My Reports",
+    "faq": "FAQ",
+    "profile": "Profile",
+    "settings": "Settings",
+    "signOut": "Sign Out",
+    "citizen": "Citizen"
+  },
+  "dashboard": {
+    "title": "UrbanEye",
+    "subtitle": "Smart Civic Management",
+    "governmentPortal": "Official Government Portal",
+    "heroTitle": "Your Voice Shapes",
+    "heroTitleHighlight": "Our Community",
+    "heroSubtitle": "Report civic issues, track their progress, and engage with your community. Together, we're building a better, more responsive city for everyone.",
+    "reportIssueBtn": "Report an Issue",
+    "communityFeedBtn": "Community Feed",
+    "welcomeBack": "Welcome back, {{name}}!",
+    "welcomeMessage": "Ready to make a difference in your community today?",
+    "impactTitle": "Making a Real Impact Together",
+    "impactSubtitle": "See how our community is working together to solve local issues and improve our city. Your participation makes a difference.",
+    "servicesTitle": "How You Can Make a Difference",
+    "servicesSubtitle": "Discover the tools and services available to help you engage with your community and create positive change.",
+    "activityTitle": "Your Recent Activity",
+    "activitySubtitle": "Track your civic engagement and see the impact of your contributions to the community.",
+    "yourImpact": "Your Impact",
+    "totalReports": "Total Reports",
+    "resolved": "Resolved",
+    "inProgress": "In Progress",
+    "workCompleted": "Work Completed",
+    "pending": "Pending",
+    "reportNewIssue": "Report New Issue",
+    "recentReports": "Recent Reports",
+    "viewAll": "View All",
+    "faqTitle": "Frequently Asked Questions",
+    "faqSubtitle": "Everything you need to know about reporting issues and engaging with your community",
+    "loadingDashboard": "Loading your dashboard...",
+    "locationNotSpecified": "Location not specified",
+    "workCompletedStatus": "Work Completed"
+  },
+  "services": {
+    "reportIssues": {
+      "title": "Report Issues",
+      "description": "Report potholes, broken streetlights, water leaks, and other civic problems"
+    },
+    "communityFeed": {
+      "title": "Community Feed",
+      "description": "See what issues your neighbors are reporting and join the conversation"
+    },
+    "myReports": {
+      "title": "My Reports",
+      "description": "Track the progress of your submitted reports from start to resolution"
+    },
+    "emergencyServices": {
+      "title": "Emergency Services",
+      "description": "Quick access to emergency contacts and urgent issue reporting"
+    },
+    "getStarted": "Get Started"
+  },
+  "stats": {
+    "issuesResolved": "Issues Resolved",
+    "issuesResolvedDesc": "Average resolution rate for citizen reports",
+    "responseTime": "Response Time",
+    "responseTimeDesc": "Average time to acknowledge reports",
+    "activeCitizens": "Active Citizens",
+    "activeCitizensDesc": "Community members using our platform",
+    "satisfaction": "Satisfaction",
+    "satisfactionDesc": "Citizen satisfaction with our services"
+  },
+  "faq": {
+    "howToReport": {
+      "question": "How do I report a civic issue?",
+      "answer": "Simply click 'Report an Issue', fill out the form with details and location, and submit. You'll receive updates on progress."
+    },
+    "trackStatus": {
+      "question": "Can I track the status of my reports?",
+      "answer": "Yes! Visit 'My Reports' to see all your submissions and their current status - from pending to resolved."
+    },
+    "privacy": {
+      "question": "Is my personal information kept private?",
+      "answer": "Absolutely. You can report anonymously, and we only share necessary details with relevant city departments."
+    },
+    "resolutionTime": {
+      "question": "How long does it take to resolve issues?",
+      "answer": "Response times vary by issue type and priority. You'll receive regular updates throughout the resolution process."
+    },
+    "publicFeed": {
+      "question": "Can I see what others are reporting?",
+      "answer": "Yes! Check the Public Feed to see community issues, upvote important ones, and engage in civic discussions."
+    },
+    "issueTypes": {
+      "question": "What types of issues can I report?",
+      "answer": "Road problems, water issues, waste management, street lighting, parks, safety concerns, and much more!"
+    }
+  },
+  "footer": {
+    "description": "Empowering citizens to build smarter, better communities through civic engagement and digital innovation.",
+    "getStarted": "Get Started",
+    "support": "Support",
+    "contactCityHall": "Contact City Hall",
+    "emergencyServices": "Emergency Services",
+    "accessibility": "Accessibility",
+    "copyright": "© 2024 UrbanEye. All rights reserved. Building better cities together.",
+    "madeWithLove": "Made with ❤️ for the community"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "refresh": "Refresh",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "location": "Location",
+    "date": "Date",
+    "status": "Status",
+    "priority": "Priority",
+    "category": "Category",
+    "description": "Description",
+    "title": "Title",
+    "submit": "Submit",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous"
+  },
+  "reportIssue": {
+    "title": "Report an Issue",
+    "subtitle": "Help us improve your community",
+    "locationDetails": "Location Details",
+    "locationHelp": "Help us locate the issue accurately"
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Manage your account information"
+  },
+  "publicFeed": {
+    "title": "Community Feed",
+    "subtitle": "See what's happening in your community"
+  },
+  "reportsHistory": {
+    "title": "My Reports",
+    "subtitle": "Track your submitted reports"
+  }
+}

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import performanceMonitor from './utils/performanceMonitor';
+import './i18n/i18n'; // Initialize i18n
 
 // Initialize performance monitoring
 performanceMonitor.mark('app-start');

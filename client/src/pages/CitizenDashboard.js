@@ -1,4 +1,5 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiPlus, 
@@ -14,13 +15,7 @@ import {
   FiUsers,
   FiShield,
   FiTarget,
-  FiMenu,
   FiX,
-  FiLogOut,
-  FiUser,
-  FiBell,
-  FiSettings,
-  FiChevronDown,
   FiHome,
   FiMessageSquare,
   FiHeart,
@@ -38,18 +33,16 @@ import {
   FiEye,
   FiThumbsUp
 } from 'react-icons/fi';
-import { FaCity, FaBuilding, FaCog, FaRegSmile, FaHandshake, FaChartLine, FaHeadset, FaClipboardList } from 'react-icons/fa';
+import { FaCity, FaBuilding, FaRegSmile } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useSession } from '../context/SessionContext';
-import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import EmailVerificationBanner from '../components/EmailVerificationBanner';
 import CitizenChatbot from '../components/CitizenChatbot';
+import CitizenHeader from '../components/CitizenHeader';
 
 const CitizenDashboard = () => {
   const [activeSection, setActiveSection] = useState('home');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [hasAnimated, setHasAnimated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -68,11 +61,16 @@ const CitizenDashboard = () => {
   });
   const [services, setServices] = useState([]);
   const [error, setError] = useState(null);
-  const { user, logout } = useAuth();
-  const { logout: sessionLogout } = useSession();
-  const { isDarkMode } = useTheme();
+  const { user } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
+  const scrollToSection = (sectionId) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   // Set animation flag after initial render - reduced delay
   useEffect(() => {
@@ -214,26 +212,26 @@ const CitizenDashboard = () => {
       // Fallback to default services if API fails
       setServices([
         {
-          title: "Report Issues",
-          description: "Report infrastructure problems, safety concerns, and community issues",
+          titleKey: "services.reportIssues.title",
+          descriptionKey: "services.reportIssues.description",
           icon: "FiFileText",
-          color: "from-amber-500 to-orange-500",
-          bgColor: "from-amber-50 to-orange-50",
-          textColor: "text-amber-600",
+          color: "from-red-500 to-orange-500",
+          bgColor: "from-red-50 to-orange-50",
+          textColor: "text-red-600",
           action: "navigate('/report-issue')"
         },
         {
-          title: "Public Feed",
-          description: "View and engage with civic issues reported by your community",
-          icon: "FiGlobe",
+          titleKey: "services.communityFeed.title",
+          descriptionKey: "services.communityFeed.description",
+          icon: "FiUsers",
           color: "from-blue-500 to-indigo-500",
           bgColor: "from-blue-50 to-indigo-50",
           textColor: "text-blue-600",
           action: "navigate('/public-feed')"
         },
         {
-          title: "Track Progress",
-          description: "Monitor the status of your submitted reports and requests",
+          titleKey: "services.myReports.title",
+          descriptionKey: "services.myReports.description",
           icon: "FiTrendingUp",
           color: "from-emerald-500 to-teal-500",
           bgColor: "from-emerald-50 to-teal-50",
@@ -241,22 +239,13 @@ const CitizenDashboard = () => {
           action: "navigate('/reports-history')"
         },
         {
-          title: "City Services",
-          description: "Access information about municipal services and departments",
-          icon: "FaBuilding",
-          color: "from-orange-500 to-red-500",
-          bgColor: "from-orange-50 to-red-50",
-          textColor: "text-orange-600",
-          action: "setActiveSection('services')"
-        },
-        {
-          title: "Community",
-          description: "Engage with your neighbors and participate in civic activities",
-          icon: "FiUsers",
-          color: "from-red-500 to-rose-500",
-          bgColor: "from-red-50 to-rose-50",
-          textColor: "text-red-600",
-          action: "setActiveSection('community')"
+          titleKey: "services.emergencyServices.title",
+          descriptionKey: "services.emergencyServices.description",
+          icon: "FiShield",
+          color: "from-purple-500 to-pink-500",
+          bgColor: "from-purple-50 to-pink-50",
+          textColor: "text-purple-600",
+          action: "setActiveSection('emergency')"
         }
       ]);
     }
@@ -341,53 +330,35 @@ const CitizenDashboard = () => {
   const impactStats = [
     {
       number: `${platformStats.resolutionRate}%`,
-      label: "Issues Resolved",
-      description: "Average resolution rate for citizen reports",
+      label: t('stats.issuesResolved'),
+      description: t('stats.issuesResolvedDesc'),
       icon: FiCheckCircle,
       color: "text-[#52796F]"
     },
     {
       number: `${platformStats.responseTime}h`,
-      label: "Response Time",
-      description: "Average time to acknowledge reports",
+      label: t('stats.responseTime'),
+      description: t('stats.responseTimeDesc'),
       icon: FiClock,
       color: "text-[#84A98C]"
     },
     {
       number: `${(platformStats.activeCitizens / 1000).toFixed(1)}K`,
-      label: "Active Citizens",
-      description: "Community members using our platform",
+      label: t('stats.activeCitizens'),
+      description: t('stats.activeCitizensDesc'),
       icon: FiUsers,
       color: "text-[#354F52]"
     },
     {
       number: `${platformStats.satisfaction}%`,
-      label: "Satisfaction",
-      description: "Citizen satisfaction with our services",
+      label: t('stats.satisfaction'),
+      description: t('stats.satisfactionDesc'),
       icon: FiThumbsUp,
       color: "text-[#2F3E46]"
     }
   ];
 
-  const handleLogout = async () => {
-    await sessionLogout();
-  };
 
-  // Handle hover-based dropdown behavior
-  const handleMouseEnter = () => {
-    setUserMenuOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    setUserMenuOpen(false);
-  };
-
-  const scrollToSection = (sectionId) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
 
   // Refresh data function - memoized
   const refreshData = useCallback(async () => {
@@ -411,146 +382,7 @@ const CitizenDashboard = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="relative bg-gradient-to-r from-white/98 via-[#CAD2C5]/30 to-white/98 backdrop-blur-xl border-b border-[#84A98C]/50 sticky top-0 z-50 shadow-sm">
-        {/* Decorative background pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-0 left-1/4 w-32 h-32 bg-[#84A98C] rounded-full blur-3xl"></div>
-          <div className="absolute top-0 right-1/4 w-24 h-24 bg-[#52796F] rounded-full blur-2xl"></div>
-        </div>
-        <div className="relative w-full px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20 py-4">
-            {/* Logo */}
-            <div className="flex items-center">
-              <div className="h-12 w-12 bg-gradient-to-r from-[#52796F] to-[#354F52] rounded-2xl flex items-center justify-center mr-4">
-                <FaCity className="text-white w-6 h-6" />
-              </div>
-              <div>
-                <span className="text-2xl font-bold text-gray-900">UrbanEye</span>
-                <p className="text-sm text-gray-500 -mt-1">Smart Civic Management</p>
-              </div>
-            </div>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center space-x-10">
-              <button 
-                onClick={() => scrollToSection('features')}
-                className="text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base"
-              >
-                Features
-              </button>
-              <button 
-                onClick={() => scrollToSection('services')}
-                className="text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base"
-              >
-                Services
-              </button>
-              <button 
-                onClick={() => navigate('/public-feed')}
-                className="text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base"
-              >
-                Public Feed
-              </button>
-              <button 
-                onClick={() => navigate('/reports-history')}
-                className="text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base"
-              >
-                My Reports
-              </button>
-              <button 
-                onClick={() => scrollToSection('faq')}
-                className="text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base"
-              >
-                FAQ
-              </button>
-            </nav>
-
-            {/* Mobile Menu Button */}
-            <button className="md:hidden p-2 rounded-xl text-gray-500 hover:text-[#52796F] hover:bg-[#CAD2C5]/20 transition-all duration-200">
-              <FiMenu className="h-6 w-6" />
-            </button>
-
-            {/* User Menu */}
-            <div className="flex items-center space-x-6">
-              <button 
-                onClick={refreshData}
-                className="p-3 rounded-xl text-gray-500 hover:text-[#52796F] hover:bg-[#CAD2C5]/20 transition-all duration-200"
-                title="Refresh data"
-              >
-                <FiActivity className="h-6 w-6" />
-              </button>
-              <button className="p-3 rounded-xl text-gray-500 hover:text-[#52796F] hover:bg-[#CAD2C5]/20 transition-all duration-200 relative">
-                <FiBell className="h-6 w-6" />
-                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-              </button>
-              
-          <div 
-            className="relative group"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center space-x-4 p-3 rounded-xl hover:bg-[#CAD2C5]/20 transition-all duration-200"
-                >
-                  <img
-                    src={user?.avatar}
-                    alt={user?.name || 'User'}
-                    className="h-10 w-10 rounded-xl object-cover bg-gradient-to-r from-[#84A98C] to-[#52796F]"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextElementSibling.style.display = 'flex';
-                    }}
-                  />
-                  <div className="hidden h-10 w-10 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-xl items-center justify-center text-white text-sm font-semibold">
-                    {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
-                  </div>
-                  <div className="hidden sm:block text-left">
-                    <p className="text-base font-medium text-gray-900">{user?.name}</p>
-                    <p className="text-sm text-gray-500">Citizen</p>
-              </div>
-                  <FiChevronDown className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
-                </button>
-                
-                <AnimatePresence>
-                  {userMenuOpen && (
-      <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 z-50"
-                      onMouseEnter={handleMouseEnter}
-                      onMouseLeave={handleMouseLeave}
-                    >
-            <button
-                        type="button" 
-                        onClick={() => navigate('/profile')}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
-            >
-                        <FiUser className="h-4 w-4 mr-3" />
-                        Profile
-            </button>
-                      <button type="button" onClick={() => navigate('/settings')} className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center">
-                        <FiSettings className="h-4 w-4 mr-3" />
-                        Settings
-                      </button>
-                      <hr className="my-2" />
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
-                      >
-                        <FiLogOut className="h-4 w-4 mr-3" />
-                        Sign Out
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                      </div>
-                        </div>
-                        </div>
-                      </div>
-      </header>
+      <CitizenHeader onRefresh={refreshData} showRefresh={true} />
 
       {/* Main Content */}
       <main>
@@ -587,7 +419,7 @@ const CitizenDashboard = () => {
               className="text-center"
             >
               <div className="w-16 h-16 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600 text-lg">Loading your dashboard...</p>
+              <p className="text-gray-600 text-lg">{t('dashboard.loadingDashboard')}</p>
             </motion.div>
           </div>
         )}
@@ -621,7 +453,7 @@ const CitizenDashboard = () => {
                 className="inline-flex items-center px-6 py-3 bg-[#CAD2C5]/80 backdrop-blur-sm border border-[#84A98C]/50 rounded-full text-[#354F52] text-sm font-medium shadow-lg"
               >
                 <FaCity className="w-4 h-4 mr-2" />
-                Official Government Portal
+                {t('dashboard.governmentPortal')}
               </motion.div>
 
               {/* Main Headline */}
@@ -631,9 +463,9 @@ const CitizenDashboard = () => {
                 transition={{ delay: 0.2, duration: 0.4 }}
                 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-[#2F3E46] leading-tight"
               >
-                AI-Driven Support To Boost
+                {t('dashboard.heroTitle')}
                 <span className="block bg-gradient-to-r from-[#52796F] to-[#354F52] bg-clip-text text-transparent">
-                  Your Community Growth
+                  {t('dashboard.heroTitleHighlight')}
                 </span>
               </motion.h1>
 
@@ -644,7 +476,7 @@ const CitizenDashboard = () => {
                 transition={{ delay: 0.3, duration: 0.4 }}
                 className="text-xl sm:text-2xl text-[#354F52] max-w-5xl mx-auto leading-relaxed"
               >
-                A platform that helps citizens and government leaders provide efficient, high-quality civic services at scale with AI assistance, improving speed and quality across all channels, 24/7.
+                {t('dashboard.heroSubtitle')}
               </motion.p>
 
               {/* CTA Buttons */}
@@ -659,16 +491,16 @@ const CitizenDashboard = () => {
                   className="group bg-[#52796F] text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:bg-[#354F52] transition-colors duration-200 flex items-center space-x-3 shadow-2xl"
                 >
                   <FiPlus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-200" />
-                  <span>Report an Issue</span>
+                  <span>{t('dashboard.reportIssueBtn')}</span>
                   <FiArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200" />
                 </button>
 
                 <button
-                  onClick={() => scrollToSection('services')}
+                  onClick={() => navigate('/public-feed')}
                   className="group bg-white/80 backdrop-blur-sm border border-[#84A98C] text-[#354F52] px-8 py-4 rounded-2xl font-semibold text-lg hover:bg-[#CAD2C5]/30 transition-colors duration-200 flex items-center space-x-3 shadow-lg"
                 >
-                  <FiEye className="w-5 h-5" />
-                  <span>Explore Services</span>
+                  <FiUsers className="w-5 h-5" />
+                  <span>{t('dashboard.communityFeedBtn')}</span>
                 </button>
               </motion.div>
 
@@ -684,8 +516,8 @@ const CitizenDashboard = () => {
                     <FaRegSmile className="w-6 h-6 text-white" />
                   </div>
                   <div className="text-left">
-                    <h3 className="text-[#2F3E46] font-semibold text-lg">Welcome back, {user?.name?.split(' ')[0]}!</h3>
-                    <p className="text-[#354F52] text-sm">Your voice matters in building a smarter city</p>
+                    <h3 className="text-[#2F3E46] font-semibold text-lg">{t('dashboard.welcomeBack', { name: user?.name?.split(' ')[0] })}</h3>
+                    <p className="text-[#354F52] text-sm">{t('dashboard.welcomeMessage')}</p>
                   </div>
                 </div>
               </motion.div>
@@ -723,10 +555,10 @@ const CitizenDashboard = () => {
               className="text-center mb-16"
             >
               <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-                Drive Transformative Impact with AI
+                {t('dashboard.impactTitle')}
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Experience seamless civic engagement with our AI-powered platform designed to make government services more accessible and efficient.
+                {t('dashboard.impactSubtitle')}
               </p>
             </motion.div>
 
@@ -764,10 +596,10 @@ const CitizenDashboard = () => {
               className="text-center mb-16"
             >
               <h2 className="text-4xl sm:text-5xl font-bold text-[#2F3E46] mb-6">
-                Effortless Onboarding and Rapid Service Access
+                {t('dashboard.servicesTitle')}
               </h2>
               <p className="text-xl text-[#354F52] max-w-3xl mx-auto">
-                Experience an effortless journey with our user-friendly platform and dedicated support team, all set to help you!
+                {t('dashboard.servicesSubtitle')}
               </p>
       </motion.div>
 
@@ -776,7 +608,7 @@ const CitizenDashboard = () => {
                 const IconComponent = getIconComponent(service.icon);
                 return (
                   <motion.div
-                    key={service.title}
+                    key={service.titleKey || service.title}
                     initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.05 * index, duration: 0.3 }}
@@ -787,10 +619,14 @@ const CitizenDashboard = () => {
                     <div className={`w-16 h-16 bg-gradient-to-r ${service.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-200`}>
                       <IconComponent className="w-8 h-8 text-white" />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">{service.title}</h3>
-                    <p className="text-gray-600 mb-6">{service.description}</p>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">
+                      {service.titleKey ? t(service.titleKey) : service.title}
+                    </h3>
+                    <p className="text-gray-600 mb-6">
+                      {service.descriptionKey ? t(service.descriptionKey) : service.description}
+                    </p>
                     <div className="flex items-center text-sm font-semibold group-hover:translate-x-1 transition-transform duration-200">
-                      <span className={service.textColor}>Get Started</span>
+                      <span className={service.textColor}>{t('services.getStarted')}</span>
                       <FiArrowRight className="w-4 h-4 ml-2" />
                     </div>
                   </motion.div>
@@ -810,10 +646,10 @@ const CitizenDashboard = () => {
               className="text-center mb-16"
             >
               <h2 className="text-4xl sm:text-5xl font-bold text-[#2F3E46] mb-6">
-                Your Recent Activity
+                {t('dashboard.activityTitle')}
               </h2>
               <p className="text-xl text-[#354F52] max-w-3xl mx-auto">
-                Track your civic engagement and see the impact of your contributions to the community.
+                {t('dashboard.activitySubtitle')}
               </p>
             </motion.div>
 
@@ -826,26 +662,26 @@ const CitizenDashboard = () => {
                 className="lg:col-span-1 space-y-6"
               >
                 <div className="bg-gradient-to-br from-[#52796F] to-[#354F52] rounded-3xl p-8 text-white">
-                  <h3 className="text-2xl font-bold mb-6">Your Impact</h3>
+                  <h3 className="text-2xl font-bold mb-6">{t('dashboard.yourImpact')}</h3>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-emerald-100">Total Reports</span>
+                      <span className="text-emerald-100">{t('dashboard.totalReports')}</span>
                       <span className="text-2xl font-bold">{stats.totalComplaints}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-emerald-100">Resolved</span>
+                      <span className="text-emerald-100">{t('dashboard.resolved')}</span>
                       <span className="text-2xl font-bold">{stats.resolved}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-emerald-100">In Progress</span>
+                      <span className="text-emerald-100">{t('dashboard.inProgress')}</span>
                       <span className="text-2xl font-bold">{stats.inProgress}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-emerald-100">Work Completed</span>
+                      <span className="text-emerald-100">{t('dashboard.workCompleted')}</span>
                       <span className="text-2xl font-bold">{stats.workCompleted}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-emerald-100">Pending</span>
+                      <span className="text-emerald-100">{t('dashboard.pending')}</span>
                       <span className="text-2xl font-bold">{stats.pending}</span>
                     </div>
                   </div>
@@ -858,7 +694,7 @@ const CitizenDashboard = () => {
                   className="w-full bg-gradient-to-r from-[#52796F] to-[#354F52] hover:from-[#354F52] hover:to-[#2F3E46] text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-300 flex items-center justify-center space-x-3"
                 >
                   <FiPlus className="w-5 h-5" />
-                  <span>Report New Issue</span>
+                  <span>{t('dashboard.reportNewIssue')}</span>
                 </motion.button>
         </motion.div>
 
@@ -871,12 +707,12 @@ const CitizenDashboard = () => {
               >
                 <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
                   <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-2xl font-bold text-gray-900">Recent Reports</h3>
+                    <h3 className="text-2xl font-bold text-gray-900">{t('dashboard.recentReports')}</h3>
                     <button 
                       onClick={() => navigate('/reports-history')}
                       className="text-emerald-600 hover:text-emerald-700 font-medium flex items-center space-x-2"
                     >
-                      <span>View All</span>
+                      <span>{t('dashboard.viewAll')}</span>
                       <FiArrowRight className="w-4 h-4" />
                     </button>
           </div>
@@ -901,13 +737,13 @@ const CitizenDashboard = () => {
                                 complaint.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
                                 'bg-yellow-100 text-yellow-800'
                               }`}>
-                                {complaint.status === 'work_completed' ? 'Work Completed' : complaint.status.replace('-', ' ')}
+                                {complaint.status === 'work_completed' ? t('dashboard.workCompletedStatus') : complaint.status.replace('-', ' ')}
                               </span>
             </div>
                             <div className="flex items-center space-x-4 text-sm text-gray-600">
                               <div className="flex items-center">
                                 <FiMapPin className="w-4 h-4 mr-1" />
-                                {complaint.address || 'Location not specified'}
+                                {complaint.address || t('dashboard.locationNotSpecified')}
           </div>
             <div className="flex items-center">
                                 <FiCalendar className="w-4 h-4 mr-1" />
@@ -942,10 +778,10 @@ const CitizenDashboard = () => {
               className="text-center mb-16"
             >
               <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-                FAQ's: Write in the Citizen's Voice
+                {t('dashboard.faqTitle')}
               </h2>
               <p className="text-xl text-gray-600">
-                Common questions about our civic engagement platform
+                {t('dashboard.faqSubtitle')}
               </p>
                 </motion.div>
 
@@ -953,16 +789,28 @@ const CitizenDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[
                   {
-                    question: "Do I need to know how to code to use this platform?",
-                    answer: "Not at all! Our platform is designed to be user-friendly for all citizens, regardless of technical background."
+                    question: t('faq.howToReport.question'),
+                    answer: t('faq.howToReport.answer')
                   },
                   {
-                    question: "I already have a custom domain. Can I use it with UrbanEye?",
-                    answer: "Yes, you can integrate UrbanEye with your existing domain and customize it to match your city's branding."
+                    question: t('faq.trackStatus.question'),
+                    answer: t('faq.trackStatus.answer')
                   },
                   {
-                    question: "Does UrbanEye include hosting for my city's website?",
-                    answer: "Yes, UrbanEye provides secure, reliable hosting with 99.9% uptime guarantee for all government services."
+                    question: t('faq.privacy.question'),
+                    answer: t('faq.privacy.answer')
+                  },
+                  {
+                    question: t('faq.resolutionTime.question'),
+                    answer: t('faq.resolutionTime.answer')
+                  },
+                  {
+                    question: t('faq.publicFeed.question'),
+                    answer: t('faq.publicFeed.answer')
+                  },
+                  {
+                    question: t('faq.issueTypes.question'),
+                    answer: t('faq.issueTypes.answer')
                   }
                 ].map((faq, index) => (
                 <motion.div
@@ -998,7 +846,7 @@ const CitizenDashboard = () => {
                 <span className="text-2xl font-bold">UrbanEye</span>
               </div>
               <p className="text-[#CAD2C5] mb-6 max-w-md">
-                Empowering citizens to build smarter, better communities through civic engagement and digital innovation.
+                {t('footer.description')}
               </p>
               <div className="flex space-x-4">
                 <button className="p-3 bg-[#52796F]/50 rounded-xl hover:bg-[#52796F]/70 transition-colors duration-200">
@@ -1014,32 +862,32 @@ const CitizenDashboard = () => {
             </div>
             
             <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
+              <h4 className="font-semibold mb-4">{t('footer.getStarted')}</h4>
               <ul className="space-y-2 text-[#CAD2C5]">
-                <li><button className="hover:text-white transition-colors duration-200">About Us</button></li>
-                <li><button className="hover:text-white transition-colors duration-200">How It Works</button></li>
-                <li><button className="hover:text-white transition-colors duration-200">Success Stories</button></li>
-                <li><button className="hover:text-white transition-colors duration-200">Contact Support</button></li>
+                <li><button onClick={() => navigate('/report-issue')} className="hover:text-white transition-colors duration-200">{t('header.reportIssue')}</button></li>
+                <li><button onClick={() => navigate('/public-feed')} className="hover:text-white transition-colors duration-200">{t('header.publicFeed')}</button></li>
+                <li><button onClick={() => navigate('/reports-history')} className="hover:text-white transition-colors duration-200">{t('header.myReports')}</button></li>
+                <li><button onClick={() => navigate('/profile')} className="hover:text-white transition-colors duration-200">{t('header.profile')}</button></li>
               </ul>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-4">Resources</h4>
+              <h4 className="font-semibold mb-4">{t('footer.support')}</h4>
               <ul className="space-y-2 text-[#CAD2C5]">
-                <li><button className="hover:text-white transition-colors duration-200">Help Center</button></li>
-                <li><button className="hover:text-white transition-colors duration-200">Community Guidelines</button></li>
-                <li><button className="hover:text-white transition-colors duration-200">Privacy Policy</button></li>
-                <li><button className="hover:text-white transition-colors duration-200">Terms of Service</button></li>
+                <li><button onClick={() => scrollToSection('faq')} className="hover:text-white transition-colors duration-200">{t('header.faq')}</button></li>
+                <li><button className="hover:text-white transition-colors duration-200">{t('footer.contactCityHall')}</button></li>
+                <li><button className="hover:text-white transition-colors duration-200">{t('footer.emergencyServices')}</button></li>
+                <li><button className="hover:text-white transition-colors duration-200">{t('footer.accessibility')}</button></li>
               </ul>
             </div>
           </div>
           
           <div className="border-t border-[#52796F] mt-12 pt-8 flex flex-col md:flex-row items-center justify-between">
             <p className="text-[#CAD2C5] mb-4 md:mb-0">
-              © 2024 UrbanEye. All rights reserved. Building better cities together.
+              {t('footer.copyright')}
             </p>
             <div className="flex items-center space-x-4 text-[#CAD2C5]">
-              <span>Made with ❤️ for the community</span>
+              <span>{t('footer.madeWithLove')}</span>
             </div>
           </div>
         </div>

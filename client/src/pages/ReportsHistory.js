@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { useSession } from '../context/SessionContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FiArrowLeft,
   FiSearch,
   FiFilter,
   FiCalendar,
@@ -24,13 +23,11 @@ import {
   FiStar,
   FiThumbsUp,
   FiMap,
-  FiUser,
-  FiSettings,
-  FiLogOut,
+  FiTrash2,
   FiChevronDown,
-  FiTrash2
+  FiUser
 } from 'react-icons/fi';
-import { FaCity } from 'react-icons/fa';
+import CitizenHeader from '../components/CitizenHeader';
 
 const ReportsHistory = () => {
   const navigate = useNavigate();
@@ -73,7 +70,7 @@ const ReportsHistory = () => {
   }, [searchParams, searchTerm, statusFilter, categoryFilter, sortBy]);
   const [showFilters, setShowFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
+
 
   // API Functions
   const fetchUserReports = async () => {
@@ -332,20 +329,7 @@ const ReportsHistory = () => {
 
   const stats = getStats();
 
-  const handleLogout = async () => {
-    await sessionLogout();
-  };
 
-  // Handle hover-based dropdown behavior
-  const handleMouseEnter = () => {
-    console.log('Mouse entered dropdown area');
-    setUserMenuOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    console.log('Mouse left dropdown area');
-    setUserMenuOpen(false);
-  };
 
   // Don't render anything if we're still loading or if reports is undefined
   if (loading || reports === undefined) {
@@ -365,169 +349,7 @@ const ReportsHistory = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#CAD2C5]/30 via-[#84A98C]/20 to-[#52796F]/30">
-      {/* Enhanced Header */}
-      <header className="relative bg-gradient-to-r from-white/98 via-[#CAD2C5]/30 to-white/98 backdrop-blur-xl border-b border-[#84A98C]/50 sticky top-0 z-50 shadow-sm">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-4 -left-4 w-24 h-24 bg-gradient-to-br from-[#84A98C]/10 to-[#52796F]/10 rounded-full blur-xl animate-pulse"></div>
-          <div className="absolute -top-2 -right-2 w-32 h-32 bg-gradient-to-br from-[#CAD2C5]/10 to-[#84A98C]/10 rounded-full blur-2xl animate-pulse delay-1000"></div>
-        </div>
-        
-        <div className="relative w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20 py-3 sm:py-4">
-            {/* Left Section - Back Button & Logo */}
-            <div className="flex items-center space-x-3 sm:space-x-4">
-              <motion.button
-                whileHover={{ scale: 1.05, x: -2 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/citizen-dashboard')}
-                className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-xl hover:bg-[#CAD2C5]/20 transition-all duration-200 group"
-              >
-                <FiArrowLeft className="h-5 w-5 sm:h-6 sm:w-6 text-[#52796F] group-hover:text-[#354F52]" />
-                <span className="text-[#52796F] font-medium hidden sm:block group-hover:text-[#354F52]">Back</span>
-              </motion.button>
-              
-              <div className="flex items-center space-x-3 sm:space-x-4">
-                <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gradient-to-r from-[#52796F] to-[#354F52] rounded-2xl flex items-center justify-center shadow-lg">
-                  <FaCity className="text-white w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">UrbanEye</h1>
-                  <p className="text-xs sm:text-sm text-gray-500 -mt-1">My Reports</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Center Section - Navigation (Desktop) */}
-            <nav className="hidden lg:flex items-center space-x-8">
-              <motion.button 
-                whileHover={{ y: -1 }}
-                onClick={() => navigate('/citizen-dashboard')}
-                className="text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base relative group"
-              >
-                Dashboard
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#52796F] transition-all duration-200 group-hover:w-full"></span>
-              </motion.button>
-              <motion.button 
-                whileHover={{ y: -1 }}
-                onClick={() => navigate('/report-issue')}
-                className="text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base relative group"
-              >
-                Report Issue
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#52796F] transition-all duration-200 group-hover:w-full"></span>
-              </motion.button>
-              <motion.button 
-                whileHover={{ y: -1 }}
-                onClick={() => navigate('/reports-history')}
-                className="text-[#52796F] font-semibold transition-colors duration-200 text-base relative"
-              >
-                My Reports
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-[#52796F]"></span>
-              </motion.button>
-            </nav>
-
-            {/* Right Section - Actions & User Menu */}
-            <div className="flex items-center space-x-3 sm:space-x-4">
-              {/* Refresh Button */}
-              <motion.button
-                whileHover={{ scale: 1.05, rotate: 5 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={refreshReports}
-                disabled={refreshing}
-                className="p-2 sm:p-3 rounded-xl text-gray-500 hover:text-[#52796F] hover:bg-[#CAD2C5]/20 transition-all duration-200 disabled:opacity-50 group"
-                title="Refresh reports"
-              >
-                <FiRefreshCw className={`h-5 w-5 sm:h-6 sm:w-6 ${refreshing ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-500`} />
-              </motion.button>
-              
-              {/* User Menu */}
-              <div 
-                className="relative"
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-              >
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-xl hover:bg-[#CAD2C5]/20 transition-all duration-200 group"
-                >
-                  <img
-                    src={user?.avatar}
-                    alt={user?.name || 'User'}
-                    className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl object-cover bg-gradient-to-r from-[#84A98C] to-[#52796F] shadow-md"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextElementSibling.style.display = 'flex';
-                    }}
-                  />
-                  <div className="hidden h-8 w-8 sm:h-10 sm:w-10 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-xl items-center justify-center text-white text-xs sm:text-sm font-semibold shadow-md">
-                    {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
-                  </div>
-                  <div className="hidden sm:block text-left">
-                    <p className="text-sm sm:text-base font-medium text-gray-900">{user?.name}</p>
-                    <p className="text-xs sm:text-sm text-gray-500">Citizen</p>
-                  </div>
-                  <FiChevronDown className={`h-4 w-4 sm:h-5 sm:w-5 text-gray-500 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
-                </motion.button>
-                
-                {/* Enhanced Dropdown Menu */}
-                <AnimatePresence>
-                  {userMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute right-0 mt-2 w-56 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-[#84A98C]/30 py-2 z-50"
-                      onMouseEnter={handleMouseEnter}
-                      onMouseLeave={handleMouseLeave}
-                    >
-                      <div className="px-4 py-3 border-b border-[#84A98C]/20">
-                        <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
-                        <p className="text-xs text-gray-500">Citizen Account</p>
-                      </div>
-                      
-                      <div className="py-1">
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          type="button"
-                          onClick={() => navigate('/profile')}
-                          className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#CAD2C5]/20 flex items-center transition-all duration-200"
-                        >
-                          <FiUser className="h-4 w-4 mr-3 text-[#52796F]" />
-                          Profile Settings
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          type="button"
-                          onClick={() => navigate('/settings')}
-                          className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#CAD2C5]/20 flex items-center transition-all duration-200"
-                        >
-                          <FiSettings className="h-4 w-4 mr-3 text-[#52796F]" />
-                          Preferences
-                        </motion.button>
-                      </div>
-                      
-                      <div className="border-t border-[#84A98C]/20 pt-1">
-                        <motion.button
-                          whileHover={{ x: 4 }}
-                          type="button"
-                          onClick={handleLogout}
-                          className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center transition-all duration-200"
-                        >
-                          <FiLogOut className="h-4 w-4 mr-3" />
-                          Sign Out
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <CitizenHeader onRefresh={refreshReports} showRefresh={true} />
 
       {/* Main Content */}
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6">

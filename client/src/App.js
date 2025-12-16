@@ -7,6 +7,7 @@ import { SessionProvider } from './context/SessionContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoadingSpinner from './components/LoadingSpinner';
 import OAuthHandler from './components/OAuthHandler';
+import useLanguageStyles from './hooks/useLanguageStyles';
 
 // Lazy load pages for better performance and code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -238,6 +239,9 @@ function AppRoutes() {
 }
 
 function App() {
+  // Initialize language styles
+  useLanguageStyles();
+  
   return (
     <div className="App">
       <AuthProvider>

@@ -9,25 +9,18 @@ import {
   FiRefreshCw,
   FiGrid,
   FiList,
-  FiArrowLeft,
-  FiUser,
-  FiSettings,
-  FiLogOut,
-  FiChevronDown,
-  FiBell,
-  FiActivity,
   FiGlobe,
   FiUsers,
   FiEye,
   FiThumbsUp
 } from 'react-icons/fi';
-import { FaCity } from 'react-icons/fa';
 import PublicComplaintCard from '../components/PublicComplaintCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import publicFeedService from '../services/publicFeedService';
 import { useAuth } from '../context/AuthContext';
 import { useSession } from '../context/SessionContext';
 import toast from 'react-hot-toast';
+import CitizenHeader from '../components/CitizenHeader';
 
 const PublicFeedPage = () => {
   const navigate = useNavigate();
@@ -36,7 +29,7 @@ const PublicFeedPage = () => {
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
+
   const [pagination, setPagination] = useState({
     current: 1,
     pages: 1,
@@ -197,26 +190,7 @@ const PublicFeedPage = () => {
     fetchStats();
   };
 
-  // Handle logout
-  const handleLogout = async () => {
-    try {
-      await logout();
-      await sessionLogout();
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Error during logout');
-    }
-  };
 
-  // Mouse handlers for user menu
-  const handleMouseEnter = () => {
-    setUserMenuOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    setUserMenuOpen(false);
-  };
 
   if (loading) {
     return (
@@ -235,136 +209,7 @@ const PublicFeedPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Reddit-style Header */}
-      <header className="bg-white border-b border-gray-300 sticky top-0 z-50 shadow-sm">
-        <div className="w-full px-4 lg:px-6">
-          <div className="flex items-center justify-between h-16 py-2">
-            {/* Logo and Navigation */}
-            <div className="flex items-center">
-              <button
-                onClick={() => navigate('/citizen-dashboard')}
-                className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors mr-6 font-medium"
-              >
-                <FiArrowLeft className="w-5 h-5" />
-                <span className="hidden sm:inline">Dashboard</span>
-              </button>
-              
-              <div className="flex items-center">
-                <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
-                  <FiGlobe className="text-white w-4 h-4" />
-                </div>
-                <div>
-                  <span className="text-xl font-bold text-gray-900">r/CivicIssues</span>
-                  <p className="text-xs text-gray-500 -mt-1">Community civic engagement</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Stats */}
-            {stats && (
-              <div className="hidden lg:flex items-center gap-6 text-sm">
-                <div className="text-center">
-                  <div className="text-xl font-bold text-[#52796F]">{stats.totalComplaints}</div>
-                  <div className="text-gray-500 text-xs">Total Issues</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-[#84A98C]">{stats.totalUpvotes}</div>
-                  <div className="text-gray-500 text-xs">Upvotes</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-[#354F52]">{stats.totalViews}</div>
-                  <div className="text-gray-500 text-xs">Views</div>
-                </div>
-              </div>
-            )}
-
-            {/* User Menu */}
-            <div className="flex items-center space-x-4">
-              <button 
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="p-3 rounded-xl text-gray-500 hover:text-[#52796F] hover:bg-[#CAD2C5]/20 transition-all duration-200"
-                title="Refresh feed"
-              >
-                <FiRefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-              </button>
-              
-              <button className="p-3 rounded-xl text-gray-500 hover:text-[#52796F] hover:bg-[#CAD2C5]/20 transition-all duration-200 relative">
-                <FiBell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-              </button>
-              
-              <div 
-                className="relative group"
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-              >
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center space-x-3 p-3 rounded-xl hover:bg-[#CAD2C5]/20 transition-all duration-200"
-                >
-                  <img
-                    src={user?.avatar}
-                    alt={user?.name || 'User'}
-                    className="h-8 w-8 rounded-xl object-cover bg-gradient-to-r from-[#84A98C] to-[#52796F]"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextElementSibling.style.display = 'flex';
-                    }}
-                  />
-                  <div className="hidden h-8 w-8 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-xl items-center justify-center text-white text-sm font-semibold">
-                    {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
-                  </div>
-                  <div className="hidden sm:block text-left">
-                    <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                    <p className="text-xs text-gray-500">Citizen</p>
-                  </div>
-                  <FiChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
-                </button>
-                
-                <AnimatePresence>
-                  {userMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 z-50"
-                      onMouseEnter={handleMouseEnter}
-                      onMouseLeave={handleMouseLeave}
-                    >
-                      <button
-                        type="button" 
-                        onClick={() => navigate('/profile')}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
-                      >
-                        <FiUser className="h-4 w-4 mr-3" />
-                        Profile
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={() => navigate('/settings')} 
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
-                      >
-                        <FiSettings className="h-4 w-4 mr-3" />
-                        Settings
-                      </button>
-                      <hr className="my-2" />
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
-                      >
-                        <FiLogOut className="h-4 w-4 mr-3" />
-                        Sign Out
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <CitizenHeader onRefresh={handleRefresh} showRefresh={true} />
 
       {/* Main Content */}
       <main className="relative">
