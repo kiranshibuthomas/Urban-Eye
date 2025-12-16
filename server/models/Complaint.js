@@ -19,19 +19,11 @@ const complaintSchema = new mongoose.Schema({
     required: [true, 'Category is required'],
     enum: [
       'road_issues',
+      'electricity', 
       'water_supply',
-      'electricity',
-      'waste_management',
-      'public_transport',
-      'parks_recreation',
-      'street_lighting',
-      'drainage',
-      'noise_pollution',
-      'air_pollution',
-      'safety_security',
-      'other'
+      'waste_management'
     ],
-    default: 'other'
+    default: 'road_issues'
   },
   priority: {
     type: String,
@@ -262,6 +254,22 @@ const complaintSchema = new mongoose.Schema({
     type: String,
     trim: true,
     maxlength: [500, 'Feedback cannot be more than 500 characters']
+  },
+
+  // AI Analysis
+  aiAnalysis: {
+    confidence: {
+      type: Number,
+      min: 0,
+      max: 1
+    },
+    reasoning: {
+      type: String,
+      trim: true
+    },
+    analyzedAt: {
+      type: Date
+    }
   },
 
   // System fields

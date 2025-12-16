@@ -323,6 +323,31 @@ const AdminComplaintManagement = () => {
     }
   };
 
+  const handleAutoAssign = async (complaint) => {
+    try {
+      const response = await fetch(`/api/complaints/${complaint._id}/auto-assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success(`Auto-assigned to ${data.assignment.fieldStaff} (${data.assignment.department})`);
+        fetchComplaints(); // Refresh the list
+        fetchStats();
+      } else {
+        toast.error(data.message || 'Auto-assignment failed');
+      }
+    } catch (error) {
+      console.error('Auto-assignment error:', error);
+      toast.error('Failed to auto-assign complaint');
+    }
+  };
+
   const handleAssignToFieldStaff = (complaint) => {
     setComplaintToAssign(complaint);
     setSelectedFieldStaff('');
@@ -772,6 +797,11 @@ const AdminComplaintManagement = () => {
                           <FiUserCheck className="h-4 w-4 mr-2 flex-shrink-0 text-green-600" />
                           <span className="truncate text-green-700 font-medium">
                             Assigned to: {complaint.assignedToFieldStaff.name}
+                            {complaint.assignedToFieldStaff.department && (
+                              <span className="text-green-600 text-xs ml-1">
+                                ({complaint.assignedToFieldStaff.department.replace('_', ' ')})
+                              </span>
+                            )}
                           </span>
                         </div>
                       )}
@@ -786,6 +816,11 @@ const AdminComplaintManagement = () => {
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getPriorityColor(complaint.priority)}`}>
                         {complaint.priority}
                       </span>
+                      {complaint.aiAnalysis && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                          🤖 AI: {Math.round(complaint.aiAnalysis.confidence * 100)}%
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -812,12 +847,19 @@ const AdminComplaintManagement = () => {
                     {complaint.status === 'pending' && (
                       <>
                         <button
+                          onClick={() => handleAutoAssign(complaint)}
+                          className="flex items-center px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 font-medium shadow-sm"
+                          title="Auto-assign using AI"
+                        >
+                          🤖 Auto-Assign
+                        </button>
+                        <button
                           onClick={() => handleAssignToFieldStaff(complaint)}
                           className="flex items-center px-4 py-2 text-base text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors duration-200 font-medium shadow-sm"
-                          title="Assign to Field Staff"
+                          title="Manually Assign to Field Staff"
                         >
                           <FiUser className="h-4 w-4 mr-2" />
-                          <span>Assign Staff</span>
+                          <span>Manual Assign</span>
                         </button>
                         <button
                           onClick={() => handleRejectComplaint(complaint)}

@@ -565,12 +565,80 @@ const AdminComplaintDetail = () => {
                 )}
               </div>
 
-              {/* Assignment Info */}
-              {complaint.assignedTo && (
+              {/* AI Analysis Info */}
+              {complaint.aiAnalysis && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-3 py-2 rounded-lg border border-blue-200">
+                  <div className="flex items-center">
+                    <FiActivity className="h-4 w-4 mr-2 text-blue-600" />
+                    <span className="text-sm font-semibold text-gray-900">AI Analysis</span>
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Confidence:</span>
+                      <span className="text-xs font-medium text-blue-700">
+                        {Math.round(complaint.aiAnalysis.confidence * 100)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Category:</span>
+                      <span className="text-xs font-medium text-blue-700 capitalize">
+                        {complaint.category.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Priority:</span>
+                      <span className="text-xs font-medium text-blue-700 capitalize">
+                        {complaint.priority}
+                      </span>
+                    </div>
+                    {complaint.aiAnalysis.reasoning && (
+                      <p className="text-xs text-gray-500 mt-1 italic">
+                        {complaint.aiAnalysis.reasoning}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Field Staff Assignment */}
+              {complaint.assignedToFieldStaff && (
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-3 py-2 rounded-lg border border-green-200">
                   <div className="flex items-center">
-                    <FiUser className="h-4 w-4 mr-2 text-green-600" />
-                    <span className="text-sm font-semibold text-gray-900">Assigned To</span>
+                    <FiUsers className="h-4 w-4 mr-2 text-green-600" />
+                    <span className="text-sm font-semibold text-gray-900">Field Staff Assigned</span>
+                  </div>
+                  <div className="mt-2">
+                    <p className="font-semibold text-gray-900 text-sm">{complaint.assignedToFieldStaff.name}</p>
+                    <p className="text-xs text-gray-600">{complaint.assignedToFieldStaff.email}</p>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs text-gray-600">Department:</span>
+                      <span className="text-xs font-medium text-green-700 capitalize">
+                        {complaint.assignedToFieldStaff.department?.replace('_', ' ')}
+                      </span>
+                    </div>
+                    {complaint.assignedToFieldStaff.jobRole && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Role:</span>
+                        <span className="text-xs font-medium text-green-700 capitalize">
+                          {complaint.assignedToFieldStaff.jobRole.replace('_', ' ')}
+                        </span>
+                      </div>
+                    )}
+                    {complaint.fieldStaffAssignedAt && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Assigned {formatDate(complaint.fieldStaffAssignedAt)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Admin Assignment Info */}
+              {complaint.assignedTo && (
+                <div className="bg-gradient-to-r from-purple-50 to-violet-50 px-3 py-2 rounded-lg border border-purple-200">
+                  <div className="flex items-center">
+                    <FiUser className="h-4 w-4 mr-2 text-purple-600" />
+                    <span className="text-sm font-semibold text-gray-900">Admin Assigned</span>
                   </div>
                   <p className="font-semibold text-gray-900 text-sm mt-1">{complaint.assignedTo.name}</p>
                   <p className="text-xs text-gray-600">{complaint.assignedTo.email}</p>

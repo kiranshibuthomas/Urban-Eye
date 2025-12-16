@@ -308,20 +308,55 @@ const ReportIssue = () => {
 
   const validateForm = () => {
     // Mark all fields as touched
-    const allFields = ['title', 'description', 'address', 'city', 'pincode'];
+    const allFields = ['title', 'description', 'address', 'city'];
     allFields.forEach(field => {
       setFieldTouched(prev => ({ ...prev, [field]: true }));
     });
 
-    // Validate all fields
-    validateField('title', formData.title);
-    validateField('description', formData.description);
-    validateField('address', formData.address);
-    validateField('city', formData.city);
-    validateField('pincode', formData.pincode);
+    // Create a temporary errors object to check validation
+    const tempErrors = {};
+    
+    // Validate required fields
+    if (!formData.title || !formData.title.trim()) {
+      tempErrors.title = 'Title is required';
+    } else if (formData.title.trim().length < 5) {
+      tempErrors.title = 'Title must be at least 5 characters long';
+    } else if (formData.title.trim().length > 100) {
+      tempErrors.title = 'Title cannot exceed 100 characters';
+    }
 
-    // Check if there are any validation errors
-    const hasErrors = Object.keys(validationErrors).length > 0;
+    if (!formData.description || !formData.description.trim()) {
+      tempErrors.description = 'Description is required';
+    } else if (formData.description.trim().length < 20) {
+      tempErrors.description = 'Description must be at least 20 characters long';
+    } else if (formData.description.trim().length > 1000) {
+      tempErrors.description = 'Description cannot exceed 1000 characters';
+    }
+
+    if (!formData.address || !formData.address.trim()) {
+      tempErrors.address = 'Address is required';
+    } else if (formData.address.trim().length < 10) {
+      tempErrors.address = 'Address must be at least 10 characters long';
+    }
+
+    if (!formData.city || !formData.city.trim()) {
+      tempErrors.city = 'City is required';
+    } else if (formData.city.trim().length < 2) {
+      tempErrors.city = 'City must be at least 2 characters long';
+    }
+
+    // Validate pincode only if provided
+    if (formData.pincode && formData.pincode.trim()) {
+      const pincodeRegex = /^[1-9][0-9]{5}$/;
+      if (!pincodeRegex.test(formData.pincode.trim())) {
+        tempErrors.pincode = 'Please enter a valid 6-digit pincode';
+      }
+    }
+
+    // Update validation errors
+    setValidationErrors(tempErrors);
+    
+    const hasErrors = Object.keys(tempErrors).length > 0;
     
     if (hasErrors) {
       toast.error('Please fix the validation errors before submitting');
@@ -355,15 +390,10 @@ const ReportIssue = () => {
     try {
       const submitData = new FormData();
       
-      // Add form data (category and priority will be set by admin during review)
+      // Add form data (category and priority will be determined by AI)
       Object.keys(formData).forEach(key => {
         submitData.append(key, formData[key]);
       });
-      
-      // Use selected priority or default to medium
-      const finalPriority = predictedPriority || 'medium';
-      submitData.append('category', 'other'); // Will be reviewed and updated by admin
-      submitData.append('priority', finalPriority); // Use selected priority or default
 
       // Add location
       submitData.append('latitude', currentLocation.latitude);
@@ -383,14 +413,28 @@ const ReportIssue = () => {
       const data = await response.json();
 
       if (data.success) {
-        toast.success('Issue reported successfully! Your complaint has been submitted and is awaiting admin review.');
+        // Show AI categorization and assignment result
+        const aiInfo = data.aiAnalysis ? 
+          `AI categorized as: ${data.aiAnalysis.category.replace('_', ' ')} (${data.aiAnalysis.priority} priority)` : '';
+        
+        const assignmentInfo = data.assignment ? 
+          `Assigned to: ${data.assignment.fieldStaff} (${data.assignment.department})` : '';
+        
+        const fullMessage = `Issue reported successfully! ${aiInfo} ${assignmentInfo}`;
+        
+        toast.success(fullMessage, { duration: 6000 });
         navigate('/citizen-dashboard');
       } else {
+        console.error('Submission failed:', data);
         toast.error(data.message || 'Failed to report issue');
       }
     } catch (error) {
       console.error('Submit error:', error);
-      toast.error('Failed to report issue. Please try again.');
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        toast.error('Failed to report issue. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -817,42 +861,42 @@ const ReportIssue = () => {
                 </div>
               </div>
 
-              {/* Manual Review Information */}
-              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-6">
+              {/* AI-Powered Automation Information */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
                 <div className="flex items-start space-x-4">
                   <div className="flex-shrink-0">
-                    <div className="h-12 w-12 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
+                    <div className="h-12 w-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
                       <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">📋 Manual Review Process</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">🤖 AI-Powered Automation</h3>
                     <p className="text-gray-700 mb-3">
-                      Your complaint will be reviewed by our admin team who will:
+                      Our intelligent system will automatically:
                     </p>
                     <ul className="space-y-2 text-sm text-gray-600">
                       <li className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                        <span><strong>Review and categorize</strong> your complaint appropriately</span>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span><strong>Analyze your description and images</strong> to determine the issue category</span>
                       </li>
                       <li className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                        <span><strong>Determine priority level</strong> based on severity and urgency</span>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span><strong>Set appropriate priority level</strong> based on urgency keywords</span>
                       </li>
                       <li className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                        <span><strong>Assign to qualified field staff</strong> with relevant expertise</span>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span><strong>Instantly assign to qualified field staff</strong> with matching expertise</span>
                       </li>
                       <li className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                        <span><strong>Provide personalized attention</strong> to ensure quality service</span>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span><strong>Start resolution process immediately</strong> without manual delays</span>
                       </li>
                     </ul>
-                    <div className="mt-4 p-3 bg-amber-100 rounded-lg">
-                      <p className="text-sm text-amber-800">
-                        <strong>💡 Tip:</strong> Provide clear descriptions and upload relevant photos to help our admin team process your complaint more efficiently.
+                    <div className="mt-4 p-3 bg-blue-100 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>⚡ Fast Track:</strong> Clear descriptions and quality photos help our AI categorize and assign your complaint instantly to the right team!
                       </p>
                     </div>
                   </div>
@@ -977,11 +1021,16 @@ const ReportIssue = () => {
                 className="h-5 w-5 text-[#52796F] focus:ring-[#52796F] border-gray-300 rounded mt-0.5"
               />
               <div>
-                <label htmlFor="isAnonymous" className="text-sm font-semibold text-gray-700 block">
-                  Submit anonymously
+                <label htmlFor="isAnonymous" className="text-sm font-semibold text-gray-700 block cursor-pointer">
+                  Submit anonymously {formData.isAnonymous ? '✓' : ''}
                 </label>
                 <p className="text-sm text-gray-600 mt-1">
                   Your name will not be visible to other users or in public reports
+                  {formData.isAnonymous && (
+                    <span className="block text-emerald-600 font-medium mt-1">
+                      ✓ Anonymous submission enabled
+                    </span>
+                  )}
                 </p>
               </div>
             </div>

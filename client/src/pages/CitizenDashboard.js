@@ -44,6 +44,7 @@ import { useSession } from '../context/SessionContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import EmailVerificationBanner from '../components/EmailVerificationBanner';
+import CitizenChatbot from '../components/CitizenChatbot';
 
 const CitizenDashboard = () => {
   const [activeSection, setActiveSection] = useState('home');
@@ -1043,6 +1044,9 @@ const CitizenDashboard = () => {
           </div>
         </div>
       </footer>
+
+      {/* Chatbot Component */}
+      <CitizenChatbot />
     </div>
   );
 };

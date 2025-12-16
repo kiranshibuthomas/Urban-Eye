@@ -17,6 +17,8 @@ const {
   sendWorkApprovedEmail
 } = require('../services/emailService');
 const { isWithinKottayam } = require('../utils/geofencing');
+const { categorizeComplaint } = require('../services/aiCategorizationService');
+const { autoAssignComplaint } = require('../services/autoAssignmentService');
 
 const router = express.Router();
 
@@ -73,11 +75,16 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
       isAnonymous
     } = req.body;
 
-    // Validation
-    if (!title || !description || !category || !address || !city || !latitude || !longitude) {
+    // Trim and validate required fields
+    const trimmedTitle = title?.toString().trim();
+    const trimmedDescription = description?.toString().trim();
+    const trimmedAddress = address?.toString().trim();
+    const trimmedCity = city?.toString().trim();
+    
+    if (!trimmedTitle || !trimmedDescription || !trimmedAddress || !trimmedCity || !latitude || !longitude) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields'
+        message: 'Please provide all required fields: title, description, address, city, and location'
       });
     }
 
@@ -114,6 +121,7 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
 
     // Process uploaded images
     const images = [];
+    const imagePaths = [];
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         images.push({
@@ -122,15 +130,21 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
           originalName: file.originalname,
           size: file.size
         });
+        imagePaths.push(file.path);
       }
     }
 
-    // Create complaint
+    // AI-powered categorization
+    console.log('🤖 Starting AI categorization...');
+    const aiAnalysis = await categorizeComplaint(trimmedTitle, trimmedDescription, imagePaths);
+    console.log('🎯 AI Analysis Result:', aiAnalysis);
+
+    // Create complaint with AI-determined category and priority
     const complaint = new Complaint({
-      title: title.trim(),
-      description: description.trim(),
-      category,
-      priority: priority || 'medium',
+      title: trimmedTitle,
+      description: trimmedDescription,
+      category: aiAnalysis.category,
+      priority: aiAnalysis.priority,
       citizen: user._id,
       citizenName: isAnonymous === 'true' ? 'Anonymous' : user.name,
       citizenEmail: user.email,
@@ -139,17 +153,49 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
         type: 'Point',
         coordinates: [lng, lat]
       },
-      address: address.trim(),
-      city: city.trim(),
-      pincode: pincode ? pincode.trim() : undefined,
+      address: trimmedAddress,
+      city: trimmedCity,
+      pincode: pincode ? pincode.toString().trim() : undefined,
       images,
-      isAnonymous: isAnonymous === 'true'
+      isAnonymous: isAnonymous === 'true',
+      // Store AI analysis for reference
+      aiAnalysis: {
+        confidence: aiAnalysis.confidence,
+        reasoning: aiAnalysis.analysis.reasoning,
+        analyzedAt: new Date()
+      }
     });
 
     await complaint.save();
 
     // Populate citizen information for response
     await complaint.populate('citizen', 'name email phone preferences');
+
+    // Auto-assign to field staff
+    let assignmentResult = null;
+    try {
+      console.log('🚀 Starting auto-assignment to field staff...');
+      assignmentResult = await autoAssignComplaint(complaint._id);
+      console.log('✅ Auto-assignment successful:', assignmentResult.message);
+      
+      // Reload complaint with field staff info
+      await complaint.populate('assignedToFieldStaff', 'name email department jobRole');
+      
+      // Send assignment email to citizen
+      if (complaint.assignedToFieldStaff) {
+        await sendComplaintAssignedToFieldStaffEmail(
+          complaint, 
+          user, 
+          complaint.assignedToFieldStaff.name, 
+          complaint.assignedToFieldStaff.department
+        );
+      }
+      
+    } catch (assignmentError) {
+      console.error('Auto-assignment failed:', assignmentError);
+      // Don't fail the request if auto-assignment fails
+      // Complaint will remain in pending status for manual assignment
+    }
 
     // Send email notification to user
     try {
@@ -160,10 +206,24 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
       // Don't fail the request if email fails
     }
 
+    const responseMessage = assignmentResult 
+      ? `Complaint submitted and automatically assigned to ${assignmentResult.fieldStaff.name} (${assignmentResult.fieldStaff.department})`
+      : 'Complaint submitted successfully. AI categorized as ' + aiAnalysis.category + ' with ' + aiAnalysis.priority + ' priority.';
+
     res.status(201).json({
       success: true,
-      message: 'Complaint submitted successfully and is awaiting admin review',
-      complaint: complaint
+      message: responseMessage,
+      complaint: complaint,
+      aiAnalysis: {
+        category: aiAnalysis.category,
+        priority: aiAnalysis.priority,
+        confidence: aiAnalysis.confidence
+      },
+      assignment: assignmentResult ? {
+        fieldStaff: assignmentResult.fieldStaff.name,
+        department: assignmentResult.fieldStaff.department,
+        status: 'assigned'
+      } : null
     });
 
   } catch (error) {
@@ -1000,20 +1060,13 @@ router.put('/:id/assign', authenticateToken, requireRole('admin'), async (req, r
 });
 
 // @route   PUT /api/complaints/:id/approve-work
-// @desc    Approve completed work by admin
+// @desc    Approve completed work by admin and mark as resolved
 // @access  Private (Admin only)
 router.put('/:id/approve-work', authenticateToken, requireRole('admin'), async (req, res) => {
   try {
     const complaintId = req.params.id;
     const { approvalNotes } = req.body;
     const adminId = req.user._id;
-
-    if (!approvalNotes || !approvalNotes.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Approval notes are required'
-      });
-    }
 
     const complaint = await Complaint.findById(complaintId);
 
@@ -1032,27 +1085,62 @@ router.put('/:id/approve-work', authenticateToken, requireRole('admin'), async (
       });
     }
 
-    // Approve the work
-    await complaint.approveWork(adminId, approvalNotes.trim());
+    // Approve the work and mark as resolved
+    await complaint.approveWork(adminId, approvalNotes?.trim() || 'Work approved by admin');
 
-    // Populate citizen information for email
+    // Update field staff workload count
+    if (complaint.assignedToFieldStaff) {
+      await User.findByIdAndUpdate(complaint.assignedToFieldStaff, {
+        $inc: { currentAssignments: -1 }
+      });
+    }
+
+    // Populate citizen and field staff information for email
     await complaint.populate('citizen', 'name email preferences');
-    await complaint.populate('assignedToFieldStaff', 'name email');
+    await complaint.populate('assignedToFieldStaff', 'name email department');
 
-    // Send approval email to citizen
+    // Send resolution email to citizen
     try {
       const user = complaint.citizen;
       const fieldStaff = complaint.assignedToFieldStaff;
-      await sendWorkApprovedEmail(complaint, user, fieldStaff.name, approvalNotes.trim());
+      await sendWorkApprovedEmail(complaint, user, fieldStaff?.name || 'Field Staff', approvalNotes?.trim() || 'Work completed successfully');
     } catch (emailError) {
       console.error('Email sending error:', emailError);
       // Don't fail the request if email fails
     }
 
+    // Log the approval action
+    try {
+      await AuditLog.logAction({
+        action: 'approve_work_final',
+        entityType: 'complaint',
+        entityId: complaint._id,
+        performedBy: adminId,
+        performedByEmail: req.user.email,
+        details: {
+          complaintTitle: complaint.title,
+          complaintCategory: complaint.category,
+          complaintPriority: complaint.priority,
+          fieldStaffId: complaint.assignedToFieldStaff,
+          fieldStaffName: complaint.assignedToFieldStaff?.name,
+          approvalNotes: approvalNotes?.trim() || 'Work approved',
+          citizenId: complaint.citizen,
+          citizenName: complaint.citizenName,
+          finalStatus: 'resolved'
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+    } catch (auditError) {
+      console.error('Failed to log approval action:', auditError);
+      // Don't fail the request if audit logging fails
+    }
+
     res.json({
       success: true,
-      message: 'Work approved successfully',
-      complaint
+      message: 'Work approved and complaint resolved successfully',
+      complaint,
+      status: 'resolved'
     });
 
   } catch (error) {
@@ -1559,3 +1647,232 @@ router.delete('/:id/hard-delete', authenticateToken, requireRole('admin'), async
 
 module.exports = router;
 
+
+// @route   GET /api/complaints/ai-stats
+// @desc    Get AI categorization statistics (Admin only)
+// @access  Private (Admin only)
+router.get('/ai-stats', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    // Build date filter
+    const dateFilter = {};
+    if (startDate || endDate) {
+      dateFilter.submittedAt = {};
+      if (startDate) dateFilter.submittedAt.$gte = new Date(startDate);
+      if (endDate) dateFilter.submittedAt.$lte = new Date(endDate);
+    }
+
+    // Get AI categorization statistics
+    const aiStats = await Complaint.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: null,
+          totalComplaints: { $sum: 1 },
+          aiCategorized: { 
+            $sum: { 
+              $cond: [{ $exists: ['$aiAnalysis.confidence'] }, 1, 0] 
+            } 
+          },
+          avgConfidence: { 
+            $avg: '$aiAnalysis.confidence' 
+          },
+          categoryBreakdown: {
+            $push: {
+              category: '$category',
+              priority: '$priority',
+              confidence: '$aiAnalysis.confidence',
+              status: '$status'
+            }
+          }
+        }
+      }
+    ]);
+
+    // Process category statistics
+    const categoryStats = {};
+    const priorityStats = {};
+    const statusStats = {};
+    const confidenceRanges = {
+      high: 0,    // > 0.8
+      medium: 0,  // 0.5 - 0.8
+      low: 0      // < 0.5
+    };
+
+    if (aiStats.length > 0 && aiStats[0].categoryBreakdown) {
+      aiStats[0].categoryBreakdown.forEach(item => {
+        // Category stats
+        categoryStats[item.category] = (categoryStats[item.category] || 0) + 1;
+        
+        // Priority stats
+        priorityStats[item.priority] = (priorityStats[item.priority] || 0) + 1;
+        
+        // Status stats
+        statusStats[item.status] = (statusStats[item.status] || 0) + 1;
+        
+        // Confidence ranges
+        if (item.confidence) {
+          if (item.confidence > 0.8) confidenceRanges.high++;
+          else if (item.confidence >= 0.5) confidenceRanges.medium++;
+          else confidenceRanges.low++;
+        }
+      });
+    }
+
+    // Get auto-assignment success rate
+    const assignmentStats = await Complaint.aggregate([
+      { $match: { ...dateFilter, assignedToFieldStaff: { $exists: true } } },
+      {
+        $group: {
+          _id: null,
+          totalAssigned: { $sum: 1 },
+          autoAssigned: {
+            $sum: {
+              $cond: [
+                { $eq: ['$fieldStaffAssignedBy', null] }, // System assignment
+                1, 
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    const result = {
+      totalComplaints: aiStats[0]?.totalComplaints || 0,
+      aiCategorized: aiStats[0]?.aiCategorized || 0,
+      avgConfidence: aiStats[0]?.avgConfidence || 0,
+      autoAssignmentRate: assignmentStats[0] ? 
+        (assignmentStats[0].autoAssigned / assignmentStats[0].totalAssigned * 100) : 0,
+      categoryStats,
+      priorityStats,
+      statusStats,
+      confidenceRanges,
+      period: {
+        startDate: startDate || 'All time',
+        endDate: endDate || 'Present'
+      }
+    };
+
+    res.json({
+      success: true,
+      stats: result
+    });
+
+  } catch (error) {
+    console.error('Get AI stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching AI statistics'
+    });
+  }
+});
+
+// @route   GET /api/complaints/field-staff-workload
+// @desc    Get field staff workload statistics (Admin only)
+// @access  Private (Admin only)
+router.get('/field-staff-workload', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { department } = req.query;
+    const { getFieldStaffWorkload } = require('../services/autoAssignmentService');
+    
+    const workloadStats = await getFieldStaffWorkload(department);
+    
+    res.json({
+      success: true,
+      workloadStats
+    });
+
+  } catch (error) {
+    console.error('Get workload stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching workload statistics'
+    });
+  }
+});
+
+// @route   POST /api/complaints/balance-workload
+// @desc    Balance workload across field staff (Admin only)
+// @access  Private (Admin only)
+router.post('/balance-workload', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { department } = req.body;
+    const { balanceWorkload } = require('../services/autoAssignmentService');
+    
+    const result = await balanceWorkload(department);
+    
+    res.json({
+      success: true,
+      message: result.message,
+      rebalanceActions: result.rebalanceActions
+    });
+
+  } catch (error) {
+    console.error('Balance workload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while balancing workload'
+    });
+  }
+});
+// @route   POST /api/complaints/:id/auto-assign
+// @desc    Manually trigger auto-assignment for testing (Admin only)
+// @access  Private (Admin only)
+router.post('/:id/auto-assign', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const complaintId = req.params.id;
+    
+    const complaint = await Complaint.findById(complaintId);
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    // Check if already assigned
+    if (complaint.assignedToFieldStaff) {
+      return res.status(400).json({
+        success: false,
+        message: 'Complaint is already assigned to field staff'
+      });
+    }
+
+    // Trigger auto-assignment
+    const assignmentResult = await autoAssignComplaint(complaintId, req.user._id);
+    
+    // Reload complaint with field staff info
+    await complaint.populate('assignedToFieldStaff', 'name email department jobRole');
+    
+    // Send assignment email to citizen
+    if (complaint.assignedToFieldStaff) {
+      await complaint.populate('citizen', 'name email preferences');
+      await sendComplaintAssignedToFieldStaffEmail(
+        complaint, 
+        complaint.citizen, 
+        complaint.assignedToFieldStaff.name, 
+        complaint.assignedToFieldStaff.department
+      );
+    }
+
+    res.json({
+      success: true,
+      message: assignmentResult.message,
+      assignment: {
+        fieldStaff: assignmentResult.fieldStaff.name,
+        department: assignmentResult.fieldStaff.department,
+        status: 'assigned'
+      }
+    });
+
+  } catch (error) {
+    console.error('Manual auto-assignment error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error during auto-assignment'
+    });
+  }
+});
