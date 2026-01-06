@@ -17,7 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSession } from '../context/SessionContext';
 import LanguageSwitcher from './LanguageSwitcher';
 
-const CitizenHeader = ({ onRefresh, showRefresh = false }) => {
+const CitizenHeader = ({ onRefresh, showRefresh = false, onToggleSidebar, sidebarOpen, onSidebarHover }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -58,14 +58,37 @@ const CitizenHeader = ({ onRefresh, showRefresh = false }) => {
       
       <div className="relative w-full px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 py-4">
-          {/* Logo */}
-          <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
-            <div className="h-12 w-12 bg-gradient-to-r from-[#52796F] to-[#354F52] rounded-2xl flex items-center justify-center mr-4">
-              <FaCity className="text-white w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</span>
-              <p className="text-sm text-gray-500 -mt-1">{t('dashboard.subtitle')}</p>
+          {/* Logo and Sidebar Toggle */}
+          <div className="flex items-center">
+            {/* Sidebar Toggle Button */}
+            {onToggleSidebar && (
+              <div
+                onMouseEnter={() => onSidebarHover && onSidebarHover(true)}
+                onMouseLeave={() => onSidebarHover && onSidebarHover(false)}
+              >
+                <button
+                  onClick={onToggleSidebar}
+                  className={`mr-4 p-2 rounded-xl transition-all duration-200 ${
+                    sidebarOpen 
+                      ? 'text-[#52796F] bg-[#CAD2C5]/20' 
+                      : 'text-gray-500 hover:text-[#52796F] hover:bg-[#CAD2C5]/20'
+                  }`}
+                  title="Toggle Sidebar"
+                >
+                  <FiMenu className="h-6 w-6" />
+                </button>
+              </div>
+            )}
+            
+            {/* Logo */}
+            <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
+              <div className="h-12 w-12 bg-gradient-to-r from-[#52796F] to-[#354F52] rounded-2xl flex items-center justify-center mr-4">
+                <FaCity className="text-white w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</span>
+                <p className="text-sm text-gray-500 -mt-1">{t('dashboard.subtitle')}</p>
+              </div>
             </div>
           </div>
 
@@ -82,6 +105,12 @@ const CitizenHeader = ({ onRefresh, showRefresh = false }) => {
               className="text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base"
             >
               {t('header.publicFeed')}
+            </button>
+            <button 
+              onClick={() => navigate('/fundraising')}
+              className="text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base"
+            >
+              {t('header.fundraising')}
             </button>
             <button 
               onClick={() => navigate('/report-issue')}
@@ -177,6 +206,14 @@ const CitizenHeader = ({ onRefresh, showRefresh = false }) => {
                       <FiUser className="h-4 w-4 mr-3" />
                       {t('header.profile')}
                     </button>
+                    <button
+                      type="button" 
+                      onClick={() => navigate('/my-donations')}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                    >
+                      <FiUser className="h-4 w-4 mr-3" />
+                      {t('header.myDonations')}
+                    </button>
                     <button 
                       type="button" 
                       onClick={() => navigate('/settings')} 
@@ -228,6 +265,15 @@ const CitizenHeader = ({ onRefresh, showRefresh = false }) => {
                   className="text-left text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base py-2"
                 >
                   {t('header.publicFeed')}
+                </button>
+                <button 
+                  onClick={() => {
+                    navigate('/fundraising');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="text-left text-gray-600 hover:text-[#52796F] font-medium transition-colors duration-200 text-base py-2"
+                >
+                  {t('header.fundraising')}
                 </button>
                 <button 
                   onClick={() => {

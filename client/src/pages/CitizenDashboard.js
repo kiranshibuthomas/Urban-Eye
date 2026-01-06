@@ -35,14 +35,13 @@ import {
 } from 'react-icons/fi';
 import { FaCity, FaBuilding, FaRegSmile } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
-import { useSession } from '../context/SessionContext';
 import { useNavigate } from 'react-router-dom';
 import EmailVerificationBanner from '../components/EmailVerificationBanner';
 import CitizenChatbot from '../components/CitizenChatbot';
-import CitizenHeader from '../components/CitizenHeader';
+import CitizenLayout from '../components/CitizenLayout';
+import SidebarDemo from '../components/SidebarDemo';
 
 const CitizenDashboard = () => {
-  const [activeSection, setActiveSection] = useState('home');
   const [hasAnimated, setHasAnimated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -230,6 +229,15 @@ const CitizenDashboard = () => {
           action: "navigate('/public-feed')"
         },
         {
+          titleKey: "services.fundraising.title",
+          descriptionKey: "services.fundraising.description",
+          icon: "FiHeart",
+          color: "from-pink-500 to-rose-500",
+          bgColor: "from-pink-50 to-rose-50",
+          textColor: "text-pink-600",
+          action: "navigate('/fundraising')"
+        },
+        {
           titleKey: "services.myReports.title",
           descriptionKey: "services.myReports.description",
           icon: "FiTrendingUp",
@@ -245,7 +253,7 @@ const CitizenDashboard = () => {
           color: "from-purple-500 to-pink-500",
           bgColor: "from-purple-50 to-pink-50",
           textColor: "text-purple-600",
-          action: "setActiveSection('emergency')"
+          action: "navigate('/emergency')"
         }
       ]);
     }
@@ -318,12 +326,12 @@ const CitizenDashboard = () => {
       navigate('/report-issue');
     } else if (actionString === "navigate('/reports-history')") {
       navigate('/reports-history');
-    } else if (actionString === "setActiveSection('tracking')") {
-      setActiveSection('tracking');
-    } else if (actionString === "setActiveSection('services')") {
-      setActiveSection('services');
-    } else if (actionString === "setActiveSection('community')") {
-      setActiveSection('community');
+    } else if (actionString === "navigate('/public-feed')") {
+      navigate('/public-feed');
+    } else if (actionString === "navigate('/fundraising')") {
+      navigate('/fundraising');
+    } else if (actionString === "navigate('/emergency')") {
+      navigate('/emergency');
     }
   };
 
@@ -381,11 +389,10 @@ const CitizenDashboard = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="min-h-screen bg-white">
-      <CitizenHeader onRefresh={refreshData} showRefresh={true} />
-
-      {/* Main Content */}
-      <main>
+    <CitizenLayout onRefresh={refreshData} showRefresh={true}>
+      <div className="min-h-screen bg-white">
+        {/* Main Content */}
+        <main>
         <EmailVerificationBanner />
         
         {/* Error Message */}
@@ -830,6 +837,33 @@ const CitizenDashboard = () => {
             </div>
       </div>
         </section>
+
+        {/* Sidebar Demo Section */}
+        <section className="py-20 bg-gradient-to-br from-[#CAD2C5]/30 to-[#84A98C]/30">
+          <div className="w-full px-6 lg:px-8">
+            <motion.div
+              initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-center mb-16"
+            >
+              <h2 className="text-4xl sm:text-5xl font-bold text-[#2F3E46] mb-6">
+                New Dynamic Sidebar
+              </h2>
+              <p className="text-xl text-[#354F52] max-w-3xl mx-auto">
+                Experience our new organized navigation system designed to make accessing all features easier and more intuitive.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+            >
+              <SidebarDemo />
+            </motion.div>
+          </div>
+        </section>
           </>
         )}
       </main>
@@ -895,7 +929,8 @@ const CitizenDashboard = () => {
 
       {/* Chatbot Component */}
       <CitizenChatbot />
-    </div>
+      </div>
+    </CitizenLayout>
   );
 };
 

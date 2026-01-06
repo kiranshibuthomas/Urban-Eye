@@ -126,11 +126,8 @@ server/.env.*
 # package-lock.json
 # yarn.lock
 
-# Temporary documentation files
-*_TEMP.md
-*_DRAFT.md
-*_OLD.md
-TEMP_*.md
+# All markdown files
+*.md
 
 # Test files (keep in dedicated test directories)
 test-*.js

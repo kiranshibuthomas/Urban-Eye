@@ -75,6 +75,11 @@ const complaintSchema = new mongoose.Schema({
       }
     }
   },
+  locationMode: {
+    type: String,
+    enum: ['current', 'manual'],
+    default: 'current'
+  },
   address: {
     type: String,
     required: true,

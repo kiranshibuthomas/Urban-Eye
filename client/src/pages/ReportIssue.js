@@ -16,10 +16,13 @@ import {
   FiFileText,
   FiEye,
   FiEyeOff,
-  FiShield
+  FiShield,
+  FiNavigation,
+  FiMap
 } from 'react-icons/fi';
-import { isWithinGeofence } from '../services/geofenceService';
-import CitizenHeader from '../components/CitizenHeader';
+import { isWithinGeofence, fetchGeofenceConfig } from '../services/geofenceService';
+import CitizenLayout from '../components/CitizenLayout';
+import MapLocationPicker from '../components/MapLocationPicker';
 
 const ReportIssue = () => {
   const navigate = useNavigate();
@@ -29,9 +32,12 @@ const ReportIssue = () => {
   const [loading, setLoading] = useState(false);
   const [locationPermission, setLocationPermission] = useState(null);
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [isLocationValid, setIsLocationValid] = useState(false);
   const [geofenceMessage, setGeofenceMessage] = useState(null);
+  const [locationMode, setLocationMode] = useState('current'); // 'current' or 'manual'
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -53,8 +59,10 @@ const ReportIssue = () => {
 
   // Get current location on component mount
   useEffect(() => {
-    getCurrentLocation();
-  }, []);
+    if (locationMode === 'current') {
+      getCurrentLocation();
+    }
+  }, [locationMode]);
 
   // Real-time validation
   useEffect(() => {
@@ -164,6 +172,53 @@ const ReportIssue = () => {
       ...prev,
       [fieldName]: true
     }));
+  };
+
+  // Location mode handlers
+  const handleLocationModeChange = (mode) => {
+    setLocationMode(mode);
+    setLocationError(null);
+    setIsLocationValid(false);
+    setGeofenceMessage(null);
+    
+    if (mode === 'current') {
+      setSelectedLocation(null);
+      setShowMapPicker(false);
+    } else {
+      setCurrentLocation(null);
+      setShowMapPicker(true);
+    }
+  };
+
+  // Handle location selection from map
+  const handleMapLocationSelect = (locationData) => {
+    setSelectedLocation({
+      latitude: locationData.latitude,
+      longitude: locationData.longitude
+    });
+    setIsLocationValid(locationData.isValid);
+    setGeofenceMessage(locationData.message);
+    
+    // Auto-populate address fields if available
+    if (locationData.address) {
+      setFormData(prev => ({
+        ...prev,
+        address: locationData.address,
+        city: locationData.city || prev.city
+      }));
+    }
+    
+    // Reverse geocode if address not provided
+    if (!locationData.address) {
+      reverseGeocode(locationData.latitude, locationData.longitude);
+    }
+    
+    toast.success('Location selected successfully!');
+  };
+
+  // Get the active location (current GPS or manually selected)
+  const getActiveLocation = () => {
+    return locationMode === 'current' ? currentLocation : selectedLocation;
   };
 
 
@@ -355,13 +410,15 @@ const ReportIssue = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!currentLocation) {
-      toast.error('Location is required. Please allow location access and ensure you are within the service area.');
+    const activeLocation = getActiveLocation();
+    
+    if (!activeLocation) {
+      toast.error('Location is required. Please select your current location or choose a location manually.');
       return;
     }
 
     if (!isLocationValid) {
-      toast.error('You must be within the service area to submit a complaint.');
+      toast.error('You must select a location within the service area to submit a complaint.');
       return;
     }
 
@@ -379,9 +436,10 @@ const ReportIssue = () => {
         submitData.append(key, formData[key]);
       });
 
-      // Add location
-      submitData.append('latitude', currentLocation.latitude);
-      submitData.append('longitude', currentLocation.longitude);
+      // Add active location (current GPS or manually selected)
+      submitData.append('latitude', activeLocation.latitude);
+      submitData.append('longitude', activeLocation.longitude);
+      submitData.append('locationMode', locationMode); // Track how location was obtained
 
       // Add images
       images.forEach(image => {
@@ -425,10 +483,9 @@ const ReportIssue = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#CAD2C5]/30 via-[#84A98C]/20 to-[#52796F]/30">
-      <CitizenHeader />
-
-      <div className="w-full px-6 lg:px-8 py-8">
+    <CitizenLayout>
+      <div className="min-h-screen bg-gradient-to-br from-[#CAD2C5]/30 via-[#84A98C]/20 to-[#52796F]/30">
+        <div className="w-full px-6 lg:px-8 py-8">
         <div className="max-w-4xl mx-auto">
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -445,83 +502,209 @@ const ReportIssue = () => {
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Location Details</h2>
-                <p className="text-gray-600">Help us locate the issue accurately</p>
+                <p className="text-gray-600">Choose how to specify the issue location</p>
               </div>
             </div>
 
-            {locationPermission === 'requesting' && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center text-emerald-600 mb-6 p-4 bg-emerald-50 rounded-xl border border-emerald-200"
-              >
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-600 mr-3"></div>
-                <span className="font-medium">Getting your location...</span>
-              </motion.div>
-            )}
+            {/* Location Mode Selection */}
+            <div className="mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="button"
+                  onClick={() => handleLocationModeChange('current')}
+                  className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                    locationMode === 'current'
+                      ? 'border-[#52796F] bg-[#52796F]/10 text-[#52796F]'
+                      : 'border-gray-300 hover:border-gray-400 text-gray-600'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <FiNavigation className="h-6 w-6" />
+                    <div className="text-left">
+                      <h3 className="font-semibold">Use Current Location</h3>
+                      <p className="text-sm opacity-75">Report issue at your current GPS location</p>
+                    </div>
+                  </div>
+                </motion.button>
 
-            {locationPermission === 'granted' && currentLocation && isLocationValid && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center text-emerald-600 mb-6 p-4 bg-emerald-50 rounded-xl border border-emerald-200"
-              >
-                <FiCheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
-                <div>
-                  <p className="font-medium">Location verified! ✓</p>
-                  <p className="text-sm text-gray-600">
-                    {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
-                  </p>
-                  {geofenceMessage && (
-                    <p className="text-xs text-emerald-700 mt-1">{geofenceMessage}</p>
-                  )}
-                </div>
-              </motion.div>
-            )}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="button"
+                  onClick={() => handleLocationModeChange('manual')}
+                  className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                    locationMode === 'manual'
+                      ? 'border-[#52796F] bg-[#52796F]/10 text-[#52796F]'
+                      : 'border-gray-300 hover:border-gray-400 text-gray-600'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <FiMap className="h-6 w-6" />
+                    <div className="text-left">
+                      <h3 className="font-semibold">Choose Different Location</h3>
+                      <p className="text-sm opacity-75">Search and select any location within panchayath</p>
+                    </div>
+                  </div>
+                </motion.button>
+              </div>
+            </div>
 
-            {!isLocationValid && geofenceMessage && locationPermission !== 'requesting' && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-start text-red-600 mb-6 p-4 bg-red-50 rounded-xl border border-red-200"
-              >
-                <FiAlertTriangle className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="font-medium">Location Outside Service Area</p>
-                  <p className="text-sm text-red-700 mt-1">{geofenceMessage}</p>
-                  <p className="text-xs text-red-600 mt-2">
-                    This complaint reporting system is exclusively for residents within the configured service area. 
-                    Please ensure you are physically within the boundaries to submit a complaint.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={getCurrentLocation}
-                    className="mt-3 text-sm bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+            {/* Current Location Mode */}
+            {locationMode === 'current' && (
+              <>
+                {locationPermission === 'requesting' && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center text-emerald-600 mb-6 p-4 bg-emerald-50 rounded-xl border border-emerald-200"
                   >
-                    Retry Location Check
-                  </button>
-                </div>
-              </motion.div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-600 mr-3"></div>
+                    <span className="font-medium">Getting your location...</span>
+                  </motion.div>
+                )}
+
+                {locationPermission === 'granted' && currentLocation && isLocationValid && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center text-emerald-600 mb-6 p-4 bg-emerald-50 rounded-xl border border-emerald-200"
+                  >
+                    <FiCheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">Current location verified! ✓</p>
+                      <p className="text-sm text-gray-600">
+                        {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
+                      </p>
+                      {geofenceMessage && (
+                        <p className="text-xs text-emerald-700 mt-1">{geofenceMessage}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+                {!isLocationValid && geofenceMessage && locationPermission !== 'requesting' && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-start text-red-600 mb-6 p-4 bg-red-50 rounded-xl border border-red-200"
+                  >
+                    <FiAlertTriangle className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="font-medium">Current Location Outside Service Area</p>
+                      <p className="text-sm text-red-700 mt-1">{geofenceMessage}</p>
+                      <p className="text-xs text-red-600 mt-2">
+                        Try switching to "Choose Different Location" to select a location within the service area.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={getCurrentLocation}
+                        className="mt-3 text-sm bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 mr-3"
+                      >
+                        Retry Location Check
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleLocationModeChange('manual')}
+                        className="mt-3 text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                      >
+                        Choose Different Location
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {locationPermission === 'denied' && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center text-red-600 mb-6 p-4 bg-red-50 rounded-xl border border-red-200"
+                  >
+                    <FiAlertTriangle className="h-5 w-5 mr-3" />
+                    <div className="flex-1">
+                      <p className="font-medium">{locationError}</p>
+                      <div className="mt-2 space-x-3">
+                        <button
+                          type="button"
+                          onClick={getCurrentLocation}
+                          className="text-emerald-600 hover:text-emerald-700 underline font-medium"
+                        >
+                          Try again
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleLocationModeChange('manual')}
+                          className="text-blue-600 hover:text-blue-700 underline font-medium"
+                        >
+                          Choose location manually
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </>
             )}
 
-            {locationPermission === 'denied' && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center text-red-600 mb-6 p-4 bg-red-50 rounded-xl border border-red-200"
-              >
-                <FiAlertTriangle className="h-5 w-5 mr-3" />
-                <div className="flex-1">
-                  <p className="font-medium">{locationError}</p>
-                  <button
+            {/* Manual Location Mode */}
+            {locationMode === 'manual' && (
+              <>
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Select Location on Map</h3>
+                      <p className="text-sm text-gray-600">Click the button below to open the interactive map</p>
+                    </div>
+                  </div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     type="button"
-                    onClick={getCurrentLocation}
-                    className="mt-2 text-emerald-600 hover:text-emerald-700 underline font-medium"
+                    onClick={() => setShowMapPicker(true)}
+                    className="w-full flex items-center justify-center space-x-3 px-6 py-4 border-2 border-dashed border-[#52796F] rounded-xl text-[#52796F] hover:bg-[#52796F]/5 hover:border-[#52796F] transition-all duration-200"
                   >
-                    Try again
-                  </button>
+                    <FiMap className="h-6 w-6" />
+                    <span className="font-semibold">
+                      {selectedLocation ? 'Change Location on Map' : 'Open Map to Select Location'}
+                    </span>
+                  </motion.button>
                 </div>
-              </motion.div>
+
+                {selectedLocation && isLocationValid && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center text-emerald-600 mb-6 p-4 bg-emerald-50 rounded-xl border border-emerald-200"
+                  >
+                    <FiCheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">Location selected from map! ✓</p>
+                      <p className="text-sm text-gray-600">
+                        {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
+                      </p>
+                      {geofenceMessage && (
+                        <p className="text-xs text-emerald-700 mt-1">{geofenceMessage}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+                <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <div className="flex items-start space-x-3">
+                    <FiMap className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-blue-800">
+                        <strong>Interactive Map Selection:</strong> Use the map to pinpoint the exact location where the issue occurred. 
+                        You can select any location within the panchayath boundaries, even if you're not physically there.
+                      </p>
+                      <p className="text-xs text-blue-700 mt-2">
+                        The map shows the service area boundary. Only locations within this area can be selected for complaint registration.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -906,19 +1089,32 @@ const ReportIssue = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              disabled={loading || !currentLocation || !isLocationValid || Object.keys(validationErrors).length > 0}
+              disabled={loading || !getActiveLocation() || !isLocationValid || Object.keys(validationErrors).length > 0}
               className="px-8 py-3 bg-gradient-to-r from-[#52796F] to-[#354F52] text-white rounded-xl hover:from-[#354F52] hover:to-[#2F3E46] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold shadow-lg"
             >
               {loading && (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
               )}
-              {loading ? 'Submitting Report...' : !isLocationValid && currentLocation ? 'Location Outside Service Area' : 'Submit Report'}
+              {loading ? 'Submitting Report...' : !isLocationValid && getActiveLocation() ? 'Location Outside Service Area' : 'Submit Report'}
             </motion.button>
           </motion.div>
         </form>
         </div>
       </div>
-    </div>
+
+      {/* Map Location Picker Modal */}
+      <AnimatePresence>
+        {showMapPicker && (
+          <MapLocationPicker
+            isOpen={showMapPicker}
+            onClose={() => setShowMapPicker(false)}
+            onLocationSelect={handleMapLocationSelect}
+            initialLocation={selectedLocation}
+          />
+        )}
+      </AnimatePresence>
+      </div>
+    </CitizenLayout>
   );
 };
 

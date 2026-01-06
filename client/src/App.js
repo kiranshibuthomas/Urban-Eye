@@ -34,6 +34,10 @@ const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
 const EmailVerification = lazy(() => import('./components/EmailVerification'));
 const PublicFeedPage = lazy(() => import('./pages/PublicFeedPage'));
 const PublicComplaintDetailPage = lazy(() => import('./pages/PublicComplaintDetailPage'));
+const FundraisingCampaigns = lazy(() => import('./pages/FundraisingCampaigns'));
+const CampaignDetail = lazy(() => import('./pages/CampaignDetail'));
+const AdminFundraisingManagement = lazy(() => import('./pages/AdminFundraisingManagement'));
+const MyDonations = lazy(() => import('./pages/MyDonations'));
 
 // Component to handle role-based default redirects
 const DefaultRedirect = () => {
@@ -101,6 +105,40 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <PublicComplaintDetailPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Fundraising routes - accessible to all authenticated users */}
+          <Route 
+            path="/fundraising" 
+            element={
+              <ProtectedRoute>
+                <FundraisingCampaigns />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/fundraising/:id" 
+            element={
+              <ProtectedRoute>
+                <CampaignDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/my-donations" 
+            element={
+              <ProtectedRoute>
+                <MyDonations />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/fundraising" 
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminFundraisingManagement />
               </ProtectedRoute>
             } 
           />

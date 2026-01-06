@@ -47,6 +47,7 @@ import ModernRecentActivity from '../components/ModernRecentActivity';
 import AdminComplaintManagement from './AdminComplaintManagement';
 import UserManagement from './UserManagement';
 import FieldStaffManagement from './FieldStaffManagement';
+import AdminFundraisingManagement from './AdminFundraisingManagement';
 import AdminWorkApprovalList from '../components/AdminWorkApprovalList';
 import ComplaintHeatmap from '../components/ComplaintHeatmap';
 import {
@@ -596,6 +597,8 @@ const AdminDashboard = () => {
         return <UserManagement />;
       case 'field-staff':
         return <FieldStaffManagement />;
+      case 'fundraising':
+        return <AdminFundraisingManagement />;
       case 'alerts':
         return AlertsTab;
       default:
@@ -651,6 +654,7 @@ const AdminDashboard = () => {
                   { key: 'work-approval', label: 'Work Approval', icon: FiCheckCircle },
                   { key: 'users', label: 'Users', icon: FiUsers },
                   { key: 'field-staff', label: 'Field Staff', icon: FiShield },
+                  { key: 'fundraising', label: 'Fundraising', icon: FiTarget },
                   { key: 'alerts', label: 'Alerts', icon: FiSend }
                 ].map((tab) => (
                   <button

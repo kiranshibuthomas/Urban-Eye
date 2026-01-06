@@ -72,6 +72,7 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
       pincode,
       latitude,
       longitude,
+      locationMode,
       isAnonymous
     } = req.body;
 
@@ -158,6 +159,7 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
       pincode: pincode ? pincode.toString().trim() : undefined,
       images,
       isAnonymous: isAnonymous === 'true',
+      locationMode: locationMode || 'current', // Track how location was obtained
       // Store AI analysis for reference
       aiAnalysis: {
         confidence: aiAnalysis.confidence,

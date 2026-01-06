@@ -17,6 +17,12 @@
   pointer-events: auto;
 }
 
+/* Custom marker styles */
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
 .leaflet-control-container {
   z-index: 1000;
 }

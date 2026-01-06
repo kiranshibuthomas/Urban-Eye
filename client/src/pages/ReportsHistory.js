@@ -23,7 +23,7 @@ import {
   FiList,
   FiActivity
 } from 'react-icons/fi';
-import CitizenHeader from '../components/CitizenHeader';
+import CitizenLayout from '../components/CitizenLayout';
 
 const ReportsHistory = () => {
   const navigate = useNavigate();
@@ -331,7 +331,8 @@ const ReportsHistory = () => {
   // Don't render anything if we're still loading or if reports is undefined
   if (loading || reports === undefined) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#CAD2C5]/30 via-[#84A98C]/20 to-[#52796F]/30 flex items-center justify-center">
+      <CitizenLayout showRefresh={true} onRefresh={refreshReports}>
+        <div className="min-h-screen bg-gradient-to-br from-[#CAD2C5]/30 via-[#84A98C]/20 to-[#52796F]/30 flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -340,13 +341,14 @@ const ReportsHistory = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#52796F] mx-auto mb-4"></div>
           <p className="text-gray-600">Loading your reports...</p>
         </motion.div>
-      </div>
+        </div>
+      </CitizenLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#CAD2C5]/30 via-[#84A98C]/20 to-[#52796F]/30">
-      <CitizenHeader onRefresh={refreshReports} showRefresh={true} />
+    <CitizenLayout showRefresh={true} onRefresh={refreshReports}>
+      <div className="min-h-screen bg-gradient-to-br from-[#CAD2C5]/30 via-[#84A98C]/20 to-[#52796F]/30">
 
       {/* Main Content */}
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
@@ -1065,7 +1067,8 @@ const ReportsHistory = () => {
       >
         <span className="text-2xl font-bold">+</span>
       </motion.button>
-    </div>
+      </div>
+    </CitizenLayout>
   );
 };
 

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Test</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { 
+            height: 400px; 
+            width: 100%;
+            border: 2px solid #52796F;
+            border-radius: 12px;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e8;
+            border-radius: 8px;
+            border-left: 4px solid #52796F;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗺️ Interactive Map Location Picker Test</h1>
+        <p>This demonstrates the map functionality that will be integrated into the complaint form.</p>
+        
+        <div id="map"></div>
+        
+        <div class="info">
+            <h3>📍 Selected Location:</h3>
+            <p id="location-info">Click on the map to select a location</p>
+        </div>
+        
+        <div class="info" style="background: #e8f4fd; border-left-color: #2563eb;">
+            <h3>ℹ️ Instructions:</h3>
+            <ul>
+                <li>The dashed circle shows the panchayath service area</li>
+                <li>Click anywhere on the map to select a location</li>
+                <li>Green markers indicate valid locations (inside boundary)</li>
+                <li>Red markers indicate invalid locations (outside boundary)</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Panchayath configuration (Kanjirapally)
+        const config = {
+            center: { latitude: 9.5595, longitude: 76.7874 },
+            radiusKm: 18
+        };
+
+        // Initialize map
+        const map = L.map('map').setView([config.center.latitude, config.center.longitude], 13);
+
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Add geofence circle
+        const geofenceCircle = L.circle([config.center.latitude, config.center.longitude], {
+            color: '#52796F',
+            fillColor: '#84A98C',
+            fillOpacity: 0.1,
+            weight: 2,
+            dashArray: '5, 5',
+            radius: config.radiusKm * 1000 // Convert km to meters
+        }).addTo(map);
+
+        // Custom marker icons
+        const validIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background-color: #10B981; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; border: 3px solid white; transform: rotate(-45deg); box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><div style="color: white; font-size: 12px; transform: rotate(45deg); font-weight: bold;">📍</div></div>',
+            iconSize: [24, 24],
+            iconAnchor: [12, 24]
+        });
+
+        const invalidIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background-color: #EF4444; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; border: 3px solid white; transform: rotate(-45deg); box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><div style="color: white; font-size: 12px; transform: rotate(45deg); font-weight: bold;">📍</div></div>',
+            iconSize: [24, 24],
+            iconAnchor: [12, 24]
+        });
+
+        let currentMarker = null;
+
+        // Calculate distance between two points
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            
+            const a = 
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        // Check if location is within geofence
+        function isWithinGeofence(lat, lng) {
+            const distance = calculateDistance(lat, lng, config.center.latitude, config.center.longitude);
+            return distance <= config.radiusKm;
+        }
+
+        // Handle map clicks
+        map.on('click', function(e) {
+            const { lat, lng } = e.latlng;
+            const isValid = isWithinGeofence(lat, lng);
+            
+            // Remove existing marker
+            if (currentMarker) {
+                map.removeLayer(currentMarker);
+            }
+            
+            // Add new marker
+            currentMarker = L.marker([lat, lng], {
+                icon: isValid ? validIcon : invalidIcon
+            }).addTo(map);
+            
+            // Update info display
+            const locationInfo = document.getElementById('location-info');
+            locationInfo.innerHTML = `
+                <strong>Coordinates:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>
+                <strong>Status:</strong> <span style="color: ${isValid ? '#10B981' : '#EF4444'}; font-weight: bold;">
+                    ${isValid ? '✅ Valid (Inside service area)' : '❌ Invalid (Outside service area)'}
+                </span><br>
+                <strong>Distance from center:</strong> ${calculateDistance(lat, lng, config.center.latitude, config.center.longitude).toFixed(2)} km
+            `;
+        });
+
+        // Add a sample marker at the center
+        L.marker([config.center.latitude, config.center.longitude], { icon: validIcon })
+            .addTo(map)
+            .bindPopup('Panchayath Center<br>Kanjirapally')
+            .openPopup();
+    </script>
+</body>
+</html>

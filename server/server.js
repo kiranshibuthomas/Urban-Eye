@@ -18,6 +18,8 @@ const analyticsRoutes = require('./routes/analytics');
 const geofenceConfigRoutes = require('./routes/geofenceConfig');
 const publicFeedRoutes = require('./routes/publicFeed');
 const chatbotRoutes = require('./routes/chatbot');
+const fundraisingRoutes = require('./routes/fundraising');
+const donationRoutes = require('./routes/donations');
 // const mlRoutes = require('./routes/ml'); // ML service removed
 
 // Import passport configuration
@@ -75,6 +77,8 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/geofence-config', geofenceConfigRoutes);
 app.use('/api/public-feed', publicFeedRoutes);
 app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/fundraising', fundraisingRoutes);
+app.use('/api/donations', donationRoutes);
 // app.use('/api/ml', mlRoutes); // ML service removed
 
 // Serve uploaded files

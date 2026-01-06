@@ -15,7 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSession } from '../context/SessionContext';
 import toast from 'react-hot-toast';
 import ProfileImageUpload from '../components/ProfileImageUpload';
-import CitizenHeader from '../components/CitizenHeader';
+import CitizenLayout from '../components/CitizenLayout';
 
 const ProfilePage = () => {
   const { user, logout, updateUser } = useAuth();
@@ -124,8 +124,8 @@ const ProfilePage = () => {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#CAD2C5]/30 via-[#84A98C]/20 to-[#52796F]/30">
-      <CitizenHeader />
+    <CitizenLayout>
+      <div className="min-h-screen bg-gradient-to-br from-[#CAD2C5]/30 via-[#84A98C]/20 to-[#52796F]/30">
 
       <div className="w-full px-6 lg:px-8 py-8">
         <div className="max-w-4xl mx-auto">
@@ -390,7 +390,8 @@ const ProfilePage = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </CitizenLayout>
   );
 };
 

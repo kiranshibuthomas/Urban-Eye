@@ -2,13 +2,33 @@
   "header": {
     "dashboard": "Dashboard",
     "publicFeed": "Public Feed",
+    "fundraising": "Fundraising",
     "reportIssue": "Report Issue",
     "myReports": "My Reports",
+    "myDonations": "My Donations",
     "faq": "FAQ",
     "profile": "Profile",
     "settings": "Settings",
     "signOut": "Sign Out",
     "citizen": "Citizen"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "reportIssue": "Report Issue",
+    "myReports": "My Reports",
+    "publicFeed": "Public Feed",
+    "fundraising": "Fundraising",
+    "myDonations": "My Donations",
+    "notifications": "Notifications",
+    "messages": "Messages",
+    "analytics": "Analytics",
+    "profile": "Profile",
+    "settings": "Settings",
+    "emergency": "Emergency",
+    "emergencyContacts": "Emergency Contacts",
+    "tools": "Tools",
+    "citizen": "Citizen",
+    "signOut": "Sign Out"
   },
   "dashboard": {
     "title": "UrbanEye",
@@ -50,6 +70,10 @@
     "communityFeed": {
       "title": "Community Feed",
       "description": "See what issues your neighbors are reporting and join the conversation"
+    },
+    "fundraising": {
+      "title": "Fundraising",
+      "description": "Support community projects and help fund civic improvements"
     },
     "myReports": {
       "title": "My Reports",
