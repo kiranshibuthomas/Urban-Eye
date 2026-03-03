@@ -67,7 +67,7 @@ const RegisterPage = () => {
         }));
 
         try {
-          const response = await fetch(`${getApiURL()}/auth/check-email`, {
+          const response = await fetch(`${getApiURL('auth/check-email')}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -342,7 +342,7 @@ const RegisterPage = () => {
 
   const handleGoogleLogin = () => {
     // Redirect to backend Google OAuth endpoint
-    window.location.href = `${getApiURL()}/auth/google`;
+    window.location.href = `${getApiURL('auth/google')}`;
   };
 
   const isFieldValid = (fieldName) => {

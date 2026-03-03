@@ -1,7 +1,5 @@
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs').promises;
+const { complaintUpload, deleteFromCloudinary, extractPublicId, getResourceType } = require('../services/cloudinaryService');
 const { v4: uuidv4 } = require('uuid');
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
@@ -22,70 +20,118 @@ const { autoAssignComplaint } = require('../services/autoAssignmentService');
 
 const router = express.Router();
 
-// Configure multer for image uploads
-const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../uploads/complaints');
-    try {
-      await fs.mkdir(uploadDir, { recursive: true });
-      cb(null, uploadDir);
-    } catch (error) {
-      cb(error);
+// @route   GET /api/complaints/nearby
+// @desc    Get nearby complaints within specified radius
+// @access  Private
+router.get('/nearby', authenticateToken, async (req, res) => {
+  try {
+    const { latitude, longitude, radius = 100 } = req.query;
+
+    // Validate coordinates
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid coordinates provided'
+      });
     }
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `${uuidv4()}-${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
-});
 
-const fileFilter = (req, file, cb) => {
-  // Check if file is an image
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only image files are allowed'), false);
-  }
-};
+    // Convert radius from meters to radians (Earth radius ≈ 6371000 meters)
+    const radiusInRadians = parseFloat(radius) / 6371000;
 
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-    files: 5 // Maximum 5 images per complaint
+    // Find nearby complaints that are not resolved, rejected, or closed
+    const nearbyComplaints = await Complaint.find({
+      location: {
+        $geoWithin: {
+          $centerSphere: [[lng, lat], radiusInRadians]
+        }
+      },
+      status: { $nin: ['resolved', 'rejected', 'closed', 'deleted'] },
+      isArchived: { $ne: true }
+    })
+    .select('title description category status priority address city submittedAt location citizenName')
+    .populate('citizen', 'name email')
+    .sort({ submittedAt: -1 })
+    .limit(10);
+
+    // Calculate distance for each complaint
+    const complaintsWithDistance = nearbyComplaints.map(complaint => {
+      const complaintLat = complaint.location.coordinates[1];
+      const complaintLng = complaint.location.coordinates[0];
+      
+      // Calculate distance using Haversine formula
+      const R = 6371000; // Earth's radius in meters
+      const dLat = (complaintLat - lat) * Math.PI / 180;
+      const dLng = (complaintLng - lng) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat * Math.PI / 180) * Math.cos(complaintLat * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const distance = R * c;
+
+      return {
+        ...complaint.toObject(),
+        distance: Math.round(distance)
+      };
+    });
+
+    res.json({
+      success: true,
+      complaints: complaintsWithDistance,
+      count: complaintsWithDistance.length,
+      searchRadius: radius
+    });
+
+  } catch (error) {
+    console.error('Get nearby complaints error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching nearby complaints'
+    });
   }
 });
 
 // @route   POST /api/complaints
 // @desc    Create a new complaint
 // @access  Private (Citizens only)
-router.post('/', authenticateToken, requireRole('citizen'), upload.array('images', 5), async (req, res) => {
+router.post('/', authenticateToken, requireRole('citizen'), complaintUpload.fields([
+  { name: 'images', maxCount: 3 },
+  { name: 'video', maxCount: 1 }
+]), async (req, res) => {
   try {
     const {
-      title,
-      description,
       category,
-      priority,
+      description,
       address,
       city,
       pincode,
       latitude,
       longitude,
       locationMode,
-      isAnonymous
+      userEmail,
+      userName
     } = req.body;
 
     // Trim and validate required fields
-    const trimmedTitle = title?.toString().trim();
     const trimmedDescription = description?.toString().trim();
     const trimmedAddress = address?.toString().trim();
     const trimmedCity = city?.toString().trim();
     
-    if (!trimmedTitle || !trimmedDescription || !trimmedAddress || !trimmedCity || !latitude || !longitude) {
+    if (!category || !trimmedDescription || !trimmedAddress || !trimmedCity || !latitude || !longitude) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields: title, description, address, city, and location'
+        message: 'Please provide all required fields: category, description, address, city, and location'
+      });
+    }
+
+    // Validate category
+    const validCategories = ['public_works', 'water_supply', 'sanitation', 'electricity'];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid category selected'
       });
     }
 
@@ -122,32 +168,60 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
 
     // Process uploaded images
     const images = [];
-    const imagePaths = [];
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
+    if (req.files && req.files.images) {
+      for (const file of req.files.images) {
         images.push({
-          url: `/uploads/complaints/${file.filename}`,
-          filename: file.filename,
+          url: file.path, // Cloudinary URL
+          filename: file.filename || file.public_id,
           originalName: file.originalname,
-          size: file.size
+          size: file.size || file.bytes,
+          type: 'image',
+          publicId: file.public_id // Store Cloudinary public ID for deletion
         });
-        imagePaths.push(file.path);
       }
     }
 
-    // AI-powered categorization
-    console.log('🤖 Starting AI categorization...');
-    const aiAnalysis = await categorizeComplaint(trimmedTitle, trimmedDescription, imagePaths);
-    console.log('🎯 AI Analysis Result:', aiAnalysis);
+    // Process uploaded video
+    let video = null;
+    if (req.files && req.files.video && req.files.video[0]) {
+      const videoFile = req.files.video[0];
+      video = {
+        url: videoFile.path, // Cloudinary URL
+        filename: videoFile.filename || videoFile.public_id,
+        originalName: videoFile.originalname,
+        size: videoFile.size || videoFile.bytes,
+        type: 'video',
+        publicId: videoFile.public_id // Store Cloudinary public ID for deletion
+      };
+    }
 
-    // Create complaint with AI-determined category and priority
+    // Generate title from category and description
+    const categoryTitles = {
+      public_works: 'Roads & Infrastructure Issue',
+      water_supply: 'Water Supply Issue',
+      sanitation: 'Waste & Sanitation Issue',
+      electricity: 'Electrical & Lighting Issue'
+    };
+    
+    const title = categoryTitles[category] || 'General Issue';
+
+    // AI-powered categorization (using the selected category as base)
+    const aiAnalysis = await categorizeComplaint(title, trimmedDescription, []);
+
+    // Use user-selected category but let AI determine priority
+    const finalCategory = category;
+    const systemPriority = aiAnalysis.priority || 'medium';
+
+    // Create complaint
     const complaint = new Complaint({
-      title: trimmedTitle,
+      title,
       description: trimmedDescription,
-      category: aiAnalysis.category,
-      priority: aiAnalysis.priority,
+      category: finalCategory,
+      priority: systemPriority, // This will be the system priority
+      systemPriority: systemPriority, // Store system priority separately
+      finalPriority: systemPriority, // Initially same as system priority
       citizen: user._id,
-      citizenName: isAnonymous === 'true' ? 'Anonymous' : user.name,
+      citizenName: user.name,
       citizenEmail: user.email,
       citizenPhone: user.phone,
       location: {
@@ -158,12 +232,17 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
       city: trimmedCity,
       pincode: pincode ? pincode.toString().trim() : undefined,
       images,
-      isAnonymous: isAnonymous === 'true',
-      locationMode: locationMode || 'current', // Track how location was obtained
-      // Store AI analysis for reference
+      video,
+      isAnonymous: false, // No longer supporting anonymous complaints
+      locationMode: locationMode || 'manual',
+      // Store enhanced AI analysis
       aiAnalysis: {
         confidence: aiAnalysis.confidence,
-        reasoning: aiAnalysis.analysis.reasoning,
+        reasoning: Array.isArray(aiAnalysis.analysis?.priorityAnalysis?.reasoning) 
+          ? aiAnalysis.analysis.priorityAnalysis.reasoning.join('; ') 
+          : (aiAnalysis.analysis?.priorityAnalysis?.reasoning || 'AI-determined priority'),
+        priorityScore: aiAnalysis.analysis?.priorityAnalysis?.score || 0,
+        priorityReasons: aiAnalysis.analysis?.priorityAnalysis?.reasoning || [],
         analyzedAt: new Date()
       }
     });
@@ -176,12 +255,13 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
     // Auto-assign to field staff
     let assignmentResult = null;
     try {
-      console.log('🚀 Starting auto-assignment to field staff...');
+      console.log(`[AUTO-ASSIGNMENT] Attempting to assign complaint ${complaint._id} (${complaint.category})`);
       assignmentResult = await autoAssignComplaint(complaint._id);
-      console.log('✅ Auto-assignment successful:', assignmentResult.message);
       
       // Reload complaint with field staff info
       await complaint.populate('assignedToFieldStaff', 'name email department jobRole');
+      
+      console.log(`[AUTO-ASSIGNMENT] SUCCESS: Complaint ${complaint._id} assigned to ${complaint.assignedToFieldStaff.name} (${complaint.assignedToFieldStaff.department})`);
       
       // Send assignment email to citizen
       if (complaint.assignedToFieldStaff) {
@@ -194,9 +274,10 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
       }
       
     } catch (assignmentError) {
-      console.error('Auto-assignment failed:', assignmentError);
       // Don't fail the request if auto-assignment fails
       // Complaint will remain in pending status for manual assignment
+      console.error(`[AUTO-ASSIGNMENT] FAILED for complaint ${complaint._id}:`, assignmentError.message);
+      console.error(`[AUTO-ASSIGNMENT] Stack:`, assignmentError.stack);
     }
 
     // Send email notification to user
@@ -204,22 +285,25 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
       await sendComplaintSubmittedEmail(complaint, user);
       // Complaint submission email sent
     } catch (emailError) {
-      console.error('Failed to send complaint submission email:', emailError);
       // Don't fail the request if email fails
     }
 
     const responseMessage = assignmentResult 
-      ? `Complaint submitted and automatically assigned to ${assignmentResult.fieldStaff.name} (${assignmentResult.fieldStaff.department})`
-      : 'Complaint submitted successfully. AI categorized as ' + aiAnalysis.category + ' with ' + aiAnalysis.priority + ' priority.';
+      ? `Issue reported and automatically assigned to ${assignmentResult.fieldStaff.name} (${assignmentResult.fieldStaff.department}). System assessed priority: ${systemPriority}`
+      : `Issue reported successfully. System assessed priority: ${systemPriority} based on AI analysis.`;
 
     res.status(201).json({
       success: true,
       message: responseMessage,
       complaint: complaint,
       aiAnalysis: {
-        category: aiAnalysis.category,
-        priority: aiAnalysis.priority,
-        confidence: aiAnalysis.confidence
+        category: finalCategory,
+        systemPriority: systemPriority,
+        confidence: aiAnalysis.confidence,
+        reasoning: Array.isArray(aiAnalysis.analysis?.priorityAnalysis?.reasoning) 
+          ? aiAnalysis.analysis.priorityAnalysis.reasoning 
+          : [aiAnalysis.analysis?.priorityAnalysis?.reasoning || 'AI-determined priority'],
+        priorityScore: aiAnalysis.analysis?.priorityAnalysis?.score || 0
       },
       assignment: assignmentResult ? {
         fieldStaff: assignmentResult.fieldStaff.name,
@@ -232,10 +316,19 @@ router.post('/', authenticateToken, requireRole('citizen'), upload.array('images
     console.error('Create complaint error:', error);
     
     // Clean up uploaded files if complaint creation fails
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
+    if (req.files) {
+      const allFiles = [
+        ...(req.files.images || []),
+        ...(req.files.video || [])
+      ];
+      
+      for (const file of allFiles) {
         try {
-          await fs.unlink(file.path);
+          if (file.public_id) {
+            // Delete from Cloudinary
+            const resourceType = file.mimetype?.startsWith('video/') ? 'video' : 'image';
+            await deleteFromCloudinary(file.public_id, resourceType);
+          }
         } catch (unlinkError) {
           console.error('Error deleting file:', unlinkError);
         }
@@ -675,7 +768,8 @@ router.get('/heatmap-data', authenticateToken, requireRole('admin'), async (req,
       priority, 
       startDate, 
       endDate,
-      includeDeleted = false 
+      includeDeleted = false,
+      excludeResolved = false
     } = req.query;
 
     // Build filter object
@@ -697,6 +791,11 @@ router.get('/heatmap-data', authenticateToken, requireRole('admin'), async (req,
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
 
+    // Exclude resolved complaints if requested (for showing active issues)
+    if (excludeResolved === 'true') {
+      filter.status = { $nin: ['resolved', 'rejected', 'closed'] };
+    }
+
     // Date range filter
     if (startDate || endDate) {
       filter.submittedAt = {};
@@ -710,23 +809,27 @@ router.get('/heatmap-data', authenticateToken, requireRole('admin'), async (req,
 
     // Get complaint locations with basic info
     const complaints = await Complaint.find(filter)
-      .select('location coordinates category status priority submittedAt address city')
+      .select('location coordinates category status priority submittedAt address city finalPriority systemPriority')
       .lean();
 
     // Transform data for heatmap
     const heatmapData = complaints
       .filter(complaint => complaint.location && complaint.location.coordinates)
-      .map(complaint => ({
-        lat: complaint.location.coordinates[1], // latitude
-        lng: complaint.location.coordinates[0], // longitude
-        intensity: getIntensityByPriority(complaint.priority),
-        category: complaint.category,
-        status: complaint.status,
-        priority: complaint.priority,
-        submittedAt: complaint.submittedAt,
-        address: complaint.address,
-        city: complaint.city
-      }));
+      .map(complaint => {
+        const intensity = getIntensityByPriority(complaint.finalPriority || complaint.priority);
+        return {
+          lat: complaint.location.coordinates[1], // latitude
+          lng: complaint.location.coordinates[0], // longitude
+          intensity: intensity,
+          category: complaint.category,
+          status: complaint.status,
+          priority: complaint.finalPriority || complaint.priority,
+          systemPriority: complaint.systemPriority,
+          submittedAt: complaint.submittedAt,
+          address: complaint.address,
+          city: complaint.city
+        };
+      });
 
     // Get statistics for the filtered data
     const stats = await Complaint.aggregate([
@@ -780,7 +883,8 @@ router.get('/heatmap-data', authenticateToken, requireRole('admin'), async (req,
           priority,
           startDate,
           endDate,
-          includeDeleted
+          includeDeleted,
+          excludeResolved
         }
       }
     });
@@ -1588,11 +1692,25 @@ router.delete('/:id/hard-delete', authenticateToken, requireRole('admin'), async
     if (complaint.images && complaint.images.length > 0) {
       for (const image of complaint.images) {
         try {
-          const imagePath = path.join(__dirname, '../uploads/complaints', image.filename);
-          await fs.unlink(imagePath);
+          if (image.publicId) {
+            // Delete from Cloudinary
+            await deleteFromCloudinary(image.publicId, 'image');
+          }
         } catch (error) {
           console.error('Error deleting image:', error);
         }
+      }
+    }
+
+    // Delete video if exists
+    if (complaint.video) {
+      try {
+        if (complaint.video.publicId) {
+          // Delete from Cloudinary
+          await deleteFromCloudinary(complaint.video.publicId, 'video');
+        }
+      } catch (error) {
+        console.error('Error deleting video:', error);
       }
     }
 
@@ -1600,8 +1718,10 @@ router.delete('/:id/hard-delete', authenticateToken, requireRole('admin'), async
     if (complaint.resolutionImages && complaint.resolutionImages.length > 0) {
       for (const image of complaint.resolutionImages) {
         try {
-          const imagePath = path.join(__dirname, '../uploads/complaints', image.filename);
-          await fs.unlink(imagePath);
+          if (image.publicId) {
+            // Delete from Cloudinary
+            await deleteFromCloudinary(image.publicId, 'image');
+          }
         } catch (error) {
           console.error('Error deleting resolution image:', error);
         }

@@ -13,8 +13,20 @@
     "install-client": "cd client && npm install",
     "install-all": "npm run install-server && npm run install-client",
     "start": "node server/server.js",
+    "check-server": "node check-server.js",
     "heroku-postbuild": "npm run install-all && npm run build",
-    "render-postbuild": "npm run install-client && npm run build"
+    "render-postbuild": "npm run install-client && npm run build",
+    "test": "playwright test --project=chromium",
+    "test:all": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report",
+    "test:chromium": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:mobile": "playwright test --project=mobile-chrome",
+    "test:debug": "playwright test --debug",
+    "test:failed": "playwright test --last-failed"
   },
   "keywords": [
     "mern",
@@ -29,6 +41,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "concurrently": "^8.2.2"
   },
   "engines": {

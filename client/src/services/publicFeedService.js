@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { getApiURL } from '../utils/apiConfig';
+import { getBaseURL } from '../utils/apiConfig';
 
-const API_URL = getApiURL();
+const API_URL = getBaseURL();
 
 // Create axios instance with default config
 const api = axios.create({
@@ -91,6 +91,34 @@ export const publicFeedService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching trending complaints:', error);
+      throw error;
+    }
+  },
+
+  // Add comment to complaint
+  addComment: async (id, text, isAnonymous = false) => {
+    try {
+      const response = await api.post(`/public-feed/${id}/comment`, {
+        text,
+        isAnonymous
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      throw error;
+    }
+  },
+
+  // Rate completed work
+  rateWork: async (id, rating, comment = '') => {
+    try {
+      const response = await api.post(`/public-feed/${id}/rate`, {
+        rating,
+        comment
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error rating work:', error);
       throw error;
     }
   }

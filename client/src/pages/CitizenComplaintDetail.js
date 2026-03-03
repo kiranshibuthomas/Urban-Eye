@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getBaseURL } from '../utils/apiConfig';
+import { getUploadURL } from '../utils/apiConfig';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -326,7 +326,7 @@ const CitizenComplaintDetail = () => {
                       onClick={() => setSelectedImage(image)}
                     >
                       <img
-                        src={`${getBaseURL()}${image.url}`}
+                        src={getUploadURL(image.url)}
                         alt={`Complaint image ${index + 1}`}
                         className="w-full h-20 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -374,7 +374,7 @@ const CitizenComplaintDetail = () => {
                       onClick={() => setSelectedImage(image)}
                     >
                       <img
-                        src={`${getBaseURL()}${image.url}`}
+                        src={getUploadURL(image.url)}
                         alt={`Proof image ${index + 1}`}
                         className="w-full h-20 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -665,7 +665,7 @@ const CitizenComplaintDetail = () => {
             </button>
             <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src={`${getBaseURL()}${selectedImage.url}`}
+                src={getUploadURL(selectedImage.url)}
                 alt="Complaint image"
                 className="max-w-full max-h-[80vh] object-contain"
               />

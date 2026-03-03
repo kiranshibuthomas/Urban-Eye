@@ -2,7 +2,7 @@ const express = require('express');
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
-const upload = require('../middleware/upload');
+const { complaintUpload } = require('../services/cloudinaryService');
 const { sendWorkCompletedEmail } = require('../services/emailService');
 
 const router = express.Router();
@@ -197,8 +197,7 @@ router.put('/complaints/:id/update-status', async (req, res) => {
     const complaintId = req.params.id;
     const { status, notes } = req.body;
 
-    // Field staff update status request
-
+    // Validate status transition
     const validStatuses = ['in_progress'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
@@ -213,8 +212,6 @@ router.put('/complaints/:id/update-status', async (req, res) => {
       isDeleted: false
     });
 
-    // Found complaint
-
     if (!complaint) {
       return res.status(404).json({
         success: false,
@@ -222,39 +219,34 @@ router.put('/complaints/:id/update-status', async (req, res) => {
       });
     }
 
-    // Check if complaint is in assigned or in_progress status
-    if (!['assigned', 'in_progress'].includes(complaint.status)) {
+    // Strict status transition validation
+    if (complaint.status !== 'assigned') {
       return res.status(400).json({
         success: false,
-        message: `Can only update progress on assigned or in-progress complaints. Current status: ${complaint.status}`
+        message: `Cannot start work on complaint with status: ${complaint.status}. Only assigned complaints can be started.`
       });
     }
 
-    // Update status only if not already in progress
-    if (complaint.status !== 'in_progress') {
-      complaint.status = status;
-    }
+    // Update status to in_progress
+    complaint.status = status;
+    complaint.workStartedAt = new Date(); // Track when work actually started
     complaint.lastUpdated = new Date();
 
     // Add notes if provided
     if (notes && notes.trim()) {
-      try {
-        complaint.adminNotes.push({
-          note: notes.trim(),
-          addedBy: fieldStaffId,
-          addedAt: new Date()
-        });
-      } catch (noteError) {
-        console.error('Error adding note:', noteError);
-        // Continue without failing the entire operation
-      }
+      complaint.adminNotes = complaint.adminNotes || [];
+      complaint.adminNotes.push({
+        note: `Work started: ${notes.trim()}`,
+        addedBy: fieldStaffId,
+        addedAt: new Date()
+      });
     }
 
     await complaint.save();
 
     res.json({
       success: true,
-      message: 'Complaint status updated successfully',
+      message: 'Work started successfully. Status updated to in progress.',
       complaint
     });
 
@@ -332,7 +324,7 @@ router.put('/complaints/:id/update-progress', async (req, res) => {
 // @route   POST /api/field-staff/complaints/:id/complete-work
 // @desc    Mark work as completed and upload proof
 // @access  Private (Field Staff only)
-router.post('/complaints/:id/complete-work', upload.array('proofImages', 5), async (req, res) => {
+router.post('/complaints/:id/complete-work', complaintUpload.array('proofImages', 5), async (req, res) => {
   try {
     const fieldStaffId = req.user._id;
     const complaintId = req.params.id;
@@ -345,12 +337,32 @@ router.post('/complaints/:id/complete-work', upload.array('proofImages', 5), asy
       });
     }
 
-    // Check if proof images are provided
+    // Validate proof images more thoroughly
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Proof images are mandatory for work completion'
+        message: 'Proof images are mandatory for work completion. Please upload at least one image showing the completed work.'
       });
+    }
+
+    // Validate file types and sizes
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const maxFileSize = 10 * 1024 * 1024; // 10MB
+    
+    for (const file of req.files) {
+      if (!validImageTypes.includes(file.mimetype)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid file type: ${file.originalname}. Only JPEG, PNG, and WebP images are allowed.`
+        });
+      }
+      
+      if (file.size > maxFileSize) {
+        return res.status(400).json({
+          success: false,
+          message: `File too large: ${file.originalname}. Maximum size is 10MB.`
+        });
+      }
     }
 
     const complaint = await Complaint.findOne({
@@ -379,9 +391,10 @@ router.post('/complaints/:id/complete-work', upload.array('proofImages', 5), asy
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         proofImages.push({
-          url: `/uploads/complaints/${file.filename}`,
-          filename: file.filename,
+          url: file.path, // Cloudinary URL
+          filename: file.filename || file.public_id,
           originalName: file.originalname,
+          publicId: file.public_id, // Store for deletion
           uploadedAt: new Date()
         });
       }
@@ -444,6 +457,604 @@ router.get('/profile', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error while fetching profile'
+    });
+  }
+});
+
+// @route   POST /api/field-staff/complaints/:id/escalate
+// @desc    Escalate complaint when field staff needs help
+// @access  Private (Field Staff only)
+router.post('/complaints/:id/escalate', async (req, res) => {
+  try {
+    const fieldStaffId = req.user._id;
+    const complaintId = req.params.id;
+    const { reason, description } = req.body;
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Escalation reason is required'
+      });
+    }
+
+    const complaint = await Complaint.findOne({
+      _id: complaintId,
+      assignedToFieldStaff: fieldStaffId,
+      isDeleted: false
+    });
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found or not assigned to you'
+      });
+    }
+
+    // Can only escalate assigned or in-progress complaints
+    if (!['assigned', 'in_progress'].includes(complaint.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only escalate assigned or in-progress complaints'
+      });
+    }
+
+    // Add escalation note
+    complaint.adminNotes = complaint.adminNotes || [];
+    complaint.adminNotes.push({
+      note: `ESCALATION: ${reason.trim()}${description ? ` - ${description.trim()}` : ''}`,
+      addedBy: fieldStaffId,
+      addedAt: new Date(),
+      isEscalation: true
+    });
+
+    // Mark as escalated
+    complaint.isEscalated = true;
+    complaint.escalatedAt = new Date();
+    complaint.escalatedBy = fieldStaffId;
+    complaint.escalationReason = reason.trim();
+    complaint.lastUpdated = new Date();
+
+    await complaint.save();
+
+    // Send escalation email to admins
+    try {
+      const admins = await User.find({ 
+        role: 'admin', 
+        isActive: true 
+      }).select('name email');
+      
+      const fieldStaff = await User.findById(fieldStaffId);
+      const { sendFieldStaffEscalationEmail } = require('../services/emailService');
+      
+      for (const admin of admins) {
+        await sendFieldStaffEscalationEmail(admin, complaint, reason.trim());
+      }
+    } catch (emailError) {
+      console.error('Failed to send escalation emails:', emailError);
+    }
+
+    res.json({
+      success: true,
+      message: 'Complaint escalated successfully. Admin team has been notified.',
+      complaint
+    });
+
+  } catch (error) {
+    console.error('Escalate complaint error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while escalating complaint'
+    });
+  }
+});
+
+// @route   PUT /api/field-staff/availability
+// @desc    Update field staff availability status
+// @access  Private (Field Staff only)
+router.put('/availability', async (req, res) => {
+  try {
+    const fieldStaffId = req.user._id;
+    const { isAvailable, reason } = req.body;
+
+    if (typeof isAvailable !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'isAvailable must be a boolean value'
+      });
+    }
+
+    const fieldStaff = await User.findById(fieldStaffId);
+    
+    if (!fieldStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Field staff not found'
+      });
+    }
+
+    fieldStaff.isAvailable = isAvailable;
+    fieldStaff.lastLocationUpdate = new Date();
+    
+    if (reason && reason.trim()) {
+      // Log availability change
+      console.log(`Field staff ${fieldStaff.name} availability changed to ${isAvailable ? 'available' : 'unavailable'}: ${reason.trim()}`);
+    }
+
+    await fieldStaff.save();
+
+    res.json({
+      success: true,
+      message: `Availability updated to ${isAvailable ? 'available' : 'unavailable'}`,
+      isAvailable: fieldStaff.isAvailable
+    });
+
+  } catch (error) {
+    console.error('Update availability error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating availability'
+    });
+  }
+});
+
+// @route   PUT /api/field-staff/location
+// @desc    Update field staff current location
+// @access  Private (Field Staff only)
+router.put('/location', async (req, res) => {
+  try {
+    const fieldStaffId = req.user._id;
+    const { latitude, longitude } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude and longitude are required'
+      });
+    }
+
+    // Validate coordinates
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid coordinates'
+      });
+    }
+
+    const fieldStaff = await User.findById(fieldStaffId);
+    
+    if (!fieldStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Field staff not found'
+      });
+    }
+
+    fieldStaff.currentLocation = {
+      type: 'Point',
+      coordinates: [longitude, latitude]
+    };
+    fieldStaff.lastLocationUpdate = new Date();
+
+    await fieldStaff.save();
+
+    res.json({
+      success: true,
+      message: 'Location updated successfully',
+      location: fieldStaff.currentLocation,
+      lastUpdate: fieldStaff.lastLocationUpdate
+    });
+
+  } catch (error) {
+    console.error('Update location error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating location'
+    });
+  }
+});
+
+// @route   POST /api/field-staff/complaints/:id/check-in
+// @desc    Check in at complaint location
+// @access  Private (Field Staff only)
+router.post('/complaints/:id/check-in', async (req, res) => {
+  try {
+    const fieldStaffId = req.user._id;
+    const complaintId = req.params.id;
+    const { latitude, longitude, notes } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current location (latitude and longitude) is required for check-in'
+      });
+    }
+
+    // Validate coordinates
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid coordinates'
+      });
+    }
+
+    const complaint = await Complaint.findOne({
+      _id: complaintId,
+      assignedToFieldStaff: fieldStaffId,
+      isDeleted: false
+    });
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found or not assigned to you'
+      });
+    }
+
+    // Check if complaint is in correct status for check-in
+    if (!['assigned', 'in_progress'].includes(complaint.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot check in for complaint with status: ${complaint.status}`
+      });
+    }
+
+    try {
+      const location = {
+        type: 'Point',
+        coordinates: [longitude, latitude]
+      };
+
+      const { distance, isValidLocation } = complaint.checkInFieldStaff(fieldStaffId, location, notes);
+      await complaint.save();
+
+      // Update field staff location
+      const fieldStaff = await User.findById(fieldStaffId);
+      fieldStaff.currentLocation = location;
+      fieldStaff.lastLocationUpdate = new Date();
+      await fieldStaff.save();
+
+      res.json({
+        success: true,
+        message: isValidLocation 
+          ? 'Successfully checked in at complaint location' 
+          : `Checked in, but you are ${Math.round(distance)}m away from the complaint location (allowed: ${complaint.allowedWorkRadius}m)`,
+        checkIn: {
+          distance: Math.round(distance),
+          isValidLocation,
+          allowedRadius: complaint.allowedWorkRadius,
+          checkInTime: new Date()
+        }
+      });
+
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+  } catch (error) {
+    console.error('Check-in error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during check-in'
+    });
+  }
+});
+
+// @route   POST /api/field-staff/complaints/:id/check-out
+// @desc    Check out from complaint location
+// @access  Private (Field Staff only)
+router.post('/complaints/:id/check-out', async (req, res) => {
+  try {
+    const fieldStaffId = req.user._id;
+    const complaintId = req.params.id;
+    const { latitude, longitude, notes } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current location (latitude and longitude) is required for check-out'
+      });
+    }
+
+    const complaint = await Complaint.findOne({
+      _id: complaintId,
+      assignedToFieldStaff: fieldStaffId,
+      isDeleted: false
+    });
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found or not assigned to you'
+      });
+    }
+
+    try {
+      const location = {
+        type: 'Point',
+        coordinates: [longitude, latitude]
+      };
+
+      await complaint.checkOutFieldStaff(fieldStaffId, location, notes);
+
+      res.json({
+        success: true,
+        message: 'Successfully checked out from complaint location',
+        checkOut: {
+          checkOutTime: new Date(),
+          notes: notes || ''
+        }
+      });
+
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+  } catch (error) {
+    console.error('Check-out error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during check-out'
+    });
+  }
+});
+
+// @route   POST /api/field-staff/complaints/:id/pause-task
+// @desc    Pause current task with reason
+// @access  Private (Field Staff only)
+router.post('/complaints/:id/pause-task', async (req, res) => {
+  try {
+    const fieldStaffId = req.user._id;
+    const complaintId = req.params.id;
+    const { reason, latitude, longitude } = req.body;
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reason for pausing task is required'
+      });
+    }
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current location is required'
+      });
+    }
+
+    const complaint = await Complaint.findOne({
+      _id: complaintId,
+      assignedToFieldStaff: fieldStaffId,
+      isDeleted: false
+    });
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found or not assigned to you'
+      });
+    }
+
+    try {
+      const location = {
+        type: 'Point',
+        coordinates: [longitude, latitude]
+      };
+
+      await complaint.pauseTask(fieldStaffId, reason.trim(), location);
+
+      res.json({
+        success: true,
+        message: 'Task paused successfully',
+        pause: {
+          reason: reason.trim(),
+          pausedAt: new Date(),
+          status: 'paused'
+        }
+      });
+
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+  } catch (error) {
+    console.error('Pause task error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while pausing task'
+    });
+  }
+});
+
+// @route   POST /api/field-staff/complaints/:id/resume-task
+// @desc    Resume paused task
+// @access  Private (Field Staff only)
+router.post('/complaints/:id/resume-task', async (req, res) => {
+  try {
+    const fieldStaffId = req.user._id;
+    const complaintId = req.params.id;
+    const { latitude, longitude } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current location is required'
+      });
+    }
+
+    const complaint = await Complaint.findOne({
+      _id: complaintId,
+      assignedToFieldStaff: fieldStaffId,
+      isDeleted: false
+    });
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found or not assigned to you'
+      });
+    }
+
+    try {
+      const location = {
+        type: 'Point',
+        coordinates: [longitude, latitude]
+      };
+
+      await complaint.resumeTask(fieldStaffId, location);
+
+      res.json({
+        success: true,
+        message: 'Task resumed successfully',
+        resume: {
+          resumedAt: new Date(),
+          status: 'in_progress'
+        }
+      });
+
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+  } catch (error) {
+    console.error('Resume task error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while resuming task'
+    });
+  }
+});
+
+// @route   GET /api/field-staff/complaints/:id/location-status
+// @desc    Get current location and check-in status for complaint
+// @access  Private (Field Staff only)
+router.get('/complaints/:id/location-status', async (req, res) => {
+  try {
+    const fieldStaffId = req.user._id;
+    const complaintId = req.params.id;
+
+    const complaint = await Complaint.findOne({
+      _id: complaintId,
+      assignedToFieldStaff: fieldStaffId,
+      isDeleted: false
+    });
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found or not assigned to you'
+      });
+    }
+
+    const checkInStatus = complaint.getCurrentCheckInStatus(fieldStaffId);
+    
+    res.json({
+      success: true,
+      locationStatus: {
+        complaintLocation: complaint.location,
+        allowedRadius: complaint.allowedWorkRadius,
+        currentTaskStatus: complaint.currentTaskStatus,
+        ...checkInStatus,
+        recentCheckIns: complaint.fieldStaffCheckIns
+          .filter(checkIn => checkIn.fieldStaff.toString() === fieldStaffId.toString())
+          .slice(-5) // Last 5 check-ins
+          .sort((a, b) => new Date(b.checkInTime) - new Date(a.checkInTime)),
+        recentPauses: complaint.taskPauses
+          .slice(-3) // Last 3 pauses
+          .sort((a, b) => new Date(b.pausedAt) - new Date(a.pausedAt))
+      }
+    });
+
+  } catch (error) {
+    console.error('Get location status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching location status'
+    });
+  }
+});
+
+// @route   GET /api/field-staff/work-logs
+// @desc    Get detailed work logs for field staff
+// @access  Private (Field Staff only)
+router.get('/work-logs', async (req, res) => {
+  try {
+    const fieldStaffId = req.user._id;
+    const { startDate, endDate, complaintId } = req.query;
+
+    const filter = {
+      assignedToFieldStaff: fieldStaffId,
+      isDeleted: false
+    };
+
+    if (complaintId) {
+      filter._id = complaintId;
+    }
+
+    if (startDate || endDate) {
+      filter.fieldStaffAssignedAt = {};
+      if (startDate) filter.fieldStaffAssignedAt.$gte = new Date(startDate);
+      if (endDate) filter.fieldStaffAssignedAt.$lte = new Date(endDate);
+    }
+
+    const complaints = await Complaint.find(filter)
+      .populate('citizen', 'name email')
+      .sort({ fieldStaffAssignedAt: -1 });
+
+    const workLogs = complaints.map(complaint => {
+      const checkIns = complaint.fieldStaffCheckIns.filter(
+        checkIn => checkIn.fieldStaff.toString() === fieldStaffId.toString()
+      );
+      
+      const totalWorkTime = checkIns.reduce((total, checkIn) => {
+        if (checkIn.checkOutTime) {
+          return total + (new Date(checkIn.checkOutTime) - new Date(checkIn.checkInTime));
+        }
+        return total;
+      }, 0);
+
+      return {
+        complaintId: complaint._id,
+        title: complaint.title,
+        status: complaint.status,
+        currentTaskStatus: complaint.currentTaskStatus,
+        assignedAt: complaint.fieldStaffAssignedAt,
+        totalCheckIns: checkIns.length,
+        totalPauses: complaint.taskPauses.length,
+        totalWorkTimeMs: totalWorkTime,
+        totalWorkTimeHours: Math.round(totalWorkTime / (1000 * 60 * 60) * 100) / 100,
+        checkIns: checkIns.sort((a, b) => new Date(b.checkInTime) - new Date(a.checkInTime)),
+        pauses: complaint.taskPauses.sort((a, b) => new Date(b.pausedAt) - new Date(a.pausedAt))
+      };
+    });
+
+    res.json({
+      success: true,
+      workLogs,
+      summary: {
+        totalComplaints: workLogs.length,
+        totalCheckIns: workLogs.reduce((sum, log) => sum + log.totalCheckIns, 0),
+        totalPauses: workLogs.reduce((sum, log) => sum + log.totalPauses, 0),
+        totalWorkHours: Math.round(workLogs.reduce((sum, log) => sum + log.totalWorkTimeHours, 0) * 100) / 100
+      }
+    });
+
+  } catch (error) {
+    console.error('Get work logs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching work logs'
     });
   }
 });

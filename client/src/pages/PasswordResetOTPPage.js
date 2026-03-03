@@ -97,7 +97,7 @@ const PasswordResetOTPPage = () => {
     setError('');
 
     try {
-      const response = await fetch(`${getApiURL()}/auth/verify-password-reset-otp`, {
+      const response = await fetch(`${getApiURL('auth/verify-password-reset-otp')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,7 +134,7 @@ const PasswordResetOTPPage = () => {
     setError('');
 
     try {
-      const response = await fetch(`${getApiURL()}/auth/forgot-password`, {
+      const response = await fetch(`${getApiURL('auth/forgot-password')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { customToast } from '../utils/customToast';
-import { getApiURL } from '../utils/apiConfig';
 
 // Initial state
 const initialState = {
@@ -76,7 +75,7 @@ const authReducer = (state, action) => {
 const AuthContext = createContext();
 
 // Configure axios defaults
-axios.defaults.baseURL = getApiURL();
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 axios.defaults.withCredentials = true;
 
 // Auth Provider
@@ -173,7 +172,9 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Try to verify authentication with backend (works with both token and cookie)
-      const response = await axios.get('/auth/me');
+      const response = await axios.get('/auth/me', {
+        timeout: 5000 // 5 second timeout
+      });
       
       if (response.data.success) {
         // If we don't have a token in localStorage but the request succeeded,
@@ -205,12 +206,36 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Invalid authentication');
       }
     } catch (error) {
+      // Check if it's a network error (server not running)
+      if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED' || error.message === 'Network Error') {
+        console.error('⚠️ Backend server is not running or not accessible');
+        console.error('Please ensure the server is running on port 5000');
+        console.error('Run: npm run dev (or) cd server && npm start');
+        
+        // Don't clear auth state on network errors - user might still be logged in
+        // Just set loading to false
+        dispatch({ type: AuthActionTypes.SET_LOADING, payload: false });
+        
+        // Show user-friendly error only once
+        if (!sessionStorage.getItem('server_error_shown')) {
+          customToast.error('Cannot connect to server. Please check if the backend is running.', {
+            duration: 5000
+          });
+          sessionStorage.setItem('server_error_shown', 'true');
+        }
+        return;
+      }
+      
+      // For other errors (401, 403, etc.), clear authentication
       console.error('Auth check failed:', error.response?.data || error.message);
       
       // Clear authentication state
       localStorage.removeItem('token');
       delete axios.defaults.headers.common['Authorization'];
       dispatch({ type: AuthActionTypes.LOGOUT });
+      
+      // Clear the server error flag
+      sessionStorage.removeItem('server_error_shown');
     }
   };
 
@@ -219,7 +244,9 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: AuthActionTypes.SET_LOADING, payload: true });
       dispatch({ type: AuthActionTypes.CLEAR_ERROR });
 
-      const response = await axios.post('/auth/login', credentials);
+      const response = await axios.post('/auth/login', credentials, {
+        timeout: 10000 // 10 second timeout for login
+      });
       
       if (response.data.success) {
         const { token, user } = response.data;
@@ -235,6 +262,9 @@ export const AuthProvider = ({ children }) => {
           type: AuthActionTypes.LOGIN_SUCCESS,
           payload: { user, token }
         });
+
+        // Clear server error flag on successful login
+        sessionStorage.removeItem('server_error_shown');
 
         // Only show login success message if it's not an OAuth login
         // OAuth logins will show their own message via OAuthHandler
@@ -252,6 +282,14 @@ export const AuthProvider = ({ children }) => {
       // Clear any existing token on login failure
       localStorage.removeItem('token');
       delete axios.defaults.headers.common['Authorization'];
+      
+      // Check for network errors
+      if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED' || error.message === 'Network Error') {
+        const message = 'Cannot connect to server. Please ensure the backend is running.';
+        dispatch({ type: AuthActionTypes.SET_ERROR, payload: message });
+        customToast.error(message, { duration: 5000 });
+        return { success: false, error: message, networkError: true };
+      }
       
       const message = error.response?.data?.message || 'Login failed';
       dispatch({ type: AuthActionTypes.SET_ERROR, payload: message });

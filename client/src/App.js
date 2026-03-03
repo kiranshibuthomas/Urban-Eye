@@ -7,6 +7,8 @@ import { SessionProvider } from './context/SessionContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoadingSpinner from './components/LoadingSpinner';
 import OAuthHandler from './components/OAuthHandler';
+import SessionTimeoutWarning from './components/SessionTimeoutWarning';
+import ServerStatusBanner from './components/ServerStatusBanner';
 import useLanguageStyles from './hooks/useLanguageStyles';
 
 // Lazy load pages for better performance and code splitting
@@ -21,8 +23,9 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminComplaintManagement = lazy(() => import('./pages/AdminComplaintManagement'));
 const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
 const GeofenceConfigPage = lazy(() => import('./pages/GeofenceConfigPage'));
-const FieldStaffDashboard = lazy(() => import('./pages/FieldStaffDashboard'));
+const FieldStaffDashboard = lazy(() => import('./pages/ProfessionalFieldStaffDashboard'));
 const FieldStaffManagement = lazy(() => import('./pages/FieldStaffManagement'));
+const AdminFieldWorkReview = lazy(() => import('./pages/ComprehensiveAdminWorkReview'));
 const ReportIssue = lazy(() => import('./pages/ReportIssue'));
 const ReportsHistory = lazy(() => import('./pages/ReportsHistory'));
 const ComplaintDetail = lazy(() => import('./pages/ComplaintDetail'));
@@ -38,6 +41,8 @@ const FundraisingCampaigns = lazy(() => import('./pages/FundraisingCampaigns'));
 const CampaignDetail = lazy(() => import('./pages/CampaignDetail'));
 const AdminFundraisingManagement = lazy(() => import('./pages/AdminFundraisingManagement'));
 const MyDonations = lazy(() => import('./pages/MyDonations'));
+const AnalyticsDashboard = lazy(() => import('./pages/AnalyticsDashboard'));
+const AdminLiveTeamTracking = lazy(() => import('./pages/AdminLiveTeamTracking'));
 
 // Component to handle role-based default redirects
 const DefaultRedirect = () => {
@@ -64,9 +69,6 @@ const DefaultRedirect = () => {
       redirectPath = '/citizen-dashboard';
   }
   
-  // Debug logging
-  console.log('DefaultRedirect:', { userRole: user?.role, redirectPath });
-  
   return <Navigate to={redirectPath} replace />;
 };
 
@@ -79,6 +81,7 @@ function AppRoutes() {
 
   return (
     <>
+      <ServerStatusBanner />
       <OAuthHandler />
       <Suspense fallback={<LoadingSpinner message="Loading page..." />}>
         <Routes>
@@ -142,6 +145,14 @@ function AppRoutes() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/analytics" 
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AnalyticsDashboard />
+              </ProtectedRoute>
+            } 
+          />
         
         {/* Protected routes */}
         <Route 
@@ -197,6 +208,22 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredRole="admin">
               <FieldStaffManagement />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/field-work-review" 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminFieldWorkReview />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/live-teams" 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLiveTeamTracking />
             </ProtectedRoute>
           } 
         />
@@ -312,6 +339,9 @@ function App() {
                   },
                 }}
               />
+              
+              {/* Session timeout warning modal */}
+              <SessionTimeoutWarning />
               
               <AppRoutes />
             </SessionProvider>

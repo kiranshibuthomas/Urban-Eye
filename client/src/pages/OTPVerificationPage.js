@@ -122,7 +122,7 @@ const OTPVerificationPage = () => {
     setError('');
 
     try {
-      const response = await fetch(`${getApiURL()}/auth/send-otp`, {
+      const response = await fetch(`${getApiURL('auth/send-otp')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

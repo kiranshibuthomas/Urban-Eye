@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, useMap, Marker, Popup } from 'react-leaflet';
 import { Icon } from 'leaflet';
 import L from 'leaflet';
+import 'leaflet.heat';
 import { 
   FiFilter, 
   FiRefreshCw, 
@@ -24,8 +25,141 @@ Icon.Default.mergeOptions({
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
+// Kanjirapally panchayath coordinates and boundary
+const KANJIRAPALLY_CENTER = [9.5595, 76.7874];
+const KANJIRAPALLY_BOUNDARY = [
+  [9.7215, 76.7874],  // North
+  [9.6740, 76.9034],  // Northeast
+  [9.5595, 76.9514],  // East
+  [9.4450, 76.9034],  // Southeast
+  [9.3975, 76.7874],  // South
+  [9.4450, 76.6714],  // Southwest
+  [9.5595, 76.6234],  // West
+  [9.6740, 76.6714],  // Northwest
+];
+
+// Heatmap layer component
+const HeatmapLayer = ({ data, showHeatmap }) => {
+  const map = useMap();
+  const heatLayerRef = useRef(null);
+
+  useEffect(() => {
+    if (!map || !showHeatmap) {
+      // Remove existing heat layer
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current);
+        heatLayerRef.current = null;
+      }
+      return;
+    }
+
+    // Remove existing heat layer
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current);
+    }
+
+    if (data.length > 0) {
+      // Convert data to heat layer format [lat, lng, intensity]
+      const heatData = data.map(point => {
+        const intensity = Math.max(point.intensity || 0.5, 0.3); // Ensure minimum visibility
+        return [point.lat, point.lng, intensity];
+      });
+
+      // Create heat layer with enhanced options for prominent red cloud effect
+      heatLayerRef.current = L.heatLayer(heatData, {
+        radius: 50,           // Larger radius for more prominent cloud effect
+        blur: 35,             // More blur for softer, cloud-like edges
+        maxZoom: 18,          // Max zoom level
+        max: 1.0,             // Maximum intensity
+        minOpacity: 0.4,      // Higher minimum opacity for better visibility
+        gradient: {           // Red-focused gradient for complaint hotspots
+          0.0: 'rgba(0, 0, 255, 0.1)',      // Very light blue for minimal activity
+          0.1: 'rgba(0, 255, 255, 0.3)',    // Light cyan
+          0.2: 'rgba(0, 255, 0, 0.4)',      // Light green
+          0.4: 'rgba(255, 255, 0, 0.6)',    // Yellow
+          0.6: 'rgba(255, 165, 0, 0.7)',    // Orange
+          0.8: 'rgba(255, 0, 0, 0.8)',      // Red
+          1.0: 'rgba(139, 0, 0, 0.9)'       // Dark red for highest intensity
+        }
+      });
+
+      heatLayerRef.current.addTo(map);
+    } else {
+      // No data points for heat layer
+    }
+
+    return () => {
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current);
+      }
+    };
+  }, [map, data, showHeatmap]);
+
+  return null;
+};
+
+// Boundary overlay component
+const BoundaryOverlay = ({ showBoundary }) => {
+  const map = useMap();
+  const boundaryRef = useRef(null);
+
+  useEffect(() => {
+    if (!map) return;
+
+    // Remove existing boundary
+    if (boundaryRef.current) {
+      map.removeLayer(boundaryRef.current);
+      boundaryRef.current = null;
+    }
+
+    if (showBoundary) {
+      // Create boundary polygon
+      boundaryRef.current = L.polygon(KANJIRAPALLY_BOUNDARY, {
+        color: '#3B82F6',
+        weight: 3,
+        opacity: 0.8,
+        fillColor: '#3B82F6',
+        fillOpacity: 0.1,
+        dashArray: '10, 10'
+      }).addTo(map);
+
+      // Add popup to boundary
+      boundaryRef.current.bindPopup(`
+        <div class="p-2">
+          <h3 class="font-semibold text-gray-900 mb-1">Kanjirapally Panchayath</h3>
+          <p class="text-sm text-gray-600">Service Area Boundary</p>
+          <p class="text-xs text-gray-500 mt-1">Complaints are accepted within this area</p>
+        </div>
+      `);
+    }
+
+    return () => {
+      if (boundaryRef.current) {
+        map.removeLayer(boundaryRef.current);
+      }
+    };
+  }, [map, showBoundary]);
+
+  return null;
+};
+
+// Map controller to set initial view
+const MapController = ({ center, zoom }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (map && center) {
+      map.setView(center, zoom);
+    }
+  }, [map, center, zoom]);
+
+  return null;
+};
+
 // Complaint markers component
-const ComplaintMarkers = ({ data }) => {
+const ComplaintMarkers = ({ data, showMarkers }) => {
+  if (!showMarkers) return null;
+
   const getMarkerColor = (priority) => {
     switch (priority) {
       case 'urgent': return '#dc2626'; // red
@@ -161,18 +295,10 @@ const FilterPanel = ({ filters, onFiltersChange, onApplyFilters, onResetFilters,
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">All Categories</option>
-            <option value="road_issues">Road Issues</option>
+            <option value="public_works">Public Works</option>
             <option value="water_supply">Water Supply</option>
+            <option value="sanitation">Sanitation</option>
             <option value="electricity">Electricity</option>
-            <option value="waste_management">Waste Management</option>
-            <option value="public_transport">Public Transport</option>
-            <option value="parks_recreation">Parks & Recreation</option>
-            <option value="street_lighting">Street Lighting</option>
-            <option value="drainage">Drainage</option>
-            <option value="noise_pollution">Noise Pollution</option>
-            <option value="air_pollution">Air Pollution</option>
-            <option value="safety_security">Safety & Security</option>
-            <option value="other">Other</option>
           </select>
         </div>
 
@@ -370,7 +496,7 @@ const ComplaintHeatmap = () => {
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     category: '',
-    status: '',
+    status: '', // Default to show all unresolved complaints
     priority: '',
     startDate: '',
     endDate: '',
@@ -378,11 +504,14 @@ const ComplaintHeatmap = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [showStatistics, setShowStatistics] = useState(false);
-  const [mapCenter, setMapCenter] = useState([9.5916, 76.5222]); // Kanjirapally coordinates
+  const [showHeatmap, setShowHeatmap] = useState(true);
+  const [showMarkers, setShowMarkers] = useState(false);
+  const [showBoundary, setShowBoundary] = useState(true);
+  const [mapCenter, setMapCenter] = useState(KANJIRAPALLY_CENTER);
   const [mapZoom, setMapZoom] = useState(13);
 
   // Load heatmap data
-  const loadHeatmapData = async () => {
+  const loadHeatmapData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -390,11 +519,18 @@ const ComplaintHeatmap = () => {
       const token = localStorage.getItem('token');
       
       const queryParams = new URLSearchParams();
+      
+      // Add filters, but ensure we're getting unresolved complaints by default
       Object.entries(filters).forEach(([key, value]) => {
         if (value && value !== '') {
           queryParams.append(key, value);
         }
       });
+      
+      // If no status filter is set, exclude resolved complaints
+      if (!filters.status) {
+        queryParams.append('excludeResolved', 'true');
+      }
 
       const url = `/api/complaints/heatmap-data?${queryParams}`;
 
@@ -413,33 +549,43 @@ const ComplaintHeatmap = () => {
       const result = await response.json();
       
       if (result.success) {
-        console.log('Heatmap data loaded:', result.data.heatmapData.length, 'points');
         setHeatmapData(result.data.heatmapData);
         setStatistics(result.data.statistics);
         
-        // Update map center if we have data
+        // Always center on Kanjirapally, but adjust zoom based on data spread
+        setMapCenter(KANJIRAPALLY_CENTER);
+        
         if (result.data.heatmapData.length > 0) {
-          const avgLat = result.data.heatmapData.reduce((sum, point) => sum + point.lat, 0) / result.data.heatmapData.length;
-          const avgLng = result.data.heatmapData.reduce((sum, point) => sum + point.lng, 0) / result.data.heatmapData.length;
-          console.log('Setting map center to:', avgLat, avgLng);
-          setMapCenter([avgLat, avgLng]);
+          // Calculate data spread to determine appropriate zoom level
+          const lats = result.data.heatmapData.map(p => p.lat);
+          const lngs = result.data.heatmapData.map(p => p.lng);
+          const latRange = Math.max(...lats) - Math.min(...lats);
+          const lngRange = Math.max(...lngs) - Math.min(...lngs);
+          const maxRange = Math.max(latRange, lngRange);
+          
+          // Adjust zoom based on data spread
+          let zoom = 13;
+          if (maxRange > 0.1) zoom = 11;
+          else if (maxRange > 0.05) zoom = 12;
+          else if (maxRange < 0.01) zoom = 15;
+          
+          setMapZoom(zoom);
         }
       } else {
         throw new Error(result.message || 'Failed to load heatmap data');
       }
     } catch (err) {
-      console.error('Error loading heatmap data:', err);
       setError(err.message);
       toast.error('Failed to load heatmap data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   // Load data on component mount and when filters change
   useEffect(() => {
     loadHeatmapData();
-  }, []);
+  }, [loadHeatmapData]);
 
   // Force map re-render when data changes
   useEffect(() => {
@@ -494,110 +640,154 @@ const ComplaintHeatmap = () => {
     toast.success('Heatmap data exported successfully');
   };
 
-  console.log('ComplaintHeatmap render - heatmapData length:', heatmapData.length, 'loading:', loading, 'error:', error);
-
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+    <div className="fixed inset-0 z-50 bg-white">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between p-2 border-b border-gray-200 bg-white h-16">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Complaint Map</h2>
-          <p className="text-sm text-gray-600">Visualize complaint locations and priorities across the panchayath</p>
+          <h2 className="text-lg font-semibold text-gray-900">Complaint Heatmap</h2>
+          <p className="text-xs text-gray-600">Unresolved complaints across Kanjirapally panchayath</p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1">
           <button
             onClick={() => setShowStatistics(!showStatistics)}
-            className="flex items-center px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+            className="flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors duration-200"
           >
-            <FiInfo className="h-4 w-4 mr-2" />
-            Statistics
+            <FiInfo className="h-3 w-3 mr-1" />
+            Stats
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200"
+            className="flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors duration-200"
           >
-            <FiFilter className="h-4 w-4 mr-2" />
-            Filters
+            <FiFilter className="h-3 w-3 mr-1" />
+            Filter
           </button>
           <button
             onClick={handleRefresh}
             disabled={loading}
-            className="flex items-center px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors duration-200 disabled:opacity-50"
+            className="flex items-center px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors duration-200 disabled:opacity-50"
           >
-            <FiRefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <FiRefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
           <button
             onClick={handleExportData}
             disabled={heatmapData.length === 0}
-            className="flex items-center px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors duration-200 disabled:opacity-50"
+            className="flex items-center px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors duration-200 disabled:opacity-50"
           >
-            <FiDownload className="h-4 w-4 mr-2" />
+            <FiDownload className="h-3 w-3 mr-1" />
             Export
+          </button>
+          <button
+            onClick={() => window.history.back()}
+            className="flex items-center px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors duration-200"
+          >
+            <FiX className="h-3 w-3 mr-1" />
+            Close
           </button>
         </div>
       </div>
 
-      {/* Map Container */}
-      <div className="flex-1 relative">
+      {/* Full Screen Map Container */}
+      <div className="relative" style={{ height: 'calc(100vh - 4rem)' }}>
         {error && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-red-50 border border-red-200 rounded-lg p-4 max-w-md">
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
             <div className="flex items-center">
-              <FiAlertCircle className="h-5 w-5 text-red-600 mr-2" />
-              <p className="text-red-800">{error}</p>
+              <FiAlertCircle className="h-4 w-4 text-red-600 mr-2" />
+              <p className="text-red-800 text-sm">{error}</p>
             </div>
           </div>
         )}
 
         {loading && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-blue-50 border border-blue-200 rounded-lg p-3">
             <div className="flex items-center">
-              <FiRefreshCw className="h-5 w-5 text-blue-600 mr-2 animate-spin" />
-              <p className="text-blue-800">Loading complaint data...</p>
+              <FiRefreshCw className="h-4 w-4 text-blue-600 mr-2 animate-spin" />
+              <p className="text-blue-800 text-sm">Loading complaint data...</p>
             </div>
           </div>
         )}
 
         {!loading && heatmapData.length === 0 && !error && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md">
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-md">
             <div className="flex items-center">
-              <FiInfo className="h-5 w-5 text-blue-600 mr-2" />
+              <FiInfo className="h-5 w-5 text-yellow-600 mr-2" />
               <div>
-                <p className="text-blue-800 font-medium">No complaint data found</p>
-                <p className="text-blue-600 text-sm mt-1">This could mean:</p>
-                <ul className="text-blue-600 text-sm mt-1 list-disc list-inside">
-                  <li>No complaints have been submitted yet</li>
-                  <li>All complaints are outside the current filters</li>
-                  <li>Try adjusting your filter settings</li>
+                <p className="text-yellow-800 font-medium text-sm">No unresolved complaints found</p>
+                <p className="text-yellow-700 text-xs mt-1">This could mean:</p>
+                <ul className="text-yellow-700 text-xs mt-1 list-disc list-inside">
+                  <li>All complaints have been resolved</li>
+                  <li>No complaints match current filters</li>
+                  <li>Try adjusting filter settings</li>
                 </ul>
               </div>
             </div>
           </div>
         )}
 
-        <div style={{ height: '100%', width: '100%', minHeight: '400px', position: 'relative' }}>
-          {heatmapData.length > 0 ? (
-            <MapContainer
-              center={mapCenter}
-              zoom={mapZoom}
-              style={{ height: '100%', width: '100%', minHeight: '400px' }}
-              className="z-0"
-              key={`map-${heatmapData.length}`}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <ComplaintMarkers data={heatmapData} />
-            </MapContainer>
-          ) : (
-            <div className="flex items-center justify-center h-full bg-gray-100 rounded-lg">
-              <div className="text-center">
-                <FiMapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">Map will appear when complaint data is loaded</p>
-              </div>
+        {heatmapData.length > 0 && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-green-50 border border-green-200 rounded-lg p-2">
+            <div className="flex items-center">
+              <FiMapPin className="h-4 w-4 text-green-600 mr-2" />
+              <p className="text-green-800 text-sm">
+                Showing {heatmapData.length} unresolved complaint{heatmapData.length !== 1 ? 's' : ''}
+              </p>
             </div>
-          )}
+          </div>
+        )}
+
+        <div style={{ height: '100%', width: '100%' }}>
+          <MapContainer
+            center={mapCenter}
+            zoom={mapZoom}
+            style={{ height: '100%', width: '100%' }}
+            className="z-0"
+            key={`map-${heatmapData.length}-${showHeatmap}-${showMarkers}`}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <MapController center={mapCenter} zoom={mapZoom} />
+            <BoundaryOverlay showBoundary={showBoundary} />
+            <HeatmapLayer data={heatmapData} showHeatmap={showHeatmap} />
+            <ComplaintMarkers data={heatmapData} showMarkers={showMarkers} />
+          </MapContainer>
+        </div>
+
+        {/* Compact Layer Controls */}
+        <div className="absolute top-20 right-4 bg-white rounded-lg shadow-lg border border-gray-200 p-2 z-10">
+          <h4 className="text-xs font-medium text-gray-700 mb-2">Layers</h4>
+          <div className="space-y-1">
+            <label className="flex items-center text-xs">
+              <input
+                type="checkbox"
+                checked={showHeatmap}
+                onChange={(e) => setShowHeatmap(e.target.checked)}
+                className="h-3 w-3 text-red-600 focus:ring-red-500 border-gray-300 rounded mr-2"
+              />
+              <span>Heat Cloud</span>
+            </label>
+            <label className="flex items-center text-xs">
+              <input
+                type="checkbox"
+                checked={showMarkers}
+                onChange={(e) => setShowMarkers(e.target.checked)}
+                className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+              />
+              <span>Markers</span>
+            </label>
+            <label className="flex items-center text-xs">
+              <input
+                type="checkbox"
+                checked={showBoundary}
+                onChange={(e) => setShowBoundary(e.target.checked)}
+                className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+              />
+              <span>Boundary</span>
+            </label>
+          </div>
         </div>
 
         {/* Filter Panel */}
@@ -624,30 +814,56 @@ const ComplaintHeatmap = () => {
           onClose={() => setShowStatistics(false)}
         />
 
-        {/* Legend */}
-        <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg border border-gray-200 p-4 z-10">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Complaint Priority Legend</h4>
-          <div className="space-y-1">
-            <div className="flex items-center text-xs">
-              <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-              <span>Urgent Priority</span>
+        {/* Compact Legend */}
+        <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg border border-gray-200 p-3 z-10 max-w-xs">
+          <h4 className="text-xs font-medium text-gray-700 mb-2">Legend</h4>
+          
+          {showHeatmap && (
+            <div className="mb-2">
+              <h5 className="text-xs font-medium text-gray-600 mb-1">Heat Intensity</h5>
+              <div className="flex items-center space-x-1 mb-1">
+                <div className="w-8 h-2 bg-gradient-to-r from-blue-300 via-yellow-400 via-orange-500 to-red-600 rounded"></div>
+                <span className="text-xs text-gray-500">Low → High</span>
+              </div>
+              <p className="text-xs text-gray-500">
+                Red areas = More unresolved complaints
+              </p>
             </div>
-            <div className="flex items-center text-xs">
-              <div className="w-3 h-3 bg-orange-500 rounded-full mr-2"></div>
-              <span>High Priority</span>
+          )}
+
+          {showMarkers && (
+            <div className="mb-2">
+              <h5 className="text-xs font-medium text-gray-600 mb-1">Priority</h5>
+              <div className="grid grid-cols-2 gap-1 text-xs">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
+                  <span>Urgent</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-1"></div>
+                  <span>High</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-amber-500 rounded-full mr-1"></div>
+                  <span>Medium</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                  <span>Low</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center text-xs">
-              <div className="w-3 h-3 bg-amber-500 rounded-full mr-2"></div>
-              <span>Medium Priority</span>
+          )}
+
+          {showBoundary && (
+            <div>
+              <h5 className="text-xs font-medium text-gray-600 mb-1">Service Area</h5>
+              <div className="flex items-center text-xs">
+                <div className="w-4 h-0.5 border border-blue-500 border-dashed mr-2"></div>
+                <span>Kanjirapally Panchayath</span>
+              </div>
             </div>
-            <div className="flex items-center text-xs">
-              <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-              <span>Low Priority</span>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 mt-2">
-            Marker size and color indicate priority level
-          </p>
+          )}
         </div>
       </div>
     </div>

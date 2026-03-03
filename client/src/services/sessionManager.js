@@ -4,9 +4,9 @@ class SessionManager {
   constructor() {
     this.refreshTimer = null;
     this.warningTimer = null;
-    this.sessionTimeout = 10 * 60 * 1000; // 10 minutes
-    this.warningTime = 2 * 60 * 1000; // 2 minutes before timeout
-    this.refreshInterval = 5 * 60 * 1000; // Refresh every 5 minutes
+    this.sessionTimeout = 90 * 60 * 1000; // 90 minutes (shorter than token expiry)
+    this.warningTime = 10 * 60 * 1000; // 10 minutes before timeout
+    this.refreshInterval = 30 * 60 * 1000; // Refresh every 30 minutes
     this.isRefreshing = false;
     this.listeners = new Set();
     this.lastActivity = Date.now();
@@ -113,30 +113,25 @@ class SessionManager {
 
   // Show session warning
   showSessionWarning(timeRemaining) {
-    const minutes = Math.ceil(timeRemaining / 60000);
-    
     if (!this.warningShown) {
       this.warningShown = true;
       
-      toast.error(
-        `Your session will expire in ${minutes} minute${minutes > 1 ? 's' : ''}. Click anywhere to extend your session.`,
-        {
-          duration: 10000,
-          id: 'session-warning'
-        }
-      );
+      // Notify listeners about the warning
+      this.notifyListeners('warning', { timeRemaining });
 
       // Set up one-time activity listener to dismiss warning
       const dismissWarning = () => {
         this.warningShown = false;
-        toast.dismiss('session-warning');
+        this.notifyListeners('activity', { lastActivity: Date.now() });
         this.lastActivity = Date.now();
         document.removeEventListener('click', dismissWarning);
         document.removeEventListener('keypress', dismissWarning);
+        document.removeEventListener('mousemove', dismissWarning);
       };
 
       document.addEventListener('click', dismissWarning, { once: true });
       document.addEventListener('keypress', dismissWarning, { once: true });
+      document.addEventListener('mousemove', dismissWarning, { once: true });
     }
   }
 
@@ -251,7 +246,6 @@ class SessionManager {
   extendSession() {
     this.lastActivity = Date.now();
     this.warningShown = false;
-    toast.dismiss('session-warning');
     this.notifyListeners('extend', { lastActivity: this.lastActivity });
   }
 

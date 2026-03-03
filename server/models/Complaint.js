@@ -18,12 +18,12 @@ const complaintSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Category is required'],
     enum: [
-      'road_issues',
-      'electricity', 
-      'water_supply',
-      'waste_management'
+      'public_works',
+      'water_supply', 
+      'sanitation',
+      'electricity'
     ],
-    default: 'road_issues'
+    default: 'public_works'
   },
   priority: {
     type: String,
@@ -98,6 +98,22 @@ const complaintSchema = new mongoose.Schema({
     maxlength: [10, 'Pincode cannot be more than 10 characters']
   },
 
+  // Contact verification for anonymous reports
+  verifiedContact: {
+    type: String,
+    trim: true
+  },
+  contactType: {
+    type: String,
+    enum: ['phone', 'email']
+  },
+
+  // Privacy settings
+  isAnonymous: {
+    type: Boolean,
+    default: false
+  },
+
   // Media attachments
   images: [{
     url: {
@@ -116,11 +132,39 @@ const complaintSchema = new mongoose.Schema({
       type: Number,
       required: true
     },
+    type: {
+      type: String,
+      default: 'image'
+    },
     uploadedAt: {
       type: Date,
       default: Date.now
     }
   }],
+
+  // Video attachment (single video)
+  video: {
+    url: {
+      type: String
+    },
+    filename: {
+      type: String
+    },
+    originalName: {
+      type: String
+    },
+    size: {
+      type: Number
+    },
+    type: {
+      type: String,
+      default: 'video'
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  },
 
   // Admin handling
   assignedTo: {
@@ -146,6 +190,46 @@ const complaintSchema = new mongoose.Schema({
   fieldStaffAssignedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  
+  // Work tracking fields
+  workStartedAt: {
+    type: Date
+  },
+  workCompletedAt: {
+    type: Date
+  },
+  
+  // Escalation fields
+  isEscalated: {
+    type: Boolean,
+    default: false
+  },
+  escalatedAt: {
+    type: Date
+  },
+  escalatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  escalationReason: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Escalation reason cannot be more than 500 characters']
+  },
+  
+  // SLA tracking
+  slaTarget: {
+    type: Number, // hours
+    default: 72
+  },
+  slaStatus: {
+    type: String,
+    enum: ['on_time', 'at_risk', 'overdue'],
+    default: 'on_time'
+  },
+  slaBreachAt: {
+    type: Date
   },
   adminNotes: [{
     note: {
@@ -208,6 +292,9 @@ const complaintSchema = new mongoose.Schema({
   }],
 
   // Field staff work completion
+  workStartedAt: {
+    type: Date
+  },
   workCompletedAt: {
     type: Date
   },
@@ -234,6 +321,200 @@ const complaintSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  
+  // Field staff progress tracking
+  progressNotes: [{
+    note: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [500, 'Progress note cannot be more than 500 characters']
+    },
+    addedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    addedAt: {
+      type: Date,
+      default: Date.now
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: [0, 0]
+      }
+    }
+  }],
+
+  // Field staff location tracking and check-in/check-out
+  fieldStaffCheckIns: [{
+    checkInTime: {
+      type: Date,
+      required: true
+    },
+    checkOutTime: {
+      type: Date
+    },
+    checkInLocation: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        required: true
+      }
+    },
+    checkOutLocation: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+      }
+    },
+    distanceFromComplaint: {
+      type: Number, // meters
+      required: true
+    },
+    isValidLocation: {
+      type: Boolean,
+      default: false
+    },
+    notes: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Check-in notes cannot be more than 500 characters']
+    },
+    fieldStaff: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    }
+  }],
+
+  // Task pause/resume tracking
+  taskPauses: [{
+    pausedAt: {
+      type: Date,
+      required: true
+    },
+    resumedAt: {
+      type: Date
+    },
+    reason: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [500, 'Pause reason cannot be more than 500 characters']
+    },
+    pausedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        required: true
+      }
+    }
+  }],
+
+  // Current task status
+  currentTaskStatus: {
+    type: String,
+    enum: ['not_started', 'checked_in', 'in_progress', 'paused', 'checked_out', 'completed'],
+    default: 'not_started'
+  },
+  
+  // Location verification settings
+  locationVerificationRequired: {
+    type: Boolean,
+    default: true
+  },
+  allowedWorkRadius: {
+    type: Number, // meters
+    default: 150
+  },
+
+  // SLA and Performance Tracking
+  slaTarget: {
+    type: Number, // hours
+    default: function() {
+      const slaMap = {
+        'urgent': 4,    // 4 hours
+        'high': 24,     // 1 day
+        'medium': 72,   // 3 days
+        'low': 168      // 7 days
+      };
+      return slaMap[this.priority] || 72;
+    }
+  },
+  slaStatus: {
+    type: String,
+    enum: ['on_time', 'at_risk', 'overdue'],
+    default: 'on_time'
+  },
+  slaBreachAt: {
+    type: Date
+  },
+  actualCompletionTime: {
+    type: Number, // hours
+    default: 0
+  },
+  
+  // Escalation tracking
+  escalationLevel: {
+    type: Number,
+    default: 0, // 0 = no escalation, 1 = first escalation, etc.
+    min: 0,
+    max: 3
+  },
+  escalatedAt: {
+    type: Date
+  },
+  escalatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  escalationReason: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Escalation reason cannot be more than 500 characters']
+  },
+  
+  // Work rejection by admin
+  workRejectedAt: {
+    type: Date
+  },
+  workRejectedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  workRejectionReason: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Work rejection reason cannot be more than 500 characters']
+  },
+  workRejectionCount: {
+    type: Number,
+    default: 0
+  },
 
   // Admin approval for completed work
   adminApprovedAt: {
@@ -261,6 +542,52 @@ const complaintSchema = new mongoose.Schema({
     maxlength: [500, 'Feedback cannot be more than 500 characters']
   },
 
+  // Public comments
+  comments: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    userName: {
+      type: String,
+      required: true
+    },
+    text: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [500, 'Comment cannot be more than 500 characters']
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    isAnonymous: {
+      type: Boolean,
+      default: false
+    }
+  }],
+
+  // Work completion rating (for resolved complaints)
+  workRating: {
+    type: Number,
+    min: 1,
+    max: 5
+  },
+  workRatingComment: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Rating comment cannot be more than 500 characters']
+  },
+  workRatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  workRatedAt: {
+    type: Date
+  },
+
   // AI Analysis
   aiAnalysis: {
     confidence: {
@@ -272,9 +599,53 @@ const complaintSchema = new mongoose.Schema({
       type: String,
       trim: true
     },
+    priorityScore: {
+      type: Number,
+      default: 0
+    },
+    priorityReasons: [{
+      type: String,
+      trim: true
+    }],
     analyzedAt: {
       type: Date
     }
+  },
+
+  // Community Impact Scoring
+  communityImpact: {
+    score: {
+      type: Number,
+      default: 0
+    },
+    upvoteWeight: {
+      type: Number,
+      default: 0
+    },
+    locationSensitivity: {
+      type: Number,
+      default: 0
+    },
+    affectedPopulation: {
+      type: Number,
+      default: 0
+    },
+    lastCalculated: {
+      type: Date,
+      default: Date.now
+    }
+  },
+
+  // Combined Priority (System + Community)
+  finalPriority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium'
+  },
+  systemPriority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium'
   },
 
   // System fields
@@ -344,6 +715,15 @@ complaintSchema.index({ assignedTo: 1 });
 complaintSchema.index({ assignedToFieldStaff: 1 });
 complaintSchema.index({ submittedAt: -1 });
 complaintSchema.index({ location: '2dsphere' }); // Geospatial index
+complaintSchema.index({ isDeleted: 1 });
+complaintSchema.index({ slaStatus: 1 });
+complaintSchema.index({ escalationLevel: 1 });
+// Compound indexes for field staff queries
+complaintSchema.index({ assignedToFieldStaff: 1, status: 1 });
+complaintSchema.index({ assignedToFieldStaff: 1, isDeleted: 1 });
+complaintSchema.index({ status: 1, priority: 1 });
+complaintSchema.index({ category: 1, status: 1 });
+complaintSchema.index({ slaStatus: 1, priority: 1 });
 
 // Virtual for complaint ID (short format)
 complaintSchema.virtual('complaintId').get(function() {
@@ -416,14 +796,218 @@ complaintSchema.methods.assignToAdmin = function(adminId) {
   return this.save();
 };
 
-// Method to assign to field staff
-complaintSchema.methods.assignToFieldStaff = function(fieldStaffId, assignedByAdminId) {
-  this.assignedToFieldStaff = fieldStaffId;
-  this.fieldStaffAssignedAt = new Date();
-  this.fieldStaffAssignedBy = assignedByAdminId;
-  this.status = 'assigned';
+// Method to start work by field staff
+complaintSchema.methods.startWork = function(fieldStaffId) {
+  this.workStartedAt = new Date();
+  this.status = 'in_progress';
   this.lastUpdated = new Date();
   return this.save();
+};
+
+// Method to add progress note
+complaintSchema.methods.addProgressNote = function(note, fieldStaffId, location = null) {
+  this.progressNotes.push({
+    note,
+    addedBy: fieldStaffId,
+    addedAt: new Date(),
+    location: location || { type: 'Point', coordinates: [0, 0] }
+  });
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Method to escalate complaint
+complaintSchema.methods.escalate = function(escalatedBy, reason) {
+  this.escalationLevel += 1;
+  this.escalatedAt = new Date();
+  this.escalatedBy = escalatedBy;
+  this.escalationReason = reason;
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Method to reject work by admin
+complaintSchema.methods.rejectWork = function(adminId, rejectionReason) {
+  this.workRejectedAt = new Date();
+  this.workRejectedBy = adminId;
+  this.workRejectionReason = rejectionReason;
+  this.workRejectionCount += 1;
+  this.status = 'assigned'; // Send back to field staff
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Method to calculate SLA status
+complaintSchema.methods.updateSLAStatus = function() {
+  if (!this.fieldStaffAssignedAt) return;
+  
+  const now = new Date();
+  const assignedTime = new Date(this.fieldStaffAssignedAt);
+  const hoursElapsed = (now - assignedTime) / (1000 * 60 * 60);
+  const slaHours = this.slaTarget;
+  
+  if (hoursElapsed >= slaHours) {
+    this.slaStatus = 'overdue';
+    if (!this.slaBreachAt) {
+      this.slaBreachAt = new Date(assignedTime.getTime() + (slaHours * 60 * 60 * 1000));
+    }
+  } else if (hoursElapsed >= slaHours * 0.8) { // 80% of SLA time
+    this.slaStatus = 'at_risk';
+  } else {
+    this.slaStatus = 'on_time';
+  }
+  
+  return this.save();
+};
+
+// Method to calculate actual completion time
+complaintSchema.methods.calculateCompletionTime = function() {
+  if (this.fieldStaffAssignedAt && this.workCompletedAt) {
+    const assignedTime = new Date(this.fieldStaffAssignedAt);
+    const completedTime = new Date(this.workCompletedAt);
+    this.actualCompletionTime = (completedTime - assignedTime) / (1000 * 60 * 60); // hours
+  }
+  return this.actualCompletionTime;
+};
+
+// Method to check in field staff at location
+complaintSchema.methods.checkInFieldStaff = function(fieldStaffId, location, notes = '') {
+  const distance = this.calculateDistanceFromComplaint(location.coordinates);
+  const isValidLocation = distance <= this.allowedWorkRadius;
+  
+  // Check if already checked in
+  const activeCheckIn = this.fieldStaffCheckIns.find(checkIn => 
+    checkIn.fieldStaff.toString() === fieldStaffId.toString() && !checkIn.checkOutTime
+  );
+  
+  if (activeCheckIn) {
+    throw new Error('Field staff is already checked in. Please check out first.');
+  }
+  
+  this.fieldStaffCheckIns.push({
+    checkInTime: new Date(),
+    checkInLocation: {
+      type: 'Point',
+      coordinates: location.coordinates
+    },
+    distanceFromComplaint: distance,
+    isValidLocation,
+    notes,
+    fieldStaff: fieldStaffId
+  });
+  
+  this.currentTaskStatus = 'checked_in';
+  this.lastUpdated = new Date();
+  
+  return { distance, isValidLocation };
+};
+
+// Method to check out field staff
+complaintSchema.methods.checkOutFieldStaff = function(fieldStaffId, location, notes = '') {
+  const activeCheckIn = this.fieldStaffCheckIns.find(checkIn => 
+    checkIn.fieldStaff.toString() === fieldStaffId.toString() && !checkIn.checkOutTime
+  );
+  
+  if (!activeCheckIn) {
+    throw new Error('No active check-in found. Please check in first.');
+  }
+  
+  activeCheckIn.checkOutTime = new Date();
+  activeCheckIn.checkOutLocation = {
+    type: 'Point',
+    coordinates: location.coordinates
+  };
+  
+  if (notes) {
+    activeCheckIn.notes = activeCheckIn.notes ? `${activeCheckIn.notes} | Checkout: ${notes}` : `Checkout: ${notes}`;
+  }
+  
+  this.currentTaskStatus = 'checked_out';
+  this.lastUpdated = new Date();
+  
+  return this.save();
+};
+
+// Method to pause task
+complaintSchema.methods.pauseTask = function(fieldStaffId, reason, location) {
+  // Check if task is currently active
+  if (!['checked_in', 'in_progress'].includes(this.currentTaskStatus)) {
+    throw new Error('Cannot pause task. Task is not currently active.');
+  }
+  
+  // Check if already paused
+  const activePause = this.taskPauses.find(pause => !pause.resumedAt);
+  if (activePause) {
+    throw new Error('Task is already paused.');
+  }
+  
+  this.taskPauses.push({
+    pausedAt: new Date(),
+    reason,
+    pausedBy: fieldStaffId,
+    location: {
+      type: 'Point',
+      coordinates: location.coordinates
+    }
+  });
+  
+  this.currentTaskStatus = 'paused';
+  this.lastUpdated = new Date();
+  
+  return this.save();
+};
+
+// Method to resume task
+complaintSchema.methods.resumeTask = function(fieldStaffId, location) {
+  const activePause = this.taskPauses.find(pause => !pause.resumedAt);
+  
+  if (!activePause) {
+    throw new Error('No active pause found. Task is not currently paused.');
+  }
+  
+  activePause.resumedAt = new Date();
+  this.currentTaskStatus = 'in_progress';
+  this.lastUpdated = new Date();
+  
+  return this.save();
+};
+
+// Method to calculate distance from complaint location
+complaintSchema.methods.calculateDistanceFromComplaint = function(coordinates) {
+  const [lon1, lat1] = this.location.coordinates;
+  const [lon2, lat2] = coordinates;
+  
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = lat1 * Math.PI/180;
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c; // Distance in meters
+};
+
+// Method to get current check-in status
+complaintSchema.methods.getCurrentCheckInStatus = function(fieldStaffId) {
+  const activeCheckIn = this.fieldStaffCheckIns.find(checkIn => 
+    checkIn.fieldStaff.toString() === fieldStaffId.toString() && !checkIn.checkOutTime
+  );
+  
+  const activePause = this.taskPauses.find(pause => !pause.resumedAt);
+  
+  return {
+    isCheckedIn: !!activeCheckIn,
+    checkInTime: activeCheckIn?.checkInTime,
+    isPaused: !!activePause,
+    pauseReason: activePause?.reason,
+    currentStatus: this.currentTaskStatus,
+    totalCheckIns: this.fieldStaffCheckIns.length,
+    totalPauses: this.taskPauses.length
+  };
 };
 
 // Method to mark work as completed by field staff
@@ -498,6 +1082,33 @@ complaintSchema.statics.getStatistics = function() {
       }
     }
   ]);
+};
+
+// Method to add comment
+complaintSchema.methods.addComment = function(userId, userName, text, isAnonymous = false) {
+  this.comments.push({
+    user: userId,
+    userName: isAnonymous ? 'Anonymous' : userName,
+    text,
+    createdAt: new Date(),
+    isAnonymous
+  });
+  this.lastUpdated = new Date();
+  return this.save();
+};
+
+// Method to rate completed work
+complaintSchema.methods.rateWork = function(userId, rating, comment = '') {
+  if (this.status !== 'resolved' && this.status !== 'work_completed') {
+    throw new Error('Can only rate completed or resolved work');
+  }
+  
+  this.workRating = rating;
+  this.workRatingComment = comment;
+  this.workRatedBy = userId;
+  this.workRatedAt = new Date();
+  this.lastUpdated = new Date();
+  return this.save();
 };
 
 // Instance method for soft delete

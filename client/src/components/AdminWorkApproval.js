@@ -18,7 +18,7 @@ import {
   FiDownload,
   FiExternalLink
 } from 'react-icons/fi';
-import { getBaseURL } from '../utils/apiConfig';
+import { getImageURL } from '../utils/apiConfig';
 import toast from 'react-hot-toast';
 
 const AdminWorkApproval = ({ complaint, onApprove, onReject, onClose }) => {
@@ -171,7 +171,7 @@ const AdminWorkApproval = ({ complaint, onApprove, onReject, onClose }) => {
                         onClick={() => setSelectedImage(image)}
                       >
                         <img
-                          src={`${getBaseURL()}${image.url}`}
+                          src={getImageURL(image.url)}
                           alt={`Proof image ${index + 1}`}
                           className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
                         />
@@ -592,7 +592,7 @@ const AdminWorkApproval = ({ complaint, onApprove, onReject, onClose }) => {
             </button>
             <div className="bg-white rounded-xl overflow-hidden shadow-2xl">
               <img
-                src={`${getBaseURL()}${selectedImage.url}`}
+                src={getImageURL(selectedImage.url)}
                 alt="Proof image"
                 className="max-w-full max-h-[80vh] object-contain"
               />

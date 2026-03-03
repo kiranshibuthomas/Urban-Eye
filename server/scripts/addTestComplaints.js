@@ -3,7 +3,7 @@ const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 
 // Load environment variables
-require('dotenv').config({ path: '.env.production' });
+require('dotenv').config({ path: '.env' });
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
@@ -26,9 +26,9 @@ async function addTestComplaints() {
     // Test complaint data with different priorities and locations around Kanjirapally
     const testComplaints = [
       {
-        title: 'Broken Street Light on Main Road',
-        description: 'Street light is not working near the main junction, causing safety issues at night.',
-        category: 'street_lighting',
+        title: 'Roads & Infrastructure Issue',
+        description: 'Large pothole on the main road causing traffic issues and vehicle damage.',
+        category: 'public_works',
         priority: 'high',
         status: 'pending',
         citizen: adminUser._id,
@@ -37,15 +37,15 @@ async function addTestComplaints() {
         citizenPhone: adminUser.phone,
         location: {
           type: 'Point',
-          coordinates: [76.5222, 9.5916] // Kanjirapally center
+          coordinates: [76.7874, 9.5595] // Kanjirapally center
         },
         address: 'Main Road, Kanjirapally',
         city: 'Kanjirapally',
         pincode: '686507'
       },
       {
-        title: 'Water Leakage in Residential Area',
-        description: 'Water pipe is leaking near the residential complex, wasting water.',
+        title: 'Water Supply Issue',
+        description: 'Water pipe is leaking near the residential complex, wasting water and causing flooding.',
         category: 'water_supply',
         priority: 'urgent',
         status: 'in_progress',
@@ -55,35 +55,17 @@ async function addTestComplaints() {
         citizenPhone: adminUser.phone,
         location: {
           type: 'Point',
-          coordinates: [76.5232, 9.5926] // Slightly north
+          coordinates: [76.7884, 9.5605] // Slightly northeast
         },
         address: 'Residential Area, Kanjirapally',
         city: 'Kanjirapally',
         pincode: '686507'
       },
       {
-        title: 'Pothole on Highway',
-        description: 'Large pothole on the highway causing traffic issues.',
-        category: 'road_issues',
+        title: 'Waste & Sanitation Issue',
+        description: 'Garbage is overflowing and not being collected regularly in our area.',
+        category: 'sanitation',
         priority: 'medium',
-        status: 'resolved',
-        citizen: adminUser._id,
-        citizenName: adminUser.name,
-        citizenEmail: adminUser.email,
-        citizenPhone: adminUser.phone,
-        location: {
-          type: 'Point',
-          coordinates: [76.5212, 9.5906] // Slightly south
-        },
-        address: 'Highway Road, Kanjirapally',
-        city: 'Kanjirapally',
-        pincode: '686507'
-      },
-      {
-        title: 'Garbage Collection Issue',
-        description: 'Garbage is not being collected regularly in our area.',
-        category: 'waste_management',
-        priority: 'low',
         status: 'pending',
         citizen: adminUser._id,
         citizenName: adminUser.name,
@@ -91,15 +73,15 @@ async function addTestComplaints() {
         citizenPhone: adminUser.phone,
         location: {
           type: 'Point',
-          coordinates: [76.5242, 9.5936] // Further north
+          coordinates: [76.7864, 9.5585] // Slightly southwest
         },
-        address: 'Garbage Collection Area, Kanjirapally',
+        address: 'Market Area, Kanjirapally',
         city: 'Kanjirapally',
         pincode: '686507'
       },
       {
-        title: 'Power Outage in Commercial Area',
-        description: 'Frequent power outages in the commercial area affecting businesses.',
+        title: 'Electrical & Lighting Issue',
+        description: 'Street light is not working near the main junction, causing safety issues at night.',
         category: 'electricity',
         priority: 'high',
         status: 'assigned',
@@ -109,9 +91,45 @@ async function addTestComplaints() {
         citizenPhone: adminUser.phone,
         location: {
           type: 'Point',
-          coordinates: [76.5202, 9.5896] // Further south
+          coordinates: [76.7894, 9.5615] // Further northeast
         },
-        address: 'Commercial Area, Kanjirapally',
+        address: 'Junction Area, Kanjirapally',
+        city: 'Kanjirapally',
+        pincode: '686507'
+      },
+      {
+        title: 'Roads & Infrastructure Issue',
+        description: 'Drainage system is blocked causing water logging during rains.',
+        category: 'public_works',
+        priority: 'medium',
+        status: 'pending',
+        citizen: adminUser._id,
+        citizenName: adminUser.name,
+        citizenEmail: adminUser.email,
+        citizenPhone: adminUser.phone,
+        location: {
+          type: 'Point',
+          coordinates: [76.7854, 9.5575] // Further southwest
+        },
+        address: 'School Road, Kanjirapally',
+        city: 'Kanjirapally',
+        pincode: '686507'
+      },
+      {
+        title: 'Water Supply Issue',
+        description: 'Low water pressure in the morning hours affecting daily activities.',
+        category: 'water_supply',
+        priority: 'low',
+        status: 'pending',
+        citizen: adminUser._id,
+        citizenName: adminUser.name,
+        citizenEmail: adminUser.email,
+        citizenPhone: adminUser.phone,
+        location: {
+          type: 'Point',
+          coordinates: [76.7904, 9.5625] // Further northeast
+        },
+        address: 'Housing Colony, Kanjirapally',
         city: 'Kanjirapally',
         pincode: '686507'
       }

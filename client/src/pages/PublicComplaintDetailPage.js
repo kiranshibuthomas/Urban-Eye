@@ -13,14 +13,16 @@ import {
   FiX,
   FiShare2,
   FiBookmark,
-  FiMessageSquare
+  FiMessageSquare,
+  FiSend,
+  FiStar
 } from 'react-icons/fi';
 import { 
   IoArrowUpSharp, 
   IoArrowDownSharp 
 } from 'react-icons/io5';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getBaseURL } from '../utils/apiConfig';
+import { getUploadURL } from '../utils/apiConfig';
 import { useAuth } from '../context/AuthContext';
 import publicFeedService from '../services/publicFeedService';
 import toast from 'react-hot-toast';
@@ -28,11 +30,18 @@ import toast from 'react-hot-toast';
 const PublicComplaintDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [complaint, setComplaint] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isVoting, setIsVoting] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [commentText, setCommentText] = useState('');
+  const [isAnonymousComment, setIsAnonymousComment] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
   useEffect(() => {
     fetchComplaint();
@@ -139,6 +148,81 @@ const PublicComplaintDetailPage = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleSubmitComment = async (e) => {
+    e.preventDefault();
+    
+    if (!isAuthenticated) {
+      toast.error('Please login to comment');
+      navigate('/login');
+      return;
+    }
+
+    if (!commentText.trim()) {
+      toast.error('Please enter a comment');
+      return;
+    }
+
+    setIsSubmittingComment(true);
+    try {
+      const response = await publicFeedService.addComment(id, commentText.trim(), isAnonymousComment);
+      
+      if (response.success) {
+        // Add the new comment to the list
+        setComplaint(prev => ({
+          ...prev,
+          comments: [...prev.comments, response.comment],
+          commentCount: (prev.commentCount || 0) + 1
+        }));
+        
+        setCommentText('');
+        setIsAnonymousComment(false);
+        toast.success('Comment added successfully');
+      }
+    } catch (error) {
+      console.error('Comment error:', error);
+      toast.error(error.response?.data?.message || 'Failed to add comment');
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  const handleSubmitRating = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to rate');
+      navigate('/login');
+      return;
+    }
+
+    if (rating === 0) {
+      toast.error('Please select a rating');
+      return;
+    }
+
+    setIsSubmittingRating(true);
+    try {
+      const response = await publicFeedService.rateWork(id, rating, ratingComment.trim());
+      
+      if (response.success) {
+        setComplaint(prev => ({
+          ...prev,
+          workRating: response.rating.workRating,
+          workRatingComment: response.rating.workRatingComment,
+          workRatedAt: response.rating.workRatedAt
+        }));
+        
+        setShowRatingModal(false);
+        setRating(0);
+        setRatingComment('');
+        toast.success('Rating submitted successfully');
+      }
+    } catch (error) {
+      console.error('Rating error:', error);
+      toast.error(error.response?.data?.message || 'Failed to submit rating');
+    } finally {
+      setIsSubmittingRating(false);
+    }
   };
 
   if (loading) {
@@ -294,10 +378,11 @@ const PublicComplaintDetailPage = () => {
                         onClick={() => setSelectedImage(image)}
                       >
                         <img
-                          src={`${getBaseURL()}${image.url}`}
+                          src={getUploadURL(image.url)}
                           alt={`Complaint image ${index + 1}`}
                           className="w-full h-full object-cover"
                           onError={(e) => {
+                            console.error('Image failed to load:', getUploadURL(image.url));
                             e.target.style.display = 'none';
                           }}
                         />
@@ -348,6 +433,127 @@ const PublicComplaintDetailPage = () => {
                   </div>
                 </div>
               )}
+
+              {/* Work Rating */}
+              {(complaint.status === 'resolved' || complaint.status === 'work_completed') && (
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Work Rating</h2>
+                  
+                  {complaint.workRating ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <FiStar
+                            key={star}
+                            className={`w-6 h-6 ${
+                              star <= complaint.workRating
+                                ? 'text-yellow-500 fill-yellow-500'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                        <span className="text-lg font-semibold text-gray-900 ml-2">
+                          {complaint.workRating}/5
+                        </span>
+                      </div>
+                      {complaint.workRatingComment && (
+                        <p className="text-gray-700 italic">"{complaint.workRatingComment}"</p>
+                      )}
+                      <p className="text-sm text-gray-500">
+                        Rated on {formatDate(complaint.workRatedAt)}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-gray-600 mb-4">This work hasn't been rated yet</p>
+                      {isAuthenticated && (
+                        <button
+                          onClick={() => setShowRatingModal(true)}
+                          className="px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors font-medium flex items-center gap-2 mx-auto"
+                        >
+                          <FiStar className="w-4 h-4" />
+                          Rate This Work
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Comments Section */}
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Comments ({complaint.commentCount || 0})
+                </h2>
+
+                {/* Comment Form */}
+                {isAuthenticated ? (
+                  <form onSubmit={handleSubmitComment} className="mb-6">
+                    <textarea
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      placeholder="Add a comment..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      rows="3"
+                      maxLength="500"
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <label className="flex items-center gap-2 text-sm text-gray-600">
+                        <input
+                          type="checkbox"
+                          checked={isAnonymousComment}
+                          onChange={(e) => setIsAnonymousComment(e.target.checked)}
+                          className="rounded"
+                        />
+                        Post anonymously
+                      </label>
+                      <button
+                        type="submit"
+                        disabled={isSubmittingComment || !commentText.trim()}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                      >
+                        <FiSend className="w-4 h-4" />
+                        {isSubmittingComment ? 'Posting...' : 'Post Comment'}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                    <p className="text-gray-600 mb-2">Please login to comment</p>
+                    <button
+                      onClick={() => navigate('/login')}
+                      className="text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Login
+                    </button>
+                  </div>
+                )}
+
+                {/* Comments List */}
+                <div className="space-y-4">
+                  {complaint.comments && complaint.comments.length > 0 ? (
+                    complaint.comments.map((comment) => (
+                      <div key={comment.id} className="border-b border-gray-200 pb-4 last:border-0">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                            <FiUser className="w-4 h-4 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-gray-900">{comment.userName}</span>
+                              <span className="text-sm text-gray-500">•</span>
+                              <span className="text-sm text-gray-500">{comment.timeSince}</span>
+                            </div>
+                            <p className="text-gray-700">{comment.text}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No comments yet. Be the first to comment!</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Sidebar */}
@@ -436,10 +642,102 @@ const PublicComplaintDetailPage = () => {
               <FiX className="w-8 h-8" />
             </button>
             <img
-              src={`${getBaseURL()}${selectedImage.url}`}
+              src={getUploadURL(selectedImage.url)}
               alt="Complaint image"
               className="max-w-full max-h-full object-contain rounded-lg"
             />
+          </div>
+        </div>
+      )}
+
+      {/* Rating Modal */}
+      {showRatingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Rate This Work</h3>
+              <button
+                onClick={() => {
+                  setShowRatingModal(false);
+                  setRating(0);
+                  setRatingComment('');
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <FiX className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Star Rating */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Rating
+                </label>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      className="transition-transform hover:scale-110"
+                    >
+                      <FiStar
+                        className={`w-8 h-8 ${
+                          star <= rating
+                            ? 'text-yellow-500 fill-yellow-500'
+                            : 'text-gray-300 hover:text-yellow-400'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  {rating > 0 && (
+                    <span className="ml-2 text-lg font-semibold text-gray-900">
+                      {rating}/5
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Comment */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Comment (Optional)
+                </label>
+                <textarea
+                  value={ratingComment}
+                  onChange={(e) => setRatingComment(e.target.value)}
+                  placeholder="Share your thoughts about the completed work..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-none"
+                  rows="3"
+                  maxLength="500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {ratingComment.length}/500 characters
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setShowRatingModal(false);
+                    setRating(0);
+                    setRatingComment('');
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmitRating}
+                  disabled={isSubmittingRating || rating === 0}
+                  className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  {isSubmittingRating ? 'Submitting...' : 'Submit Rating'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

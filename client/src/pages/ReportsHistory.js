@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getApiURL } from '../utils/apiConfig';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiSearch,
@@ -77,7 +78,7 @@ const ReportsHistory = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch('/api/complaints/user?limit=100', {
+      const response = await fetch(getApiURL('complaints/user?limit=100'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

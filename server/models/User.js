@@ -81,6 +81,66 @@ const userSchema = new mongoose.Schema({
       return this.role === 'field_staff';
     }
   },
+  // Field staff availability and workload tracking
+  isAvailable: {
+    type: Boolean,
+    default: true,
+    required: function() {
+      return this.role === 'field_staff';
+    }
+  },
+  currentWorkload: {
+    type: Number,
+    default: 0,
+    min: 0,
+    required: function() {
+      return this.role === 'field_staff';
+    }
+  },
+  // Field staff location for proximity-based assignment
+  currentLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      default: [0, 0]
+    }
+  },
+  lastLocationUpdate: {
+    type: Date,
+    default: Date.now
+  },
+  // Field staff performance metrics
+  averageCompletionTime: {
+    type: Number, // in hours
+    default: 0
+  },
+  completionRate: {
+    type: Number, // percentage
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  totalCompleted: {
+    type: Number,
+    default: 0
+  },
+  // Field staff shift information
+  shiftStart: {
+    type: String, // "09:00"
+    default: "09:00"
+  },
+  shiftEnd: {
+    type: String, // "17:00"
+    default: "17:00"
+  },
+  workingDays: {
+    type: [String], // ["monday", "tuesday", ...]
+    default: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+  },
   googleId: {
     type: String,
     sparse: true, // Allows multiple documents without this field
@@ -93,6 +153,18 @@ const userSchema = new mongoose.Schema({
   customAvatar: {
     type: String,
     default: null
+  },
+  avatarPublicId: {
+    type: String,
+    default: null // Cloudinary public ID for custom avatar deletion
+  },
+  googlePhotoBackup: {
+    type: String,
+    default: null // Cloudinary backup of Google profile photo
+  },
+  googlePhotoPublicId: {
+    type: String,
+    default: null // Cloudinary public ID for Google photo backup
   },
   isEmailVerified: {
     type: Boolean,
@@ -227,8 +299,13 @@ userSchema.methods.getLiveAvatarUrl = function() {
   if (this.customAvatar) {
     return this.customAvatar;
   }
-  
-  // Priority 2: Google OAuth photo
+
+  // Priority 2: Google photo backup (Cloudinary - more reliable)
+  if (this.googlePhotoBackup) {
+    return this.googlePhotoBackup;
+  }
+
+  // Priority 3: Original Google photo (direct from Google)
   if (this.googleId && this.googlePhotoUrl) {
     // Make sure it's not the invalid placeholder
     if (this.googlePhotoUrl !== 'https://lh3.googleusercontent.com/a/default-user=s400') {
@@ -244,9 +321,16 @@ userSchema.methods.getLiveAvatarUrl = function() {
       return googleUrl;
     }
   }
-  
-  // Return null if no avatar is available - let frontend handle fallback
-  return null;
+
+  // Priority 4: Gravatar based on email
+  if (this.email) {
+    const crypto = require('crypto');
+    const hash = crypto.createHash('md5').update(this.email.toLowerCase().trim()).digest('hex');
+    return `https://www.gravatar.com/avatar/${hash}?s=300&d=identicon&r=pg`;
+  }
+
+  // Priority 5: Default avatar
+  return 'https://via.placeholder.com/300x300/6366f1/ffffff?text=User';
 };
 
 // Instance method to refresh Google photo URL

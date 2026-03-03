@@ -25,7 +25,7 @@ router.post('/chat', authenticateToken, async (req, res) => {
       const userStats = await getUserStatistics(userId);
       aiContext.userStats = userStats;
     } catch (error) {
-      console.log('Could not fetch user stats for AI context:', error.message);
+      // Could not fetch user stats for AI context
     }
 
     // Generate AI response

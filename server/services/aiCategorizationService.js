@@ -8,14 +8,16 @@ const path = require('path');
 
 // Define the 4 main categories with their keywords and characteristics
 const CATEGORIES = {
-  road_issues: {
+  public_works: {
     keywords: [
       'road', 'street', 'pothole', 'crack', 'pavement', 'asphalt', 'highway', 'lane',
       'traffic', 'intersection', 'crosswalk', 'sidewalk', 'curb', 'bridge', 'tunnel',
       'construction', 'repair', 'maintenance', 'surface', 'damaged', 'broken',
-      'uneven', 'rough', 'hole', 'bump', 'barrier', 'sign', 'marking', 'paint'
+      'uneven', 'rough', 'hole', 'bump', 'barrier', 'sign', 'marking', 'paint',
+      'drain', 'drainage', 'sewer', 'sewage', 'overflow', 'flooding', 'blockage', 'clog',
+      'infrastructure', 'public', 'works', 'building', 'structure'
     ],
-    description: 'Road infrastructure, potholes, street repairs, traffic issues',
+    description: 'Roads, infrastructure, drainage, construction issues',
     department: 'public_works',
     priority_indicators: {
       high: ['dangerous', 'accident', 'major', 'blocked', 'impassable'],
@@ -42,20 +44,20 @@ const CATEGORIES = {
   water_supply: {
     keywords: [
       'water', 'pipe', 'leak', 'burst', 'supply', 'pressure', 'flow', 'tap',
-      'faucet', 'valve', 'meter', 'connection', 'drainage', 'sewer', 'sewage',
-      'overflow', 'flooding', 'blockage', 'clog', 'dirty', 'contaminated',
-      'quality', 'taste', 'smell', 'color', 'brown', 'yellow', 'muddy'
+      'faucet', 'valve', 'meter', 'connection', 'dirty', 'contaminated',
+      'quality', 'taste', 'smell', 'color', 'brown', 'yellow', 'muddy',
+      'no water', 'low pressure', 'pipeline', 'plumbing', 'hydrant'
     ],
-    description: 'Water supply issues, pipe leaks, drainage problems',
+    description: 'Water supply issues, pipe leaks, water quality problems',
     department: 'water_supply',
     priority_indicators: {
-      urgent: ['burst', 'flooding', 'major leak', 'contaminated'],
-      high: ['no water', 'leak', 'overflow', 'sewage'],
-      medium: ['low pressure', 'slow drain', 'minor leak'],
+      urgent: ['burst', 'major leak', 'contaminated', 'no water'],
+      high: ['leak', 'low pressure', 'dirty water'],
+      medium: ['slow leak', 'pressure issue', 'minor leak'],
       low: ['taste', 'smell', 'color']
     }
   },
-  waste_management: {
+  sanitation: {
     keywords: [
       'waste', 'garbage', 'trash', 'rubbish', 'bin', 'container', 'collection',
       'pickup', 'disposal', 'dump', 'litter', 'scattered', 'overflowing',
@@ -99,24 +101,137 @@ function analyzeTextContent(title, description) {
 }
 
 /**
- * Determine priority based on text content
+ * Enhanced priority determination based on content analysis
  */
 function determinePriority(title, description, category) {
   const text = `${title} ${description}`.toLowerCase();
-  const categoryConfig = CATEGORIES[category];
-  
-  if (!categoryConfig) return 'medium';
+  let priorityScore = 0;
+  let priorityReasons = [];
 
-  // Check for priority indicators
-  for (const [priority, indicators] of Object.entries(categoryConfig.priority_indicators)) {
-    for (const indicator of indicators) {
-      if (text.includes(indicator.toLowerCase())) {
-        return priority;
-      }
+  // Safety and emergency keywords (highest priority)
+  const emergencyKeywords = [
+    'fire', 'explosion', 'gas leak', 'electrical hazard', 'exposed wire', 'sparking',
+    'collapse', 'structural damage', 'dangerous', 'emergency', 'accident', 'injury',
+    'flooding', 'burst pipe', 'major leak', 'contaminated water', 'sewage overflow',
+    'blocked road', 'impassable', 'traffic hazard', 'unsafe', 'risk', 'danger'
+  ];
+
+  // High impact keywords
+  const highImpactKeywords = [
+    'no water', 'power outage', 'blackout', 'major', 'large', 'deep', 'widespread',
+    'affecting many', 'school', 'hospital', 'main road', 'busy street', 'public area',
+    'overflowing', 'health hazard', 'smell', 'odor', 'pest', 'rats', 'insects'
+  ];
+
+  // Medium priority keywords
+  const mediumKeywords = [
+    'broken', 'damaged', 'not working', 'needs repair', 'maintenance', 'leak',
+    'flickering', 'dim', 'slow', 'partial', 'intermittent', 'clogged', 'blocked'
+  ];
+
+  // Low priority keywords
+  const lowKeywords = [
+    'minor', 'small', 'cosmetic', 'aesthetic', 'paint', 'faded', 'old', 'worn',
+    'cleaning needed', 'maintenance due', 'replacement needed'
+  ];
+
+  // Check for emergency/safety issues
+  emergencyKeywords.forEach(keyword => {
+    if (text.includes(keyword)) {
+      priorityScore += 100;
+      priorityReasons.push(`Safety concern: ${keyword}`);
     }
+  });
+
+  // Check for high impact issues
+  highImpactKeywords.forEach(keyword => {
+    if (text.includes(keyword)) {
+      priorityScore += 50;
+      priorityReasons.push(`High impact: ${keyword}`);
+    }
+  });
+
+  // Check for medium priority issues
+  mediumKeywords.forEach(keyword => {
+    if (text.includes(keyword)) {
+      priorityScore += 25;
+      priorityReasons.push(`Standard issue: ${keyword}`);
+    }
+  });
+
+  // Check for low priority indicators
+  lowKeywords.forEach(keyword => {
+    if (text.includes(keyword)) {
+      priorityScore += 10;
+      priorityReasons.push(`Minor issue: ${keyword}`);
+    }
+  });
+
+  // Category-specific priority adjustments
+  const categoryPriorityBonus = {
+    electricity: 20, // Electrical issues can be dangerous
+    water_supply: 15, // Water issues affect daily life
+    public_works: 10, // Infrastructure is important
+    sanitation: 5    // Sanitation issues are usually less urgent
+  };
+
+  priorityScore += categoryPriorityBonus[category] || 0;
+
+  // Location-based priority (if near sensitive areas)
+  const sensitiveLocationKeywords = [
+    'school', 'hospital', 'clinic', 'playground', 'park', 'market', 'bus stop',
+    'main road', 'highway', 'bridge', 'intersection', 'crossing'
+  ];
+
+  sensitiveLocationKeywords.forEach(location => {
+    if (text.includes(location)) {
+      priorityScore += 30;
+      priorityReasons.push(`Near sensitive location: ${location}`);
+    }
+  });
+
+  // Time-sensitive keywords
+  const timeKeywords = [
+    'urgent', 'immediate', 'asap', 'emergency', 'now', 'today', 'quickly'
+  ];
+
+  timeKeywords.forEach(keyword => {
+    if (text.includes(keyword)) {
+      priorityScore += 15;
+      priorityReasons.push(`Time-sensitive: ${keyword}`);
+    }
+  });
+
+  // Determine final priority based on score
+  let finalPriority;
+  let confidence;
+
+  if (priorityScore >= 100) {
+    finalPriority = 'urgent';
+    confidence = 0.9;
+  } else if (priorityScore >= 60) {
+    finalPriority = 'high';
+    confidence = 0.8;
+  } else if (priorityScore >= 30) {
+    finalPriority = 'medium';
+    confidence = 0.7;
+  } else {
+    finalPriority = 'low';
+    confidence = 0.6;
   }
 
-  return 'medium';
+  return {
+    priority: finalPriority,
+    confidence: confidence,
+    score: priorityScore,
+    reasoning: priorityReasons.slice(0, 3), // Top 3 reasons
+    analysis: {
+      safetyScore: emergencyKeywords.filter(k => text.includes(k)).length * 100,
+      impactScore: highImpactKeywords.filter(k => text.includes(k)).length * 50,
+      locationScore: sensitiveLocationKeywords.filter(k => text.includes(k)).length * 30,
+      categoryBonus: categoryPriorityBonus[category] || 0
+    }
+  };
 }
 
 /**
@@ -144,7 +259,7 @@ async function analyzeImages(imagePaths) {
       
       // Basic keyword detection in filenames
       if (filename.includes('road') || filename.includes('street') || filename.includes('pothole')) {
-        imageAnalysis.suggestedCategory = 'road_issues';
+        imageAnalysis.suggestedCategory = 'public_works';
         imageAnalysis.confidence = 0.7;
       } else if (filename.includes('electric') || filename.includes('power') || filename.includes('light')) {
         imageAnalysis.suggestedCategory = 'electricity';
@@ -153,7 +268,7 @@ async function analyzeImages(imagePaths) {
         imageAnalysis.suggestedCategory = 'water_supply';
         imageAnalysis.confidence = 0.7;
       } else if (filename.includes('waste') || filename.includes('garbage') || filename.includes('trash')) {
-        imageAnalysis.suggestedCategory = 'waste_management';
+        imageAnalysis.suggestedCategory = 'sanitation';
         imageAnalysis.confidence = 0.7;
       }
     }
@@ -172,7 +287,7 @@ async function analyzeImages(imagePaths) {
       labels.forEach(label => {
         // Match labels to categories
         if (label.description.toLowerCase().includes('road')) {
-          imageAnalysis.suggestedCategory = 'road_issues';
+          imageAnalysis.suggestedCategory = 'public_works';
           imageAnalysis.confidence = label.score;
         }
         // ... more label matching logic
@@ -224,17 +339,18 @@ async function categorizeComplaint(title, description, imagePaths = []) {
       confidence = 0.3;
     }
 
-    // Determine priority
-    const priority = determinePriority(title, description, finalCategory);
+    // Determine priority with enhanced analysis
+    const priorityAnalysis = determinePriority(title, description, finalCategory);
 
     return {
       category: finalCategory,
-      priority: priority,
-      confidence: confidence,
+      priority: priorityAnalysis.priority,
+      confidence: Math.max(confidence, priorityAnalysis.confidence),
       analysis: {
         textScores,
         imageAnalysis,
-        reasoning: `Categorized as ${finalCategory} based on ${maxScore > 0 ? 'text analysis' : 'default assignment'}`
+        priorityAnalysis,
+        reasoning: `Categorized as ${finalCategory} with ${priorityAnalysis.priority} priority (score: ${priorityAnalysis.score})`
       }
     };
 

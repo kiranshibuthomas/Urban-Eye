@@ -126,17 +126,26 @@ server/.env.*
 # package-lock.json
 # yarn.lock
 
-# All markdown files
+# All markdown files EXCEPT README.md and important docs
 *.md
+!README.md
+!TEAM_COLLABORATION_GUIDE.md
+!TEAM_COLLABORATION_SETUP.md
 
-# Test files (keep in dedicated test directories)
+# Test files and results
 test-*.js
 *.test.backup.js
+test-results/
+playwright-report/
+test-output.json
+TEST_RESULTS_SUMMARY.md
+VIEW_TEST_REPORT.md
 
-# Playwright test results and configs
-client/test-results/
-client/playwright-report/
-client/test-results.json
-client/test-results.xml
-client/playwright.config.js
-client/tests/
+# Playwright test files
+tests/
+playwright.config.js
+run-tests.js
+generate-report.js
+
+# Test-related scripts
+check-server.js

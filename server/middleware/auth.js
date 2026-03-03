@@ -1,10 +1,17 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// Generate JWT token
+// Generate JWT token with longer expiration
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '15m' // 15 minutes for better security
+    expiresIn: process.env.JWT_EXPIRE || '2h' // 2 hours instead of 15 minutes
+  });
+};
+
+// Generate refresh token (longer lived)
+const generateRefreshToken = (userId) => {
+  return jwt.sign({ userId, type: 'refresh' }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d' // 7 days
   });
 };
 
@@ -147,10 +154,10 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
-// Set authentication cookie
+// Set authentication cookie with longer expiration
 const setTokenCookie = (res, token) => {
   const options = {
-    expires: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+    expires: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict'
@@ -159,9 +166,28 @@ const setTokenCookie = (res, token) => {
   res.cookie('token', token, options);
 };
 
-// Clear authentication cookie
+// Set refresh token cookie
+const setRefreshTokenCookie = (res, refreshToken) => {
+  const options = {
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict'
+  };
+
+  res.cookie('refreshToken', refreshToken, options);
+};
+
+// Clear authentication cookies
 const clearTokenCookie = (res) => {
   res.cookie('token', '', {
+    expires: new Date(0),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict'
+  });
+  
+  res.cookie('refreshToken', '', {
     expires: new Date(0),
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -171,10 +197,12 @@ const clearTokenCookie = (res) => {
 
 module.exports = {
   generateToken,
+  generateRefreshToken,
   authenticateToken,
   authorizeRoles,
   requireRole,
   optionalAuth,
   setTokenCookie,
+  setRefreshTokenCookie,
   clearTokenCookie
 };

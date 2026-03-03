@@ -1,17 +1,21 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const passport = require('passport');
 const crypto = require('crypto');
-const path = require('path');
-const fs = require('fs');
 const User = require('../models/User');
 const { 
   generateToken, 
+  generateRefreshToken,
   authenticateToken, 
   setTokenCookie, 
+  setRefreshTokenCookie,
   clearTokenCookie 
 } = require('../middleware/auth');
 const { sendOTPVerificationEmail, sendPasswordResetOTPEmail } = require('../services/emailService');
+const smsService = require('../services/smsService');
 const upload = require('../middleware/upload');
+const { isCloudinaryConfigured, deleteFromCloudinary, extractPublicId } = require('../services/cloudinaryService');
+const { processOAuthAvatar, cleanupUserAvatars } = require('../services/avatarService');
 
 const router = express.Router();
 
@@ -613,17 +617,13 @@ router.post('/login', async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate token
+    // Generate tokens
     const token = generateToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
     
-    // Set cookie with 15 minute expiry for security
-    const cookieOptions = {
-      expires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
-    };
-    res.cookie('token', token, cookieOptions);
+    // Set cookies with appropriate expiry times
+    setTokenCookie(res, token);
+    setRefreshTokenCookie(res, refreshToken);
 
     // Return user data (without password)
     const userProfile = user.getPublicProfile();
@@ -645,39 +645,66 @@ router.post('/login', async (req, res) => {
 });
 
 // @route   POST /api/auth/refresh
-// @desc    Refresh authentication token
-// @access  Private
-router.post('/refresh', authenticateToken, async (req, res) => {
+// @desc    Refresh authentication token using refresh token
+// @access  Public (uses refresh token)
+router.post('/refresh', async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
-    
-    if (!user) {
+    let refreshToken;
+
+    // Check for refresh token in cookies
+    if (req.cookies && req.cookies.refreshToken) {
+      refreshToken = req.cookies.refreshToken;
+    }
+
+    if (!refreshToken) {
       return res.status(401).json({
         success: false,
-        message: 'User not found'
+        message: 'No refresh token provided'
       });
     }
 
-    // Generate new token
-    const token = generateToken(user._id);
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
     
-    // Set new token in httpOnly cookie with 15 minute expiry
-    const cookieOptions = {
-      expires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
-    };
-    res.cookie('token', token, cookieOptions);
+    if (decoded.type !== 'refresh') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid refresh token'
+      });
+    }
+
+    // Find user
+    const user = await User.findById(decoded.userId).select('-password');
+    
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found or inactive'
+      });
+    }
+
+    // Generate new access token
+    const newToken = generateToken(user._id);
+    
+    // Set new token in httpOnly cookie
+    setTokenCookie(res, newToken);
 
     res.json({
       success: true,
       message: 'Token refreshed successfully',
-      token: token,
+      token: newToken,
       user: user.getPublicProfile()
     });
   } catch (error) {
     console.error('Token refresh error:', error);
+    
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired refresh token'
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Server error during token refresh'
@@ -948,6 +975,16 @@ router.get('/google/callback',
         await req.user.save();
       }
 
+      // Process and backup Google profile photo to Cloudinary
+      if (req.user.googlePhotoUrl) {
+        try {
+          await processOAuthAvatar(req.user, req.user.googlePhotoUrl);
+        } catch (avatarError) {
+          console.error('Error processing Google avatar:', avatarError);
+          // Don't fail the login if avatar processing fails
+        }
+      }
+
       // Generate token for the authenticated user
       const token = generateToken(req.user._id);
       
@@ -1122,7 +1159,7 @@ router.post('/resend-verification', authenticateToken, async (req, res) => {
 });
 
 // @route   POST /api/auth/refresh-google-avatar
-// @desc    Refresh Google profile photo for existing users
+// @desc    Refresh Google profile photo backup to Cloudinary
 // @access  Private
 router.post('/refresh-google-avatar', authenticateToken, async (req, res) => {
   try {
@@ -1141,18 +1178,35 @@ router.post('/refresh-google-avatar', authenticateToken, async (req, res) => {
         message: 'User is not a Google account'
       });
     }
-    
-    // Clear any invalid URLs to force fallback to Gravatar
-    user.googlePhotoUrl = null;
-    await user.save();
-    
-    const publicProfile = user.getPublicProfile();
-    
-    res.json({
-      success: true,
-      message: 'Avatar refreshed successfully',
-      user: publicProfile
-    });
+
+    // If user has a Google photo URL, backup to Cloudinary
+    if (user.googlePhotoUrl) {
+      try {
+        await processOAuthAvatar(user, user.googlePhotoUrl);
+        
+        res.json({
+          success: true,
+          message: 'Google profile photo refreshed and backed up to cloud storage',
+          user: user.getPublicProfile()
+        });
+      } catch (avatarError) {
+        console.error('Error refreshing Google avatar:', avatarError);
+        res.status(500).json({
+          success: false,
+          message: 'Failed to refresh Google profile photo'
+        });
+      }
+    } else {
+      // Clear any invalid URLs to force fallback to Gravatar
+      user.googlePhotoUrl = null;
+      await user.save();
+      
+      res.json({
+        success: true,
+        message: 'Avatar refreshed successfully',
+        user: user.getPublicProfile()
+      });
+    }
     
   } catch (error) {
     console.error('Refresh Google avatar error:', error);
@@ -1262,8 +1316,6 @@ router.post('/upload-avatar', authenticateToken, upload.single('avatar'), async 
 
     const user = await User.findById(req.user._id);
     if (!user) {
-      // Delete the uploaded file if user not found
-      fs.unlinkSync(req.file.path);
       return res.status(404).json({
         success: false,
         message: 'User not found'
@@ -1272,15 +1324,23 @@ router.post('/upload-avatar', authenticateToken, upload.single('avatar'), async 
 
     // Delete old custom avatar if it exists
     if (user.customAvatar) {
-      const oldAvatarPath = path.join(__dirname, '../uploads/avatars', path.basename(user.customAvatar));
-      if (fs.existsSync(oldAvatarPath)) {
-        fs.unlinkSync(oldAvatarPath);
+      try {
+        // Extract public ID from Cloudinary URL and delete
+        const publicId = extractPublicId(user.customAvatar);
+        if (publicId) {
+          await deleteFromCloudinary(publicId, 'image');
+        }
+      } catch (error) {
+        console.error('Error deleting old avatar:', error);
       }
     }
 
     // Update user with new avatar URL
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const avatarUrl = req.file.path; // Cloudinary URL
+    const publicId = req.file.public_id;
+    
     user.customAvatar = avatarUrl;
+    user.avatarPublicId = publicId; // Store for future deletion
     await user.save();
 
     res.json({
@@ -1293,9 +1353,13 @@ router.post('/upload-avatar', authenticateToken, upload.single('avatar'), async 
   } catch (error) {
     console.error('Upload avatar error:', error);
     
-    // Delete the uploaded file if there was an error
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
+    // Clean up uploaded file from Cloudinary if there was an error
+    if (req.file && req.file.public_id) {
+      try {
+        await deleteFromCloudinary(req.file.public_id, 'image');
+      } catch (cleanupError) {
+        console.error('Error cleaning up uploaded file:', cleanupError);
+      }
     }
     
     res.status(500).json({
@@ -1325,19 +1389,40 @@ router.delete('/delete-avatar', authenticateToken, async (req, res) => {
       });
     }
 
-    // Delete the avatar file from filesystem
-    const avatarPath = path.join(__dirname, '../uploads/avatars', path.basename(user.customAvatar));
-    if (fs.existsSync(avatarPath)) {
-      fs.unlinkSync(avatarPath);
+    // Delete the avatar file
+    try {
+      // Delete from Cloudinary
+      if (user.avatarPublicId) {
+        await deleteFromCloudinary(user.avatarPublicId, 'image');
+      } else {
+        // Fallback: extract public ID from URL
+        const publicId = extractPublicId(user.customAvatar);
+        if (publicId) {
+          await deleteFromCloudinary(publicId, 'image');
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting avatar file:', error);
     }
 
     // Remove custom avatar from user record
     user.customAvatar = null;
+    user.avatarPublicId = null;
     await user.save();
+
+    // Determine appropriate success message based on available fallback
+    let message = 'Custom avatar deleted successfully.';
+    if (user.googlePhotoBackup || user.googlePhotoUrl) {
+      message += ' Your Google profile photo will now be displayed.';
+    } else if (user.email) {
+      message += ' Your Gravatar will now be displayed.';
+    } else {
+      message += ' Default avatar will now be displayed.';
+    }
 
     res.json({
       success: true,
-      message: 'Avatar deleted successfully',
+      message: message,
       user: user.getPublicProfile()
     });
 
@@ -1346,6 +1431,248 @@ router.delete('/delete-avatar', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error during avatar deletion'
+    });
+  }
+});
+
+// @route   POST /api/auth/send-complaint-otp
+// @desc    Send OTP for complaint verification (phone/email)
+// @access  Public
+router.post('/send-complaint-otp', async (req, res) => {
+  try {
+    const { type, value, purpose } = req.body;
+
+    if (!type || !value || !purpose) {
+      return res.status(400).json({
+        success: false,
+        message: 'Type, value, and purpose are required'
+      });
+    }
+
+    if (!['phone', 'email'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Type must be either phone or email'
+      });
+    }
+
+    if (purpose !== 'complaint_verification') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid purpose'
+      });
+    }
+
+    // Validate contact value
+    if (type === 'phone') {
+      const validation = smsService.validatePhoneNumber(value);
+      if (!validation.isValid) {
+        return res.status(400).json({
+          success: false,
+          message: validation.message
+        });
+      }
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(value)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please enter a valid email address'
+        });
+      }
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store OTP in session/memory (in production, use Redis or database)
+    // For now, we'll use a simple in-memory store
+    if (!global.otpStore) {
+      global.otpStore = new Map();
+    }
+    
+    const otpKey = `${type}_${value}_${purpose}`;
+    global.otpStore.set(otpKey, {
+      otp,
+      expires: Date.now() + 10 * 60 * 1000, // 10 minutes
+      attempts: 0
+    });
+
+    let sendResult;
+    
+    try {
+      if (type === 'phone') {
+        // Use SMS service
+        const cleanedPhone = smsService.validatePhoneNumber(value).cleaned;
+        sendResult = await smsService.sendOTP(cleanedPhone, otp, purpose);
+      } else {
+        // TODO: Use email service for email OTPs
+        console.log(`Email OTP ${otp} for ${value}`);
+        sendResult = { success: true, provider: 'email' };
+      }
+    } catch (error) {
+      console.error('Failed to send OTP:', error);
+      // In development, still return success but log the error
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Development mode: OTP ${otp} for ${type} ${value}`);
+        sendResult = { success: true, provider: 'development', developmentMode: true };
+      } else {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send OTP. Please try again.'
+        });
+      }
+    }
+
+    const response = {
+      success: true,
+      message: `OTP sent successfully to your ${type === 'phone' ? 'mobile number' : 'email'}`,
+      expiresIn: '10 minutes'
+    };
+
+    // In development mode, include the OTP for testing
+    if (process.env.NODE_ENV === 'development' && sendResult.developmentMode) {
+      response.developmentOTP = otp;
+      response.note = 'OTP shown for development testing only';
+    }
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('Send OTP error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during OTP sending'
+    });
+  }
+});
+
+// @route   POST /api/auth/verify-complaint-otp
+// @desc    Verify OTP for complaint verification
+// @access  Public
+router.post('/verify-complaint-otp', async (req, res) => {
+  try {
+    const { type, value, otp, purpose } = req.body;
+
+    if (!type || !value || !otp || !purpose) {
+      return res.status(400).json({
+        success: false,
+        message: 'Type, value, OTP, and purpose are required'
+      });
+    }
+
+    if (!['phone', 'email'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Type must be either phone or email'
+      });
+    }
+
+    if (purpose !== 'complaint_verification') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid purpose'
+      });
+    }
+
+    if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: 'OTP must be a 6-digit number'
+      });
+    }
+
+    // Check OTP from store
+    if (!global.otpStore) {
+      return res.status(400).json({
+        success: false,
+        message: 'No OTP found. Please request a new OTP.'
+      });
+    }
+
+    const otpKey = `${type}_${value}_${purpose}`;
+    const storedOtpData = global.otpStore.get(otpKey);
+
+    if (!storedOtpData) {
+      return res.status(400).json({
+        success: false,
+        message: 'No OTP found. Please request a new OTP.'
+      });
+    }
+
+    // Check if OTP expired
+    if (Date.now() > storedOtpData.expires) {
+      global.otpStore.delete(otpKey);
+      return res.status(400).json({
+        success: false,
+        message: 'OTP has expired. Please request a new OTP.'
+      });
+    }
+
+    // Check attempts
+    if (storedOtpData.attempts >= 3) {
+      global.otpStore.delete(otpKey);
+      return res.status(400).json({
+        success: false,
+        message: 'Too many failed attempts. Please request a new OTP.'
+      });
+    }
+
+    // Verify OTP
+    if (storedOtpData.otp !== otp) {
+      storedOtpData.attempts++;
+      global.otpStore.set(otpKey, storedOtpData);
+      
+      return res.status(400).json({
+        success: false,
+        message: `Invalid OTP. ${3 - storedOtpData.attempts} attempts remaining.`
+      });
+    }
+
+    // OTP verified successfully
+    global.otpStore.delete(otpKey);
+
+    res.json({
+      success: true,
+      message: 'OTP verified successfully'
+    });
+
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during OTP verification'
+    });
+  }
+});
+
+// @route   GET /api/auth/sms-status
+// @desc    Get SMS service status (development only)
+// @access  Public
+router.get('/sms-status', async (req, res) => {
+  try {
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(404).json({
+        success: false,
+        message: 'Endpoint not available in production'
+      });
+    }
+
+    const status = smsService.getProviderStatus();
+    
+    res.json({
+      success: true,
+      smsService: status,
+      message: status.provider === 'console' 
+        ? 'SMS service is in development mode. OTPs will be shown in server console and frontend toast.'
+        : `SMS service configured with ${status.provider}`
+    });
+
+  } catch (error) {
+    console.error('SMS status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
     });
   }
 });

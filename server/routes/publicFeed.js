@@ -4,6 +4,7 @@ const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 const PublicFeedInteraction = require('../models/PublicFeedInteraction');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
+const { calculateCommunityImpact } = require('../services/communityImpactService');
 
 const router = express.Router();
 
@@ -26,14 +27,21 @@ router.get('/', optionalAuth, async (req, res) => {
 
     // Build filter object - only public complaints that are not deleted
     const filter = {
-      isPublic: true,
       $or: [
-        { isDeleted: false },
-        { isDeleted: { $exists: false } }
+        { isPublic: true },
+        { isPublic: { $exists: false } }
+      ],
+      $and: [
+        {
+          $or: [
+            { isDeleted: false },
+            { isDeleted: { $exists: false } }
+          ]
+        }
       ]
     };
 
-    // Apply filters
+    // Apply additional filters
     if (category) filter.category = category;
     if (priority) filter.priority = priority;
     if (city) filter.city = { $regex: city, $options: 'i' };
@@ -158,7 +166,13 @@ router.get('/', optionalAuth, async (req, res) => {
             isAnonymous: 1,
             citizenName: 1,
             citizen: 1,
-            hotScore: 1
+            hotScore: 1,
+            isPublic: 1,
+            isDeleted: 1,
+            comments: 1,
+            systemPriority: 1,
+            finalPriority: 1,
+            communityImpact: 1
           }
         }
       ];
@@ -167,9 +181,14 @@ router.get('/', optionalAuth, async (req, res) => {
       // Use regular find for other sorting
       complaints = await Complaint.find(filter)
         .populate('citizen', 'name')
+        .populate({
+          path: 'comments.user',
+          select: 'name'
+        })
         .select(`
           title description category priority status location address city
           images submittedAt viewCount upvotes downvotes isAnonymous citizenName
+          comments systemPriority finalPriority communityImpact
         `)
         .sort(sortOptions)
         .skip(skip)
@@ -200,7 +219,9 @@ router.get('/', optionalAuth, async (req, res) => {
         ? complaint.description.substring(0, 200) + '...' 
         : complaint.description,
       category: complaint.category,
-      priority: complaint.priority,
+      systemPriority: complaint.systemPriority || complaint.priority,
+      finalPriority: complaint.finalPriority || complaint.priority,
+      communityImpact: complaint.communityImpact || { score: 0 },
       status: complaint.status,
       location: {
         address: complaint.address,
@@ -214,7 +235,14 @@ router.get('/', optionalAuth, async (req, res) => {
       downvotes: complaint.downvotes || 0,
       citizenName: complaint.isAnonymous ? 'Anonymous' : complaint.citizenName,
       userVote: userVotes[complaint._id.toString()] || null,
-      timeSinceSubmission: getTimeSinceSubmission(complaint.submittedAt)
+      timeSinceSubmission: getTimeSinceSubmission(complaint.submittedAt),
+      commentCount: complaint.comments?.length || 0,
+      comments: (complaint.comments || []).map(comment => ({
+        id: comment._id,
+        userName: comment.isAnonymous ? 'Anonymous' : comment.userName,
+        text: comment.text,
+        createdAt: comment.createdAt
+      }))
     }));
 
     const total = await Complaint.countDocuments(filter);
@@ -255,10 +283,12 @@ router.get('/:id', optionalAuth, async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
       .populate('citizen', 'name')
+      .populate('comments.user', 'name')
       .select(`
         title description category priority status location address city pincode
         images submittedAt viewCount upvotes downvotes isAnonymous citizenName
         resolutionNotes resolvedAt workCompletionNotes workCompletedAt
+        comments workRating workRatingComment workRatedAt isPublic isDeleted
       `);
 
     if (!complaint) {
@@ -268,11 +298,26 @@ router.get('/:id', optionalAuth, async (req, res) => {
       });
     }
 
+    // Log for debugging
+    console.log('Complaint access attempt:', {
+      id: req.params.id,
+      isPublic: complaint.isPublic,
+      isDeleted: complaint.isDeleted
+    });
+
     // Check if complaint is public and not deleted
-    if (!complaint.isPublic || complaint.isDeleted) {
+    // If isPublic is undefined, treat it as true (for backward compatibility)
+    const isPublicComplaint = complaint.isPublic !== false;
+    const isDeletedComplaint = complaint.isDeleted === true;
+    
+    if (!isPublicComplaint || isDeletedComplaint) {
       return res.status(403).json({
         success: false,
-        message: 'This complaint is not available in the public feed'
+        message: 'This complaint is not available in the public feed',
+        debug: {
+          isPublic: complaint.isPublic,
+          isDeleted: complaint.isDeleted
+        }
       });
     }
 
@@ -290,6 +335,15 @@ router.get('/:id', optionalAuth, async (req, res) => {
     await Complaint.findByIdAndUpdate(req.params.id, { 
       $inc: { viewCount: 1 } 
     });
+
+    // Transform comments for public view
+    const publicComments = complaint.comments.map(comment => ({
+      id: comment._id,
+      userName: comment.isAnonymous ? 'Anonymous' : comment.userName,
+      text: comment.text,
+      createdAt: comment.createdAt,
+      timeSince: getTimeSinceSubmission(comment.createdAt)
+    }));
 
     // Transform complaint for public view
     const publicComplaint = {
@@ -313,6 +367,11 @@ router.get('/:id', optionalAuth, async (req, res) => {
       citizenName: complaint.isAnonymous ? 'Anonymous' : complaint.citizenName,
       userVote,
       timeSinceSubmission: getTimeSinceSubmission(complaint.submittedAt),
+      comments: publicComments,
+      commentCount: publicComments.length,
+      workRating: complaint.workRating,
+      workRatingComment: complaint.workRatingComment,
+      workRatedAt: complaint.workRatedAt,
       resolutionInfo: complaint.status === 'resolved' ? {
         resolvedAt: complaint.resolvedAt,
         resolutionNotes: complaint.resolutionNotes,
@@ -433,6 +492,15 @@ router.post('/:id/vote', authenticateToken, async (req, res) => {
       { new: true }
     ).select('upvotes downvotes');
 
+    // Recalculate community impact after vote change
+    try {
+      await calculateCommunityImpact(complaintId);
+      // Community impact recalculated successfully
+    } catch (impactError) {
+      console.error('Failed to recalculate community impact:', impactError);
+      // Don't fail the vote if impact calculation fails
+    }
+
     // Get user's current vote status
     const currentVote = await PublicFeedInteraction.findOne({
       user: userId,
@@ -463,6 +531,145 @@ router.post('/:id/vote', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error while recording vote'
+    });
+  }
+});
+
+// @route   POST /api/public-feed/:id/comment
+// @desc    Add a comment to a public complaint
+// @access  Private (Authenticated users only)
+router.post('/:id/comment', authenticateToken, async (req, res) => {
+  try {
+    const { text, isAnonymous = false } = req.body;
+    const complaintId = req.params.id;
+    const userId = req.user._id;
+    const userName = req.user.name;
+
+    // Validate comment text
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment text is required'
+      });
+    }
+
+    if (text.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment cannot be more than 500 characters'
+      });
+    }
+
+    // Check if complaint exists and is public
+    const complaint = await Complaint.findById(complaintId);
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    if (!complaint.isPublic || complaint.isDeleted) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot comment on this complaint'
+      });
+    }
+
+    // Add comment
+    await complaint.addComment(userId, userName, text.trim(), isAnonymous);
+
+    // Get the newly added comment
+    const newComment = complaint.comments[complaint.comments.length - 1];
+
+    res.json({
+      success: true,
+      message: 'Comment added successfully',
+      comment: {
+        id: newComment._id,
+        userName: newComment.isAnonymous ? 'Anonymous' : newComment.userName,
+        text: newComment.text,
+        createdAt: newComment.createdAt,
+        timeSince: getTimeSinceSubmission(newComment.createdAt)
+      }
+    });
+
+  } catch (error) {
+    console.error('Add comment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while adding comment'
+    });
+  }
+});
+
+// @route   POST /api/public-feed/:id/rate
+// @desc    Rate completed work on a complaint
+// @access  Private (Authenticated users only)
+router.post('/:id/rate', authenticateToken, async (req, res) => {
+  try {
+    const { rating, comment = '' } = req.body;
+    const complaintId = req.params.id;
+    const userId = req.user._id;
+
+    // Validate rating
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rating must be between 1 and 5'
+      });
+    }
+
+    // Check if complaint exists and is public
+    const complaint = await Complaint.findById(complaintId);
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    if (!complaint.isPublic || complaint.isDeleted) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot rate this complaint'
+      });
+    }
+
+    // Check if work is completed or resolved
+    if (complaint.status !== 'resolved' && complaint.status !== 'work_completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only rate completed or resolved work'
+      });
+    }
+
+    // Check if already rated
+    if (complaint.workRating) {
+      return res.status(400).json({
+        success: false,
+        message: 'This work has already been rated'
+      });
+    }
+
+    // Add rating
+    await complaint.rateWork(userId, rating, comment.trim());
+
+    res.json({
+      success: true,
+      message: 'Work rated successfully',
+      rating: {
+        workRating: complaint.workRating,
+        workRatingComment: complaint.workRatingComment,
+        workRatedAt: complaint.workRatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Rate work error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error while rating work'
     });
   }
 });

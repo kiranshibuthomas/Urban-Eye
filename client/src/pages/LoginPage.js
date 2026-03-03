@@ -109,7 +109,7 @@ const LoginPage = () => {
 
   const handleGoogleLogin = () => {
     // Redirect to backend Google OAuth endpoint
-    window.location.href = `${getApiURL()}/auth/google`;
+    window.location.href = `${getApiURL('auth/google')}`;
   };
 
   return (

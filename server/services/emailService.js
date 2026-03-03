@@ -2,27 +2,44 @@ const nodemailer = require('nodemailer');
 
 // Email configuration
 const createTransporter = () => {
-  // For development, you can use Gmail SMTP or other email services
-  // For production, consider using services like SendGrid, Mailgun, or AWS SES
+  const emailProvider = process.env.EMAIL_PROVIDER || 'console';
   
-  // If using Gmail, uncomment this section:
+  if (emailProvider === 'console') {
+    // Development mode - log emails to console
+    return {
+      sendMail: async (mailOptions) => {
+        console.log('\n=== EMAIL SERVICE (DEVELOPMENT MODE) ===');
+        console.log(`To: ${mailOptions.to}`);
+        console.log(`Subject: ${mailOptions.subject}`);
+        console.log(`HTML Content: ${mailOptions.html ? 'HTML email content' : 'No HTML content'}`);
+        console.log('==========================================\n');
+        
+        return {
+          messageId: 'dev_' + Date.now(),
+          response: 'Email logged to console (development mode)'
+        };
+      }
+    };
+  }
+  
+  if (emailProvider === 'gmail') {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+  }
+  
+  // Default fallback for other providers
   return nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER || 'your-email@gmail.com',
-      pass: process.env.EMAIL_PASS || 'your-app-password' // Use App Password for Gmail
+      pass: process.env.EMAIL_PASS || 'your-app-password'
     }
   });
-
-  // For testing with Ethereal Email (temporary), uncomment this section:
-  // return nodemailer.createTransporter({
-  //   host: 'smtp.ethereal.email',
-  //   port: 587,
-  //   auth: {
-  //     user: 'ethereal.user@ethereal.email',
-  //     pass: 'verysecret'
-  //   }
-  // });
 };
 
 // Base email template with clean, sharp UI
@@ -908,6 +925,294 @@ const emailTemplates = {
         <a href="${process.env.CLIENT_URL}/complaint/${complaint._id}" class="cta-button">Rate & Review</a>
       </div>
     `, '#10b981')
+  }),
+
+  // Field staff assignment notification
+  fieldStaffAssignment: (fieldStaff, complaint) => ({
+    subject: `New Assignment - ${complaint.complaintId}`,
+    html: baseEmailTemplate(`
+      <p class="greeting">Hello ${fieldStaff.name},</p>
+      
+      <p class="main-message">You have been assigned a new complaint to handle. Please review the details below and begin work as soon as possible.</p>
+      
+      <div class="details-section">
+        <div class="detail-item">
+          <span class="detail-label">Priority</span>
+          <span class="status-badge" style="background: ${complaint.priority === 'urgent' ? '#ef4444' : complaint.priority === 'high' ? '#f59e0b' : complaint.priority === 'medium' ? '#3b82f6' : '#10b981'};">${complaint.priority.toUpperCase()}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Category</span>
+          <span class="detail-value">${complaint.category.replace('_', ' ')}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">SLA Target</span>
+          <span class="detail-value">${complaint.slaTarget || 72} hours</span>
+        </div>
+      </div>
+      
+      <div class="complaint-box">
+        <h3 class="complaint-title">${complaint.title}</h3>
+        <p class="complaint-id">${complaint.complaintId}</p>
+        <p class="complaint-desc">${complaint.description}</p>
+        
+        <div class="complaint-meta">
+          <div class="meta-item">
+            <span class="meta-label">Location</span>
+            <span class="meta-value">${complaint.address}, ${complaint.city}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Citizen</span>
+            <span class="meta-value">${complaint.citizenName}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Contact</span>
+            <span class="meta-value">${complaint.citizenPhone || complaint.citizenEmail}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Assigned</span>
+            <span class="meta-value">${new Date().toLocaleDateString()}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="info-box" style="background: #fffbeb; border-color: #fed7aa;">
+        <h3 style="color: #d97706;">Next Steps</h3>
+        <ul style="color: #92400e; font-size: 14px; line-height: 1.6; margin: 0; padding-left: 20px; text-align: left;">
+          <li>Review the complaint details and location</li>
+          <li>Start work and update status to "In Progress"</li>
+          <li>Add progress notes as you work</li>
+          <li>Upload proof images when work is completed</li>
+          <li>Submit for admin approval</li>
+        </ul>
+      </div>
+      
+      <div class="cta-section">
+        <a href="${process.env.CLIENT_URL}/field-staff/dashboard" class="cta-button">View Assignment</a>
+      </div>
+    `, '#8b5cf6')
+  }),
+
+  // Field staff work rejection notification
+  fieldStaffWorkRejection: (fieldStaff, complaint, rejectionReason) => ({
+    subject: `Work Rejected - ${complaint.complaintId}`,
+    html: baseEmailTemplate(`
+      <p class="greeting">Hello ${fieldStaff.name},</p>
+      
+      <p class="main-message">The work you submitted for complaint ${complaint.complaintId} has been rejected by the admin team. Please review the feedback and resubmit the work.</p>
+      
+      <div class="info-box" style="background: #fef2f2; border-color: #fecaca;">
+        <h3 style="color: #dc2626;">Rejection Reason</h3>
+        <p style="color: #991b1b;">${rejectionReason}</p>
+      </div>
+      
+      <div class="details-section">
+        <div class="detail-item">
+          <span class="detail-label">Status</span>
+          <span class="status-badge" style="background: #ef4444;">Work Rejected</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Action Required</span>
+          <span class="detail-value">Rework and Resubmit</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Rejection Count</span>
+          <span class="detail-value">${complaint.workRejectionCount || 1}</span>
+        </div>
+      </div>
+      
+      <div class="complaint-box">
+        <h3 class="complaint-title">${complaint.title}</h3>
+        <p class="complaint-id">${complaint.complaintId}</p>
+        <p class="complaint-desc">${complaint.description}</p>
+        
+        <div class="complaint-meta">
+          <div class="meta-item">
+            <span class="meta-label">Location</span>
+            <span class="meta-value">${complaint.address}, ${complaint.city}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Category</span>
+            <span class="meta-value">${complaint.category.replace('_', ' ')}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Priority</span>
+            <span class="meta-value">${complaint.priority}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Rejected</span>
+            <span class="meta-value">${new Date().toLocaleDateString()}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="info-box" style="background: #fffbeb; border-color: #fed7aa;">
+        <h3 style="color: #d97706;">What to do next</h3>
+        <ul style="color: #92400e; font-size: 14px; line-height: 1.6; margin: 0; padding-left: 20px; text-align: left;">
+          <li>Review the rejection reason carefully</li>
+          <li>Address the issues mentioned in the feedback</li>
+          <li>Redo the work if necessary</li>
+          <li>Take new proof images showing the corrected work</li>
+          <li>Resubmit for admin approval</li>
+        </ul>
+      </div>
+      
+      <div class="cta-section">
+        <a href="${process.env.CLIENT_URL}/field-staff/complaint/${complaint._id}" class="cta-button">View & Rework</a>
+      </div>
+    `, '#ef4444')
+  }),
+
+  // Field staff escalation notification
+  fieldStaffEscalation: (fieldStaff, complaint, escalationReason) => ({
+    subject: `Complaint Escalated - ${complaint.complaintId}`,
+    html: baseEmailTemplate(`
+      <p class="greeting">Hello ${fieldStaff.name},</p>
+      
+      <p class="main-message">The complaint ${complaint.complaintId} assigned to you has been escalated. This requires immediate attention and priority handling.</p>
+      
+      <div class="info-box" style="background: #fef3c7; border-color: #fcd34d;">
+        <h3 style="color: #d97706;">Escalation Reason</h3>
+        <p style="color: #92400e;">${escalationReason}</p>
+      </div>
+      
+      <div class="details-section">
+        <div class="detail-item">
+          <span class="detail-label">Escalation Level</span>
+          <span class="status-badge" style="background: #f59e0b;">Level ${complaint.escalationLevel || 1}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Priority</span>
+          <span class="status-badge" style="background: #ef4444;">URGENT</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">SLA Status</span>
+          <span class="detail-value">${complaint.slaStatus || 'At Risk'}</span>
+        </div>
+      </div>
+      
+      <div class="complaint-box">
+        <h3 class="complaint-title">${complaint.title}</h3>
+        <p class="complaint-id">${complaint.complaintId}</p>
+        <p class="complaint-desc">${complaint.description}</p>
+        
+        <div class="complaint-meta">
+          <div class="meta-item">
+            <span class="meta-label">Location</span>
+            <span class="meta-value">${complaint.address}, ${complaint.city}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Category</span>
+            <span class="meta-value">${complaint.category.replace('_', ' ')}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Assigned</span>
+            <span class="meta-value">${new Date(complaint.fieldStaffAssignedAt).toLocaleDateString()}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Escalated</span>
+            <span class="meta-value">${new Date().toLocaleDateString()}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="info-box" style="background: #fef2f2; border-color: #fecaca;">
+        <h3 style="color: #dc2626;">Immediate Action Required</h3>
+        <ul style="color: #991b1b; font-size: 14px; line-height: 1.6; margin: 0; padding-left: 20px; text-align: left;">
+          <li>Prioritize this complaint above all others</li>
+          <li>Contact your supervisor if you need assistance</li>
+          <li>Provide immediate progress updates</li>
+          <li>Complete work as soon as possible</li>
+          <li>Document any challenges or delays</li>
+        </ul>
+      </div>
+      
+      <div class="cta-section">
+        <a href="${process.env.CLIENT_URL}/field-staff/complaint/${complaint._id}" class="cta-button">Handle Escalation</a>
+      </div>
+    `, '#f59e0b')
+  }),
+
+  // SLA breach notification
+  slaBreachNotification: (complaint, fieldStaff) => ({
+    subject: `SLA BREACH ALERT - ${complaint.complaintId}`,
+    html: baseEmailTemplate(`
+      <p class="greeting">URGENT: SLA Breach Alert</p>
+      
+      <p class="main-message">A complaint has breached its SLA target and requires immediate management attention. This is an automated alert to ensure timely resolution.</p>
+      
+      <div class="info-box" style="background: #fef2f2; border-color: #fecaca;">
+        <h3 style="color: #dc2626;">SLA Breach Details</h3>
+        <div class="details-section" style="margin: 16px 0 0 0;">
+          <div class="detail-item" style="margin: 8px 0;">
+            <span class="detail-label">Target Time</span>
+            <span class="detail-value">${complaint.slaTarget || 72} hours</span>
+          </div>
+          <div class="detail-item" style="margin: 8px 0;">
+            <span class="detail-label">Assigned Since</span>
+            <span class="detail-value">${new Date(complaint.fieldStaffAssignedAt).toLocaleString()}</span>
+          </div>
+          <div class="detail-item" style="margin: 8px 0;">
+            <span class="detail-label">Breach Time</span>
+            <span class="detail-value">${new Date(complaint.slaBreachAt).toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="details-section">
+        <div class="detail-item">
+          <span class="detail-label">Assigned To</span>
+          <span class="detail-value">${fieldStaff?.name || 'Unknown'}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Department</span>
+          <span class="detail-value">${fieldStaff?.department?.replace('_', ' ') || 'Unknown'}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Current Status</span>
+          <span class="status-badge" style="background: #ef4444;">OVERDUE</span>
+        </div>
+      </div>
+      
+      <div class="complaint-box">
+        <h3 class="complaint-title">${complaint.title}</h3>
+        <p class="complaint-id">${complaint.complaintId}</p>
+        <p class="complaint-desc">${complaint.description}</p>
+        
+        <div class="complaint-meta">
+          <div class="meta-item">
+            <span class="meta-label">Location</span>
+            <span class="meta-value">${complaint.address}, ${complaint.city}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Category</span>
+            <span class="meta-value">${complaint.category.replace('_', ' ')}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Priority</span>
+            <span class="meta-value">${complaint.priority}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Citizen</span>
+            <span class="meta-value">${complaint.citizenName}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="info-box" style="background: #fffbeb; border-color: #fed7aa;">
+        <h3 style="color: #d97706;">Recommended Actions</h3>
+        <ul style="color: #92400e; font-size: 14px; line-height: 1.6; margin: 0; padding-left: 20px; text-align: left;">
+          <li>Contact the assigned field staff immediately</li>
+          <li>Assess if additional resources are needed</li>
+          <li>Consider reassigning if necessary</li>
+          <li>Escalate to higher management if required</li>
+          <li>Document the breach and resolution actions</li>
+        </ul>
+      </div>
+      
+      <div class="cta-section">
+        <a href="${process.env.CLIENT_URL}/admin/complaint/${complaint._id}" class="cta-button">Take Action</a>
+      </div>
+    `, '#ef4444')
   })
 };
 
@@ -1023,6 +1328,36 @@ const sendWorkApprovedEmail = async (complaint, user, adminName, approvalNotes) 
   return await sendEmail(user.email, template.subject, template.html);
 };
 
+// Send field staff assignment notification
+const sendFieldStaffAssignmentEmail = async (fieldStaff, complaint) => {
+  const template = emailTemplates.fieldStaffAssignment(fieldStaff, complaint);
+  return await sendEmail(fieldStaff.email, template.subject, template.html);
+};
+
+// Send field staff work rejection notification
+const sendFieldStaffWorkRejectionEmail = async (fieldStaff, complaint, rejectionReason) => {
+  const template = emailTemplates.fieldStaffWorkRejection(fieldStaff, complaint, rejectionReason);
+  return await sendEmail(fieldStaff.email, template.subject, template.html);
+};
+
+// Send field staff escalation notification
+const sendFieldStaffEscalationEmail = async (fieldStaff, complaint, escalationReason) => {
+  const template = emailTemplates.fieldStaffEscalation(fieldStaff, complaint, escalationReason);
+  return await sendEmail(fieldStaff.email, template.subject, template.html);
+};
+
+// Send SLA breach notification
+const sendSLABreachNotificationEmail = async (recipients, complaint, fieldStaff) => {
+  const template = emailTemplates.slaBreachNotification(complaint, fieldStaff);
+  
+  // Send to multiple recipients (admins, supervisors)
+  const emailPromises = recipients.map(recipient => 
+    sendEmail(recipient.email, template.subject, template.html)
+  );
+  
+  return await Promise.all(emailPromises);
+};
+
 module.exports = {
   sendEmail,
   sendComplaintSubmittedEmail,
@@ -1034,5 +1369,9 @@ module.exports = {
   sendOTPVerificationEmail,
   sendPasswordResetOTPEmail,
   sendWorkCompletedEmail,
-  sendWorkApprovedEmail
+  sendWorkApprovedEmail,
+  sendFieldStaffAssignmentEmail,
+  sendFieldStaffWorkRejectionEmail,
+  sendFieldStaffEscalationEmail,
+  sendSLABreachNotificationEmail
 };

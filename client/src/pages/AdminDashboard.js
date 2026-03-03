@@ -50,6 +50,7 @@ import FieldStaffManagement from './FieldStaffManagement';
 import AdminFundraisingManagement from './AdminFundraisingManagement';
 import AdminWorkApprovalList from '../components/AdminWorkApprovalList';
 import ComplaintHeatmap from '../components/ComplaintHeatmap';
+import AnalyticsDashboard from './AnalyticsDashboard';
 import {
   ComplaintsTrendChart,
   StatusOverviewChart
@@ -599,6 +600,8 @@ const AdminDashboard = () => {
         return <FieldStaffManagement />;
       case 'fundraising':
         return <AdminFundraisingManagement />;
+      case 'analytics':
+        return <AnalyticsDashboard />;
       case 'alerts':
         return AlertsTab;
       default:
@@ -655,6 +658,7 @@ const AdminDashboard = () => {
                   { key: 'users', label: 'Users', icon: FiUsers },
                   { key: 'field-staff', label: 'Field Staff', icon: FiShield },
                   { key: 'fundraising', label: 'Fundraising', icon: FiTarget },
+                  { key: 'analytics', label: 'Analytics', icon: FiActivity },
                   { key: 'alerts', label: 'Alerts', icon: FiSend }
                 ].map((tab) => (
                   <button

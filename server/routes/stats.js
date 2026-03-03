@@ -246,7 +246,7 @@ router.get('/admin/live', authenticateToken, async (req, res) => {
     // Handle client disconnect
     req.on('close', () => {
       clearInterval(interval);
-      console.log('Admin stats SSE connection closed');
+      // Admin stats SSE connection closed
     });
 
     // Handle errors

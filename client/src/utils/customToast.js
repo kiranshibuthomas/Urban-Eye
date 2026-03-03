@@ -76,6 +76,31 @@ export const customToast = {
   // Dismiss all toasts
   dismissAll: () => {
     toast.dismiss();
+  },
+
+  // Validation error toast with multiple errors
+  validation: (errors, options = {}) => {
+    const errorCount = Array.isArray(errors) ? errors.length : Object.keys(errors).length;
+    const firstError = Array.isArray(errors) ? errors[0] : Object.values(errors)[0];
+    
+    const message = errorCount > 1 
+      ? `${firstError} (${errorCount - 1} more error${errorCount > 2 ? 's' : ''})`
+      : firstError;
+    
+    return toast.error(message, {
+      duration: 5000,
+      style: {
+        ...baseStyle,
+        background: '#fff',
+        color: '#991b1b',
+        border: '1px solid #ef4444',
+      },
+      iconTheme: {
+        primary: '#ef4444',
+        secondary: '#fff',
+      },
+      ...options
+    });
   }
 };
 

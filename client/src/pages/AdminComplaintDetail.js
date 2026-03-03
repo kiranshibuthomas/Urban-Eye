@@ -11,7 +11,7 @@ import {
   FiEye, FiDownload, FiExternalLink, FiNavigation, FiMail, FiPhone
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { getBaseURL } from '../utils/apiConfig';
+import { getUploadURL } from '../utils/apiConfig';
 
 const AdminComplaintDetail = () => {
   const { id } = useParams();
@@ -486,7 +486,7 @@ const AdminComplaintDetail = () => {
                       onClick={() => setSelectedImage(image)}
                     >
                       <img
-                        src={`${getBaseURL()}${image.url}`}
+                        src={getUploadURL(image.url)}
                         alt={`Complaint image ${index + 1}`}
                         className="w-full h-20 object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -848,7 +848,7 @@ const AdminComplaintDetail = () => {
             </button>
             <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src={`${getBaseURL()}${selectedImage.url}`}
+                src={getUploadURL(selectedImage.url)}
                 alt="Complaint image"
                 className="max-w-full max-h-[80vh] object-contain"
               />

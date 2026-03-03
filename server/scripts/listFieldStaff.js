@@ -3,7 +3,7 @@
  * Usage: node scripts/listFieldStaff.js
  */
 
-require('dotenv').config({ path: './config.env' });
+require('dotenv').config({ path: './.env' });
 const mongoose = require('mongoose');
 
 // Connect to MongoDB

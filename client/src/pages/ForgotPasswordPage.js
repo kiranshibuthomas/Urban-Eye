@@ -35,7 +35,7 @@ const ForgotPasswordPage = () => {
     setError('');
 
     try {
-      const response = await fetch(`${getApiURL()}/auth/forgot-password`, {
+      const response = await fetch(`${getApiURL('auth/forgot-password')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

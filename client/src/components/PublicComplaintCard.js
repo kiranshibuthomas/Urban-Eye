@@ -8,21 +8,28 @@ import {
   FiImage,
   FiMessageSquare,
   FiShare2,
-  FiBookmark
+  FiBookmark,
+  FiSend
 } from 'react-icons/fi';
 import { 
   IoArrowUpSharp, 
   IoArrowDownSharp 
 } from 'react-icons/io5';
-import { getBaseURL } from '../utils/apiConfig';
+import { getUploadURL } from '../utils/apiConfig';
 import { useAuth } from '../context/AuthContext';
 import publicFeedService from '../services/publicFeedService';
 import toast from 'react-hot-toast';
 
 const PublicComplaintCard = ({ complaint, onVoteUpdate, compact = false }) => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [isVoting, setIsVoting] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState(complaint.comments || []);
+  const [commentText, setCommentText] = useState('');
+  const [isAnonymousComment, setIsAnonymousComment] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [loadingComments, setLoadingComments] = useState(false);
   const [localVoteData, setLocalVoteData] = useState({
     upvotes: complaint.upvotes || 0,
     downvotes: complaint.downvotes || 0,
@@ -73,12 +80,22 @@ const PublicComplaintCard = ({ complaint, onVoteUpdate, compact = false }) => {
 
   const getPriorityColor = (priority) => {
     const colors = {
-      low: 'text-green-600',
-      medium: 'text-yellow-600',
-      high: 'text-orange-600',
-      urgent: 'text-red-600'
+      low: 'text-green-600 bg-green-50 border-green-200',
+      medium: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+      high: 'text-orange-600 bg-orange-50 border-orange-200',
+      urgent: 'text-red-600 bg-red-50 border-red-200'
     };
     return colors[priority] || colors.medium;
+  };
+
+  const getPriorityIcon = (priority) => {
+    switch(priority) {
+      case 'urgent': return '🚨';
+      case 'high': return '⚡';
+      case 'medium': return '📋';
+      case 'low': return '📝';
+      default: return '📋';
+    }
   };
 
   const formatCategory = (category) => {
@@ -126,6 +143,70 @@ const PublicComplaintCard = ({ complaint, onVoteUpdate, compact = false }) => {
 
   const handleCardClick = () => {
     navigate(`/public-feed/${complaint.id}`);
+  };
+
+  const handleToggleComments = async () => {
+    if (!showComments && comments.length === 0) {
+      // Load comments if not already loaded
+      setLoadingComments(true);
+      try {
+        const response = await publicFeedService.getPublicComplaint(complaint.id);
+        if (response.success) {
+          setComments(response.complaint.comments || []);
+        }
+      } catch (error) {
+        console.error('Error loading comments:', error);
+        toast.error('Failed to load comments');
+      } finally {
+        setLoadingComments(false);
+      }
+    }
+    setShowComments(!showComments);
+  };
+
+  const handleSubmitComment = async (e) => {
+    e.preventDefault();
+    
+    if (!isAuthenticated) {
+      toast.error('Please login to comment');
+      navigate('/login');
+      return;
+    }
+
+    if (!commentText.trim()) {
+      toast.error('Please enter a comment');
+      return;
+    }
+
+    setIsSubmittingComment(true);
+    try {
+      const response = await publicFeedService.addComment(complaint.id, commentText.trim(), isAnonymousComment);
+      
+      if (response.success) {
+        setComments([...comments, response.comment]);
+        setCommentText('');
+        setIsAnonymousComment(false);
+        toast.success('Comment added!', { duration: 2000 });
+      }
+    } catch (error) {
+      console.error('Comment error:', error);
+      toast.error(error.response?.data?.message || 'Failed to add comment');
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  const getTimeSince = (date) => {
+    const now = new Date();
+    const diff = now - new Date(date);
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    
+    if (days > 0) return `${days}d`;
+    if (hours > 0) return `${hours}h`;
+    if (minutes > 0) return `${minutes}m`;
+    return 'now';
   };
 
   return (
@@ -181,6 +262,17 @@ const PublicComplaintCard = ({ complaint, onVoteUpdate, compact = false }) => {
             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(complaint.status)}`}>
               {complaint.status.replace(/_/g, ' ').toUpperCase()}
             </span>
+            {/* System Priority Badge */}
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getPriorityColor(complaint.finalPriority || complaint.systemPriority)}`}>
+              {getPriorityIcon(complaint.finalPriority || complaint.systemPriority)} 
+              {(complaint.finalPriority || complaint.systemPriority || 'medium').toUpperCase()}
+            </span>
+            {/* Community Impact Indicator */}
+            {complaint.communityImpact && complaint.communityImpact.score > 20 && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                🏘️ High Community Impact
+              </span>
+            )}
           </div>
 
           {/* Title */}
@@ -202,11 +294,12 @@ const PublicComplaintCard = ({ complaint, onVoteUpdate, compact = false }) => {
           {complaint.images && complaint.images.length > 0 && !compact && (
             <div className="relative mb-3">
               <img
-                src={`${getBaseURL()}${complaint.images[0].url}`}
+                src={getUploadURL(complaint.images[0].url)}
                 alt="Complaint"
                 className="w-full max-h-96 object-cover rounded cursor-pointer hover:opacity-95 transition-opacity"
                 onClick={handleCardClick}
                 onError={(e) => {
+                  console.error('Image failed to load:', getUploadURL(complaint.images[0].url));
                   e.target.style.display = 'none';
                 }}
               />
@@ -223,11 +316,12 @@ const PublicComplaintCard = ({ complaint, onVoteUpdate, compact = false }) => {
           {complaint.images && complaint.images.length > 0 && compact && (
             <div className="flex items-start gap-3 mb-3">
               <img
-                src={`${getBaseURL()}${complaint.images[0].url}`}
+                src={getUploadURL(complaint.images[0].url)}
                 alt="Complaint"
                 className="w-20 h-20 object-cover rounded cursor-pointer hover:opacity-95 transition-opacity flex-shrink-0"
                 onClick={handleCardClick}
                 onError={(e) => {
+                  console.error('Image failed to load:', getUploadURL(complaint.images[0].url));
                   e.target.style.display = 'none';
                 }}
               />
@@ -242,11 +336,13 @@ const PublicComplaintCard = ({ complaint, onVoteUpdate, compact = false }) => {
           {/* Action Bar */}
           <div className="flex items-center gap-4 text-xs text-gray-500">
             <button 
-              onClick={handleCardClick}
-              className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded transition-colors font-medium"
+              onClick={handleToggleComments}
+              className={`flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded transition-colors font-medium ${
+                showComments ? 'bg-blue-50 text-blue-600' : ''
+              }`}
             >
               <FiMessageSquare className="w-4 h-4" />
-              <span>Comments</span>
+              <span>{comments.length || complaint.commentCount || 0} {showComments ? '▲' : '▼'}</span>
             </button>
             
             <button className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded transition-colors font-medium">
@@ -268,11 +364,92 @@ const PublicComplaintCard = ({ complaint, onVoteUpdate, compact = false }) => {
                 <FiMapPin className="w-3 h-3" />
                 <span>{complaint.location.city}</span>
               </div>
-              <span className={`font-medium ${getPriorityColor(complaint.priority).split(' ')[0]}`}>
-                {complaint.priority.toUpperCase()}
+              <span className={`font-medium ${getPriorityColor(complaint.finalPriority || complaint.systemPriority).split(' ')[0]}`}>
+                {getPriorityIcon(complaint.finalPriority || complaint.systemPriority)} 
+                {(complaint.finalPriority || complaint.systemPriority || 'MEDIUM').toUpperCase()}
               </span>
             </div>
           </div>
+
+          {/* Comments Section */}
+          {showComments && (
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              {/* Comment Form */}
+              {isAuthenticated ? (
+                <form onSubmit={handleSubmitComment} className="mb-3">
+                  <div className="flex items-start gap-2">
+                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                      <FiUser className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="flex-1">
+                      <textarea
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="Write a comment..."
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                        rows="2"
+                        maxLength="500"
+                      />
+                      <div className="flex items-center justify-between mt-1">
+                        <label className="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isAnonymousComment}
+                            onChange={(e) => setIsAnonymousComment(e.target.checked)}
+                            className="rounded"
+                          />
+                          Anonymous
+                        </label>
+                        <button
+                          type="submit"
+                          disabled={isSubmittingComment || !commentText.trim()}
+                          className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                        >
+                          <FiSend className="w-3 h-3" />
+                          {isSubmittingComment ? 'Posting...' : 'Post'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                <div className="mb-3 p-2 bg-gray-50 border border-gray-200 rounded text-center">
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Login to comment
+                  </button>
+                </div>
+              )}
+
+              {/* Comments List */}
+              {loadingComments ? (
+                <div className="text-center py-4 text-sm text-gray-500">
+                  Loading comments...
+                </div>
+              ) : comments.length > 0 ? (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="flex items-start gap-2">
+                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                        <FiUser className="w-4 h-4 text-gray-600" />
+                      </div>
+                      <div className="flex-1 bg-gray-50 rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-gray-900">{comment.userName}</span>
+                          <span className="text-xs text-gray-500">{getTimeSince(comment.createdAt)}</span>
+                        </div>
+                        <p className="text-sm text-gray-700">{comment.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-3">No comments yet. Be the first to comment!</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

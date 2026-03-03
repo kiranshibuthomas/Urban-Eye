@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getApiURL } from '../utils/apiConfig';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiPlus, 
@@ -39,7 +40,6 @@ import { useNavigate } from 'react-router-dom';
 import EmailVerificationBanner from '../components/EmailVerificationBanner';
 import CitizenChatbot from '../components/CitizenChatbot';
 import CitizenLayout from '../components/CitizenLayout';
-import SidebarDemo from '../components/SidebarDemo';
 
 const CitizenDashboard = () => {
   const [hasAnimated, setHasAnimated] = useState(false);
@@ -92,7 +92,7 @@ const CitizenDashboard = () => {
         return;
       }
 
-      const response = await fetch('/api/complaints/stats', {
+      const response = await fetch(getApiURL('complaints/stats'), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -137,7 +137,7 @@ const CitizenDashboard = () => {
         return;
       }
 
-      const response = await fetch('/api/complaints/recent?limit=3', {
+      const response = await fetch(getApiURL('complaints/recent?limit=3'), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -158,7 +158,7 @@ const CitizenDashboard = () => {
   // Fetch platform-wide statistics
   const fetchPlatformStats = async () => {
     try {
-      const response = await fetch('/api/stats/platform', {
+      const response = await fetch(getApiURL('stats/platform'), {
         credentials: 'include'
       });
       if (response.ok) {
@@ -196,7 +196,7 @@ const CitizenDashboard = () => {
   // Fetch available services
   const fetchServices = async () => {
     try {
-      const response = await fetch('/api/services', {
+      const response = await fetch(getApiURL('services'), {
         credentials: 'include'
       });
       if (response.ok) {
@@ -859,8 +859,9 @@ const CitizenDashboard = () => {
               initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
+              className="text-center text-gray-600"
             >
-              <SidebarDemo />
+              <p>Sidebar demo has been removed for cleaner interface.</p>
             </motion.div>
           </div>
         </section>

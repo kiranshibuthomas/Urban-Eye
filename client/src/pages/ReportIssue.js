@@ -1,154 +1,148 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useSession } from '../context/SessionContext';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiMapPin, 
   FiCamera, 
-  FiImage,
+  FiVideo,
   FiX,
-  FiAlertTriangle,
-  FiCheckCircle,
-  FiArrowLeft,
-  FiUpload,
-  FiFileText,
-  FiEye,
-  FiEyeOff,
-  FiShield,
-  FiNavigation,
-  FiMap
+  FiArrowLeft
 } from 'react-icons/fi';
-import { isWithinGeofence, fetchGeofenceConfig } from '../services/geofenceService';
+import { 
+  MdAddRoad, 
+  MdWater, 
+  MdElectricalServices, 
+  MdDeleteOutline, 
+  MdConstruction, 
+  MdMoreHoriz,
+  MdWaterDrop
+} from 'react-icons/md';
+import { getApiURL } from '../utils/apiConfig';
 import CitizenLayout from '../components/CitizenLayout';
 import MapLocationPicker from '../components/MapLocationPicker';
+import NearbyReportsDisplay from '../components/NearbyReportsDisplay';
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import L from 'leaflet';
+
+// Fix for default markers in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 const ReportIssue = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const { logout: sessionLogout } = useSession();
+  const { user } = useAuth();
   const fileInputRef = useRef(null);
+  const videoInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
-  const [locationPermission, setLocationPermission] = useState(null);
-  const [currentLocation, setCurrentLocation] = useState(null);
+  const [currentStep, setCurrentStep] = useState('map'); // 'map', 'form'
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const [locationError, setLocationError] = useState(null);
   const [isLocationValid, setIsLocationValid] = useState(false);
-  const [geofenceMessage, setGeofenceMessage] = useState(null);
-  const [locationMode, setLocationMode] = useState('current'); // 'current' or 'manual'
   const [showMapPicker, setShowMapPicker] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
-    title: '',
+    category: '',
     description: '',
     address: '',
     city: '',
-    pincode: '',
-    isAnonymous: false
+    pincode: ''
   });
 
+  // Form validation state
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
+  // Media uploads
   const [images, setImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
-  const [validationErrors, setValidationErrors] = useState({});
-  const [fieldTouched, setFieldTouched] = useState({});
-  
-  const [predictedPriority, setPredictedPriority] = useState('medium');
+  const [video, setVideo] = useState(null);
+  const [videoPreview, setVideoPreview] = useState(null);
+
+  // Nearby reports state
+  const [nearbyReports, setNearbyReports] = useState([]);
+  const [loadingNearbyReports, setLoadingNearbyReports] = useState(false);
+  const [showNearbyReportsModal, setShowNearbyReportsModal] = useState(false);
+
+  // Issue categories aligned with field staff departments
+  const issueCategories = [
+    { id: 'public_works', label: 'Roads & Infrastructure', icon: MdAddRoad, color: '#EF4444' },
+    { id: 'water_supply', label: 'Water Supply', icon: MdWater, color: '#3B82F6' },
+    { id: 'sanitation', label: 'Waste & Sanitation', icon: MdDeleteOutline, color: '#10B981' },
+    { id: 'electricity', label: 'Electrical & Lighting', icon: MdElectricalServices, color: '#F59E0B' }
+  ];
 
 
-  // Get current location on component mount
+  // Initialize with map selection
   useEffect(() => {
-    if (locationMode === 'current') {
-      getCurrentLocation();
-    }
-  }, [locationMode]);
+    setShowMapPicker(true);
+  }, []);
 
-  // Real-time validation
-  useEffect(() => {
-    validateField('title', formData.title);
-  }, [formData.title]);
+  // Validation functions
+  const validateField = (name, value) => {
+    const newErrors = { ...errors };
 
-  useEffect(() => {
-    validateField('description', formData.description);
-  }, [formData.description]);
-
-  useEffect(() => {
-    validateField('address', formData.address);
-  }, [formData.address]);
-
-  useEffect(() => {
-    validateField('city', formData.city);
-  }, [formData.city]);
-
-  useEffect(() => {
-    validateField('pincode', formData.pincode);
-  }, [formData.pincode]);
-
-  const validateField = (fieldName, value) => {
-    const errors = { ...validationErrors };
-    
-    switch (fieldName) {
-      case 'title':
-        if (!value.trim()) {
-          errors.title = 'Title is required';
-        } else if (value.trim().length < 5) {
-          errors.title = 'Title must be at least 5 characters long';
-        } else if (value.trim().length > 100) {
-          errors.title = 'Title cannot exceed 100 characters';
+    switch (name) {
+      case 'category':
+        if (!value) {
+          newErrors.category = 'Please select an issue category';
         } else {
-          delete errors.title;
+          delete newErrors.category;
         }
         break;
 
       case 'description':
         if (!value.trim()) {
-          errors.description = 'Description is required';
-        } else if (value.trim().length < 20) {
-          errors.description = 'Description must be at least 20 characters long';
+          newErrors.description = 'Description is required';
+        } else if (value.trim().length < 10) {
+          newErrors.description = 'Description must be at least 10 characters long';
         } else if (value.trim().length > 1000) {
-          errors.description = 'Description cannot exceed 1000 characters';
+          newErrors.description = 'Description must not exceed 1000 characters';
         } else {
-          delete errors.description;
+          delete newErrors.description;
         }
         break;
 
       case 'address':
         if (!value.trim()) {
-          errors.address = 'Address is required';
-        } else if (value.trim().length < 10) {
-          errors.address = 'Address must be at least 10 characters long';
-        } else if (value.trim().length > 200) {
-          errors.address = 'Address cannot exceed 200 characters';
+          newErrors.address = 'Address is required';
+        } else if (value.trim().length < 5) {
+          newErrors.address = 'Please provide a more detailed address';
         } else {
-          delete errors.address;
+          delete newErrors.address;
         }
         break;
 
       case 'city':
         if (!value.trim()) {
-          errors.city = 'City is required';
-        } else if (value.trim().length < 2) {
-          errors.city = 'City must be at least 2 characters long';
-        } else if (value.trim().length > 50) {
-          errors.city = 'City cannot exceed 50 characters';
+          newErrors.city = 'City is required';
         } else if (!/^[a-zA-Z\s]+$/.test(value.trim())) {
-          errors.city = 'City can only contain letters and spaces';
+          newErrors.city = 'City name should only contain letters and spaces';
         } else {
-          delete errors.city;
+          delete newErrors.city;
         }
         break;
 
       case 'pincode':
-        if (value && value.trim()) {
-          const pincodeRegex = /^[1-9][0-9]{5}$/;
-          if (!pincodeRegex.test(value.trim())) {
-            errors.pincode = 'Please enter a valid 6-digit pincode';
-          } else {
-            delete errors.pincode;
-          }
+        if (!value.trim()) {
+          newErrors.pincode = 'Pincode is required';
+        } else if (!/^\d{6}$/.test(value.trim())) {
+          newErrors.pincode = 'Pincode must be exactly 6 digits';
         } else {
-          delete errors.pincode;
+          delete newErrors.pincode;
+        }
+        break;
+
+      case 'issueType':
+        if (!value) {
+          newErrors.issueType = 'Please select an issue type';
+        } else {
+          delete newErrors.issueType;
         }
         break;
 
@@ -156,38 +150,53 @@ const ReportIssue = () => {
         break;
     }
 
-    setValidationErrors(errors);
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const isFieldValid = (fieldName) => {
-    return !validationErrors[fieldName] && formData[fieldName] && formData[fieldName].trim();
-  };
+  // Validate all fields
+  const validateForm = () => {
+    let isValid = true;
+    const newErrors = {};
 
-  const isFieldInvalid = (fieldName) => {
-    return validationErrors[fieldName] && fieldTouched[fieldName];
-  };
-
-  const handleFieldBlur = (fieldName) => {
-    setFieldTouched(prev => ({
-      ...prev,
-      [fieldName]: true
-    }));
-  };
-
-  // Location mode handlers
-  const handleLocationModeChange = (mode) => {
-    setLocationMode(mode);
-    setLocationError(null);
-    setIsLocationValid(false);
-    setGeofenceMessage(null);
+    // Only validate the absolute essentials
     
-    if (mode === 'current') {
-      setSelectedLocation(null);
-      setShowMapPicker(false);
-    } else {
-      setCurrentLocation(null);
-      setShowMapPicker(true);
+    // 1. Location is selected
+    if (!selectedLocation) {
+      toast.error('Please select a location first');
+      isValid = false;
     }
+
+    // 2. Category is selected
+    if (!formData.category) {
+      toast.error('Please select an issue category');
+      newErrors.category = 'Please select an issue category';
+      isValid = false;
+    }
+
+    // 3. Description is provided
+    if (!formData.description || formData.description.trim().length < 10) {
+      toast.error('Please provide a description (at least 10 characters)');
+      newErrors.description = 'Description must be at least 10 characters long';
+      isValid = false;
+    }
+
+    // 4. At least one image is uploaded
+    if (images.length === 0) {
+      toast.error('Please upload at least one image');
+      isValid = false;
+    }
+
+    // Update errors state
+    setErrors(newErrors);
+
+    // Mark required fields as touched
+    setTouched({
+      category: true,
+      description: true
+    });
+
+    return isValid;
   };
 
   // Handle location selection from map
@@ -197,121 +206,122 @@ const ReportIssue = () => {
       longitude: locationData.longitude
     });
     setIsLocationValid(locationData.isValid);
-    setGeofenceMessage(locationData.message);
     
-    // Auto-populate address fields if available
-    if (locationData.address) {
-      setFormData(prev => ({
-        ...prev,
-        address: locationData.address,
-        city: locationData.city || prev.city
-      }));
-    }
-    
-    // Reverse geocode if address not provided
-    if (!locationData.address) {
-      reverseGeocode(locationData.latitude, locationData.longitude);
-    }
-    
-    toast.success('Location selected successfully!');
-  };
-
-  // Get the active location (current GPS or manually selected)
-  const getActiveLocation = () => {
-    return locationMode === 'current' ? currentLocation : selectedLocation;
-  };
-
-
-
-  const getCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setLocationError('Geolocation is not supported by this browser.');
-      return;
-    }
-
-    setLocationPermission('requesting');
-    
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        
-        // Validate location with dynamic geofence configuration
-        const geofenceCheck = await isWithinGeofence(latitude, longitude);
-        
-        if (!geofenceCheck.isInside) {
-          setLocationPermission('denied');
-          setIsLocationValid(false);
-          setGeofenceMessage(geofenceCheck.message);
-          setLocationError(geofenceCheck.message);
-          toast.error('Location outside service area', {
-            duration: 5000,
-            icon: '🚫'
-          });
-          return;
-        }
-        
-        // Location is valid
-        setCurrentLocation({ latitude, longitude });
-        setLocationPermission('granted');
-        setIsLocationValid(true);
-        setGeofenceMessage(geofenceCheck.message);
-        setLocationError(null);
-        
-        // Reverse geocoding to get address
-        reverseGeocode(latitude, longitude);
-        
-        toast.success(geofenceCheck.message || 'Location verified!', {
-          duration: 3000,
-          icon: '✅'
-        });
-      },
-      (error) => {
-        setLocationPermission('denied');
-        setIsLocationValid(false);
-        setLocationError('Unable to get your location. Please allow location access and try again.');
-        console.error('Geolocation error:', error);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000 // 5 minutes
-      }
-    );
-  };
-
-  const reverseGeocode = async (lat, lng) => {
-    try {
-      // Using a free geocoding service (you might want to use Google Maps API in production)
-      const response = await fetch(
-        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
-      );
-      const data = await response.json();
-      
-      if (data.city && data.principalSubdivision) {
-        setFormData(prev => ({
-          ...prev,
-          city: data.city || '',
-          address: `${data.locality || ''}, ${data.principalSubdivision || ''}`.trim()
-        }));
-      }
-    } catch (error) {
-      console.error('Reverse geocoding error:', error);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    // Auto-populate address fields with detailed information
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      address: locationData.address || '',
+      city: locationData.city || prev.city,
+      pincode: locationData.pincode || prev.pincode
     }));
+    
+    // Close map picker but don't go to form yet
+    setShowMapPicker(false);
+    toast.success('Location selected successfully!');
+    
+    // Fetch nearby reports and show popup
+    fetchNearbyReports(locationData.latitude, locationData.longitude);
   };
 
+  // Fetch nearby reports
+  const fetchNearbyReports = async (latitude, longitude) => {
+    setLoadingNearbyReports(true);
+    setShowNearbyReportsModal(true); // Show modal when starting to fetch
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoadingNearbyReports(false);
+        setShowNearbyReportsModal(false);
+        // Go to form if no token
+        setCurrentStep('form');
+        return;
+      }
+
+      const response = await fetch(
+        getApiURL(`complaints/nearby?latitude=${latitude}&longitude=${longitude}&radius=100`),
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const data = await response.json();
+      if (data.success) {
+        setNearbyReports(data.complaints || []);
+        // If no reports found, go directly to form
+        if (!data.complaints || data.complaints.length === 0) {
+          setShowNearbyReportsModal(false);
+          setCurrentStep('form');
+        }
+        // If reports found, keep modal open for user decision
+      } else {
+        console.error('Failed to fetch nearby reports:', data.message);
+        setShowNearbyReportsModal(false);
+        setCurrentStep('form');
+      }
+    } catch (error) {
+      console.error('Error fetching nearby reports:', error);
+      setShowNearbyReportsModal(false);
+      setCurrentStep('form');
+      // Don't show error toast as it's not critical - user can still proceed
+    } finally {
+      setLoadingNearbyReports(false);
+    }
+  };
+
+  // Handle category selection
+  const handleCategorySelect = (categoryId) => {
+    setFormData(prev => ({
+      ...prev,
+      category: categoryId
+    }));
+    
+    // Clear category error when user selects
+    if (errors.category) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.category;
+        return newErrors;
+      });
+    }
+    
+    setTouched(prev => ({ ...prev, category: true }));
+  };
+
+  // Handle input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    // Mark field as touched
+    setTouched(prev => ({ ...prev, [name]: true }));
+
+    // Validate field on change (debounced for better UX)
+    setTimeout(() => {
+      if (touched[name] || value.trim() !== '') {
+        validateField(name, value);
+      }
+    }, 300);
+  };
+
+  // Handle field blur for immediate validation
+  const handleFieldBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    validateField(name, value);
+  };
+
+  // Handle image upload (max 3 images)
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     
-    if (files.length + images.length > 5) {
-      toast.error('Maximum 5 images allowed');
+    if (files.length + images.length > 3) {
+      toast.error('Maximum 3 images allowed');
       return;
     }
 
@@ -340,113 +350,80 @@ const ReportIssue = () => {
     });
   };
 
+  // Handle video upload (max 1 video)
+  const handleVideoUpload = (e) => {
+    const file = e.target.files[0];
+    
+    if (!file) return;
+
+    if (file.size > 50 * 1024 * 1024) { // 50MB limit for video
+      toast.error('Video file is too large. Maximum size is 50MB.');
+      return;
+    }
+
+    if (!file.type.startsWith('video/')) {
+      toast.error('Please select a valid video file.');
+      return;
+    }
+
+    setVideo(file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setVideoPreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Remove image
   const removeImage = (index) => {
     setImages(prev => prev.filter((_, i) => i !== index));
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  const validateForm = () => {
-    // Mark all fields as touched
-    const allFields = ['title', 'description', 'address', 'city'];
-    allFields.forEach(field => {
-      setFieldTouched(prev => ({ ...prev, [field]: true }));
-    });
-
-    // Create a temporary errors object to check validation
-    const tempErrors = {};
-    
-    // Validate required fields
-    if (!formData.title || !formData.title.trim()) {
-      tempErrors.title = 'Title is required';
-    } else if (formData.title.trim().length < 5) {
-      tempErrors.title = 'Title must be at least 5 characters long';
-    } else if (formData.title.trim().length > 100) {
-      tempErrors.title = 'Title cannot exceed 100 characters';
-    }
-
-    if (!formData.description || !formData.description.trim()) {
-      tempErrors.description = 'Description is required';
-    } else if (formData.description.trim().length < 20) {
-      tempErrors.description = 'Description must be at least 20 characters long';
-    } else if (formData.description.trim().length > 1000) {
-      tempErrors.description = 'Description cannot exceed 1000 characters';
-    }
-
-    if (!formData.address || !formData.address.trim()) {
-      tempErrors.address = 'Address is required';
-    } else if (formData.address.trim().length < 10) {
-      tempErrors.address = 'Address must be at least 10 characters long';
-    }
-
-    if (!formData.city || !formData.city.trim()) {
-      tempErrors.city = 'City is required';
-    } else if (formData.city.trim().length < 2) {
-      tempErrors.city = 'City must be at least 2 characters long';
-    }
-
-    // Validate pincode only if provided
-    if (formData.pincode && formData.pincode.trim()) {
-      const pincodeRegex = /^[1-9][0-9]{5}$/;
-      if (!pincodeRegex.test(formData.pincode.trim())) {
-        tempErrors.pincode = 'Please enter a valid 6-digit pincode';
-      }
-    }
-
-    // Update validation errors
-    setValidationErrors(tempErrors);
-    
-    const hasErrors = Object.keys(tempErrors).length > 0;
-    
-    if (hasErrors) {
-      toast.error('Please fix the validation errors before submitting');
-      return false;
-    }
-
-    return true;
+  // Remove video
+  const removeVideo = () => {
+    setVideo(null);
+    setVideoPreview(null);
   };
 
-
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    const activeLocation = getActiveLocation();
-    
-    if (!activeLocation) {
-      toast.error('Location is required. Please select your current location or choose a location manually.');
-      return;
-    }
-
-    if (!isLocationValid) {
-      toast.error('You must select a location within the service area to submit a complaint.');
-      return;
-    }
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setLoading(true);
-
+  // Submit complaint directly
+  const submitComplaint = async () => {
     try {
+      setLoading(true);
       const submitData = new FormData();
       
-      // Add form data (category and priority will be determined by AI)
+      // Add form data
       Object.keys(formData).forEach(key => {
-        submitData.append(key, formData[key]);
+        if (formData[key]) { // Only add non-empty values
+          submitData.append(key, formData[key]);
+        }
       });
 
-      // Add active location (current GPS or manually selected)
-      submitData.append('latitude', activeLocation.latitude);
-      submitData.append('longitude', activeLocation.longitude);
-      submitData.append('locationMode', locationMode); // Track how location was obtained
+      // Add location data
+      if (selectedLocation) {
+        submitData.append('latitude', selectedLocation.latitude);
+        submitData.append('longitude', selectedLocation.longitude);
+      }
+
+      // Add user email for confirmation (if user is logged in)
+      if (user && user.email) {
+        submitData.append('userEmail', user.email);
+        submitData.append('userName', user.name);
+      }
 
       // Add images
       images.forEach(image => {
         submitData.append('images', image);
       });
 
-      const response = await fetch('/api/complaints', {
+      // Add video
+      if (video) {
+        submitData.append('video', video);
+      }
+
+      const response = await fetch(getApiURL('complaints'), {
         method: 'POST',
         body: submitData,
         credentials: 'include'
@@ -455,16 +432,7 @@ const ReportIssue = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Show AI categorization and assignment result
-        const aiInfo = data.aiAnalysis ? 
-          `AI categorized as: ${data.aiAnalysis.category.replace('_', ' ')} (${data.aiAnalysis.priority} priority)` : '';
-        
-        const assignmentInfo = data.assignment ? 
-          `Assigned to: ${data.assignment.fieldStaff} (${data.assignment.department})` : '';
-        
-        const fullMessage = `Issue reported successfully! ${aiInfo} ${assignmentInfo}`;
-        
-        toast.success(fullMessage, { duration: 6000 });
+        toast.success('Issue reported successfully! A confirmation email has been sent.', { duration: 6000 });
         navigate('/citizen-dashboard');
       } else {
         console.error('Submission failed:', data);
@@ -472,647 +440,521 @@ const ReportIssue = () => {
       }
     } catch (error) {
       console.error('Submit error:', error);
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        toast.error('Network error. Please check your connection and try again.');
-      } else {
-        toast.error('Failed to report issue. Please try again.');
-      }
+      toast.error('Failed to report issue. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validate entire form
+    const isFormValid = validateForm();
+    
+    if (!isFormValid) {
+      // Scroll to first error
+      const firstErrorField = document.querySelector('.error-field');
+      if (firstErrorField) {
+        firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    // Submit complaint directly
+    await submitComplaint();
+  };
+
   return (
     <CitizenLayout>
       <div className="min-h-screen bg-gradient-to-br from-[#CAD2C5]/30 via-[#84A98C]/20 to-[#52796F]/30">
-        <div className="w-full px-6 lg:px-8 py-8">
-        <div className="max-w-4xl mx-auto">
+        
+        {/* Map Selection Step */}
+        {currentStep === 'map' && (
+          <AnimatePresence>
+            <MapLocationPicker
+              isOpen={showMapPicker}
+              onClose={() => navigate('/citizen-dashboard')}
+              onLocationSelect={handleMapLocationSelect}
+              initialLocation={selectedLocation}
+            />
+          </AnimatePresence>
+        )}
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Location Section */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[#84A98C]/30 p-8"
-          >
-            <div className="flex items-center mb-6">
-              <div className="h-12 w-12 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-2xl flex items-center justify-center mr-4">
-                <FiMapPin className="h-6 w-6 text-white" />
+        {/* Form Step */}
+        {currentStep === 'form' && (
+          <div className="w-full min-h-screen px-4 lg:px-6 py-6">
+            <div className="max-w-2xl mx-auto">
+              
+              {/* Header with back button */}
+              <div className="flex items-center mb-6">
+                <button
+                  onClick={() => {
+                    setCurrentStep('map');
+                    setShowMapPicker(true);
+                  }}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-200 mr-3 flex-shrink-0"
+                >
+                  <FiArrowLeft className="h-6 w-6 text-gray-700" />
+                </button>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Report an Issue</h1>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Location Details</h2>
-                <p className="text-gray-600">Choose how to specify the issue location</p>
-              </div>
-            </div>
 
-            {/* Location Mode Selection */}
-            <div className="mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  type="button"
-                  onClick={() => handleLocationModeChange('current')}
-                  className={`p-4 rounded-xl border-2 transition-all duration-200 ${
-                    locationMode === 'current'
-                      ? 'border-[#52796F] bg-[#52796F]/10 text-[#52796F]'
-                      : 'border-gray-300 hover:border-gray-400 text-gray-600'
+              {/* Location Display with Map Preview */}
+              {selectedLocation && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 mb-6 border border-[#84A98C]/30"
+                >
+                  <div className="flex items-start space-x-3 mb-4">
+                    <FiMapPin className="h-5 w-5 text-[#52796F] mt-1 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 mb-1">Selected Location</h3>
+                      <div className="space-y-2">
+                        {/* Address Input */}
+                        <div>
+                          <input
+                            type="text"
+                            name="address"
+                            value={formData.address}
+                            onChange={handleInputChange}
+                            onBlur={handleFieldBlur}
+                            placeholder="Enter detailed address (optional)"
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 transition-colors duration-200 ${
+                              errors.address && touched.address
+                                ? 'border-red-300 focus:ring-red-200 focus:border-red-500'
+                                : 'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
+                            }`}
+                          />
+                          {errors.address && touched.address && (
+                            <p className="text-red-500 text-xs mt-1">{errors.address}</p>
+                          )}
+                        </div>
+                        
+                        {/* City and Pincode Row */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <input
+                              type="text"
+                              name="city"
+                              value={formData.city}
+                              onChange={handleInputChange}
+                              onBlur={handleFieldBlur}
+                              placeholder="City (optional)"
+                              className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 transition-colors duration-200 ${
+                                errors.city && touched.city
+                                  ? 'border-red-300 focus:ring-red-200 focus:border-red-500'
+                                  : 'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
+                              }`}
+                            />
+                            {errors.city && touched.city && (
+                              <p className="text-red-500 text-xs mt-1">{errors.city}</p>
+                            )}
+                          </div>
+                          
+                          <div>
+                            <input
+                              type="text"
+                              name="pincode"
+                              value={formData.pincode}
+                              onChange={handleInputChange}
+                              onBlur={handleFieldBlur}
+                              placeholder="Pincode (optional)"
+                              maxLength={6}
+                              className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 transition-colors duration-200 ${
+                                errors.pincode && touched.pincode
+                                  ? 'border-red-300 focus:ring-red-200 focus:border-red-500'
+                                  : 'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
+                              }`}
+                            />
+                            {errors.pincode && touched.pincode && (
+                              <p className="text-red-500 text-xs mt-1">{errors.pincode}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-gray-500 mt-2">
+                        Coordinates: {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setCurrentStep('map');
+                        setShowMapPicker(true);
+                      }}
+                      className="text-sm text-[#52796F] hover:text-[#354F52] font-medium transition-colors duration-200"
+                    >
+                      Change
+                    </button>
+                  </div>
+
+                  {/* Mini Map */}
+                  <div className="h-48 rounded-xl overflow-hidden border border-gray-200 mb-4">
+                    <MapContainer
+                      center={[selectedLocation.latitude, selectedLocation.longitude]}
+                      zoom={16}
+                      style={{ height: '100%', width: '100%' }}
+                      zoomControl={false}
+                      scrollWheelZoom={false}
+                      dragging={false}
+                    >
+                      <TileLayer
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      />
+                      
+                      {/* Selected location marker */}
+                      <Marker position={[selectedLocation.latitude, selectedLocation.longitude]}>
+                        <Popup>
+                          <div className="text-center">
+                            <p className="font-semibold">Your Selected Location</p>
+                            <p className="text-sm text-gray-600">{formData.address}</p>
+                          </div>
+                        </Popup>
+                      </Marker>
+
+                      {/* 100m radius circle */}
+                      <Circle
+                        center={[selectedLocation.latitude, selectedLocation.longitude]}
+                        radius={100}
+                        pathOptions={{
+                          color: '#52796F',
+                          fillColor: '#52796F',
+                          fillOpacity: 0.1,
+                          weight: 2
+                        }}
+                      />
+
+                      {/* Nearby reports markers */}
+                      {nearbyReports.map((report) => (
+                        <Marker
+                          key={report._id}
+                          position={[report.location.coordinates[1], report.location.coordinates[0]]}
+                        >
+                          <Popup>
+                            <div className="min-w-[200px]">
+                              <p className="font-semibold text-sm">{report.title || `${report.category} Issue`}</p>
+                              <p className="text-xs text-gray-600 mb-1">{report.description.substring(0, 100)}...</p>
+                              <p className="text-xs text-gray-500">Distance: {report.distance}m</p>
+                              <p className="text-xs text-gray-500">Status: {report.status}</p>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      ))}
+                    </MapContainer>
+                  </div>
+                </motion.div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-6" id="report-form-section">
+                
+                {/* Image Upload Section */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`bg-white/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border ${
+                    images.length === 0 && Object.keys(touched).length > 0
+                      ? 'border-red-300 error-field'
+                      : 'border-[#84A98C]/30'
                   }`}
                 >
-                  <div className="flex items-center space-x-3">
-                    <FiNavigation className="h-6 w-6" />
-                    <div className="text-left">
-                      <h3 className="font-semibold">Use Current Location</h3>
-                      <p className="text-sm opacity-75">Report issue at your current GPS location</p>
-                    </div>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
+                    Upload Images* (Maximum 3 images)
+                    {images.length === 0 && Object.keys(touched).length > 0 && (
+                      <span className="text-red-500 text-sm font-normal ml-2">
+                        At least one image is required
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Upload clear photos of the issue. Maximum file size: 5MB per image.
+                  </p>
+                  
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
+                    {[0, 1, 2].map((index) => (
+                      <div key={index} className="aspect-square">
+                        {imagePreviews[index] ? (
+                          <div className="relative group">
+                            <img
+                              src={imagePreviews[index].preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-full object-cover rounded-xl border-2 border-dashed border-gray-300"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            >
+                              <FiX className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className={`w-full h-full border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-gray-500 hover:text-[#52796F] transition-colors duration-200 ${
+                              images.length === 0 && Object.keys(touched).length > 0
+                                ? 'border-red-300 hover:border-red-400'
+                                : 'border-gray-300 hover:border-[#52796F]'
+                            }`}
+                          >
+                            <FiCamera className="h-6 w-6 sm:h-8 sm:w-8 mb-1 sm:mb-2" />
+                            <span className="text-xs text-center">Add Image</span>
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                </motion.button>
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  type="button"
-                  onClick={() => handleLocationModeChange('manual')}
-                  className={`p-4 rounded-xl border-2 transition-all duration-200 ${
-                    locationMode === 'manual'
-                      ? 'border-[#52796F] bg-[#52796F]/10 text-[#52796F]'
-                      : 'border-gray-300 hover:border-gray-400 text-gray-600'
-                  }`}
+                  {images.length > 0 && (
+                    <div className="text-sm text-green-600 flex items-center">
+                      <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                      {images.length} image{images.length > 1 ? 's' : ''} uploaded
+                    </div>
+                  )}
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </motion.div>
+
+                {/* Video Upload Section */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-[#84A98C]/30"
                 >
-                  <div className="flex items-center space-x-3">
-                    <FiMap className="h-6 w-6" />
-                    <div className="text-left">
-                      <h3 className="font-semibold">Choose Different Location</h3>
-                      <p className="text-sm opacity-75">Search and select any location within panchayath</p>
-                    </div>
-                  </div>
-                </motion.button>
-              </div>
-            </div>
-
-            {/* Current Location Mode */}
-            {locationMode === 'current' && (
-              <>
-                {locationPermission === 'requesting' && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex items-center text-emerald-600 mb-6 p-4 bg-emerald-50 rounded-xl border border-emerald-200"
-                  >
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-600 mr-3"></div>
-                    <span className="font-medium">Getting your location...</span>
-                  </motion.div>
-                )}
-
-                {locationPermission === 'granted' && currentLocation && isLocationValid && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex items-center text-emerald-600 mb-6 p-4 bg-emerald-50 rounded-xl border border-emerald-200"
-                  >
-                    <FiCheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium">Current location verified! ✓</p>
-                      <p className="text-sm text-gray-600">
-                        {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
-                      </p>
-                      {geofenceMessage && (
-                        <p className="text-xs text-emerald-700 mt-1">{geofenceMessage}</p>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-
-                {!isLocationValid && geofenceMessage && locationPermission !== 'requesting' && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex items-start text-red-600 mb-6 p-4 bg-red-50 rounded-xl border border-red-200"
-                  >
-                    <FiAlertTriangle className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="font-medium">Current Location Outside Service Area</p>
-                      <p className="text-sm text-red-700 mt-1">{geofenceMessage}</p>
-                      <p className="text-xs text-red-600 mt-2">
-                        Try switching to "Choose Different Location" to select a location within the service area.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={getCurrentLocation}
-                        className="mt-3 text-sm bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 mr-3"
-                      >
-                        Retry Location Check
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleLocationModeChange('manual')}
-                        className="mt-3 text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
-                      >
-                        Choose Different Location
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-
-                {locationPermission === 'denied' && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex items-center text-red-600 mb-6 p-4 bg-red-50 rounded-xl border border-red-200"
-                  >
-                    <FiAlertTriangle className="h-5 w-5 mr-3" />
-                    <div className="flex-1">
-                      <p className="font-medium">{locationError}</p>
-                      <div className="mt-2 space-x-3">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
+                    Upload Video (Optional)
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Upload a video to provide additional context. Maximum file size: 50MB.
+                  </p>
+                  
+                  <div className="aspect-video">
+                    {videoPreview ? (
+                      <div className="relative group">
+                        <video
+                          src={videoPreview}
+                          controls
+                          className="w-full h-full object-cover rounded-xl border-2 border-dashed border-gray-300"
+                        />
                         <button
                           type="button"
-                          onClick={getCurrentLocation}
-                          className="text-emerald-600 hover:text-emerald-700 underline font-medium"
+                          onClick={removeVideo}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                         >
-                          Try again
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleLocationModeChange('manual')}
-                          className="text-blue-600 hover:text-blue-700 underline font-medium"
-                        >
-                          Choose location manually
+                          <FiX className="h-3 w-3 sm:h-4 sm:w-4" />
                         </button>
                       </div>
-                    </div>
-                  </motion.div>
-                )}
-              </>
-            )}
-
-            {/* Manual Location Mode */}
-            {locationMode === 'manual' && (
-              <>
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">Select Location on Map</h3>
-                      <p className="text-sm text-gray-600">Click the button below to open the interactive map</p>
-                    </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => videoInputRef.current?.click()}
+                        className="w-full h-full border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center text-gray-500 hover:border-[#52796F] hover:text-[#52796F] transition-colors duration-200"
+                      >
+                        <FiVideo className="h-8 w-8 sm:h-12 sm:w-12 mb-2 sm:mb-3" />
+                        <span className="text-sm">Add Video (Optional)</span>
+                        <span className="text-xs text-gray-400 mt-1">Max 50MB</span>
+                      </button>
+                    )}
                   </div>
 
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    type="button"
-                    onClick={() => setShowMapPicker(true)}
-                    className="w-full flex items-center justify-center space-x-3 px-6 py-4 border-2 border-dashed border-[#52796F] rounded-xl text-[#52796F] hover:bg-[#52796F]/5 hover:border-[#52796F] transition-all duration-200"
-                  >
-                    <FiMap className="h-6 w-6" />
-                    <span className="font-semibold">
-                      {selectedLocation ? 'Change Location on Map' : 'Open Map to Select Location'}
-                    </span>
-                  </motion.button>
-                </div>
-
-                {selectedLocation && isLocationValid && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex items-center text-emerald-600 mb-6 p-4 bg-emerald-50 rounded-xl border border-emerald-200"
-                  >
-                    <FiCheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium">Location selected from map! ✓</p>
-                      <p className="text-sm text-gray-600">
-                        {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
-                      </p>
-                      {geofenceMessage && (
-                        <p className="text-xs text-emerald-700 mt-1">{geofenceMessage}</p>
-                      )}
+                  {video && (
+                    <div className="text-sm text-green-600 flex items-center mt-3">
+                      <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                      Video uploaded: {video.name}
                     </div>
-                  </motion.div>
-                )}
+                  )}
 
-                <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-                  <div className="flex items-start space-x-3">
-                    <FiMap className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm text-blue-800">
-                        <strong>Interactive Map Selection:</strong> Use the map to pinpoint the exact location where the issue occurred. 
-                        You can select any location within the panchayath boundaries, even if you're not physically there.
-                      </p>
-                      <p className="text-xs text-blue-700 mt-2">
-                        The map shows the service area boundary. Only locations within this area can be selected for complaint registration.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Address *
-                </label>
-                <div className="relative">
                   <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    onBlur={() => handleFieldBlur('address')}
-                    required
-                    className={`w-full px-4 py-3 pr-10 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 ${
-                      isFieldValid('address') ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500' : 
-                      isFieldInvalid('address') ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 
-                      'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
-                    }`}
-                    placeholder="Enter the address where the issue occurred"
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/*"
+                    onChange={handleVideoUpload}
+                    className="hidden"
                   />
-                  {isFieldValid('address') && (
-                    <FiCheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500 w-5 h-5" />
-                  )}
-                  {isFieldInvalid('address') && (
-                    <FiX className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />
-                  )}
-                </div>
-                {isFieldInvalid('address') && (
-                  <p className="text-red-500 text-sm mt-1">{validationErrors.address}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  City *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    onBlur={() => handleFieldBlur('city')}
-                    required
-                    className={`w-full px-4 py-3 pr-10 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 ${
-                      isFieldValid('city') ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500' : 
-                      isFieldInvalid('city') ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 
-                      'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
-                    }`}
-                    placeholder="Enter city"
-                  />
-                  {isFieldValid('city') && (
-                    <FiCheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500 w-5 h-5" />
-                  )}
-                  {isFieldInvalid('city') && (
-                    <FiX className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />
-                  )}
-                </div>
-                {isFieldInvalid('city') && (
-                  <p className="text-red-500 text-sm mt-1">{validationErrors.city}</p>
-                )}
-              </div>
-            </div>
+                </motion.div>
 
-            <div className="mt-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Pincode
-              </label>
-              <div className="relative w-full md:w-1/3">
-                <input
-                  type="text"
-                  name="pincode"
-                  value={formData.pincode}
-                  onChange={handleInputChange}
-                  onBlur={() => handleFieldBlur('pincode')}
-                  className={`w-full px-4 py-3 pr-10 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 ${
-                    isFieldValid('pincode') ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500' : 
-                    isFieldInvalid('pincode') ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 
-                    'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
+                {/* Issue Category Selection */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className={`bg-white/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border ${
+                    errors.category && touched.category 
+                      ? 'border-red-300 error-field' 
+                      : 'border-[#84A98C]/30'
                   }`}
-                  placeholder="Enter pincode"
-                  maxLength="6"
-                />
-                {isFieldValid('pincode') && (
-                  <FiCheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500 w-5 h-5" />
-                )}
-                {isFieldInvalid('pincode') && (
-                  <FiX className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />
-                )}
-              </div>
-              {isFieldInvalid('pincode') && (
-                <p className="text-red-500 text-sm mt-1">{validationErrors.pincode}</p>
-              )}
-            </div>
-          </motion.div>
+                >
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+                    Issue with*
+                    {errors.category && touched.category && (
+                      <span className="text-red-500 text-sm font-normal ml-2">
+                        {errors.category}
+                      </span>
+                    )}
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4">
+                    {issueCategories.map((category) => {
+                      const IconComponent = category.icon;
+                      const isSelected = formData.category === category.id;
+                      
+                      return (
+                        <motion.button
+                          key={category.id}
+                          type="button"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleCategorySelect(category.id)}
+                          className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center p-2 sm:p-4 transition-all duration-200 ${
+                            isSelected 
+                              ? 'border-[#52796F] bg-[#52796F]/10 text-[#52796F]' 
+                              : errors.category && touched.category
+                                ? 'border-red-300 hover:border-red-400 text-gray-600'
+                                : 'border-gray-300 hover:border-gray-400 text-gray-600'
+                          }`}
+                        >
+                          <IconComponent 
+                            className="h-6 w-6 sm:h-8 sm:w-8 mb-1 sm:mb-2" 
+                            style={{ color: isSelected ? '#52796F' : category.color }}
+                          />
+                          <span className="text-xs sm:text-sm font-medium text-center">{category.label}</span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
 
-          {/* Issue Details */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[#84A98C]/30 p-8"
-          >
-            <div className="flex items-center mb-6">
-              <div className="h-12 w-12 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-2xl flex items-center justify-center mr-4">
-                <FiFileText className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Issue Details</h2>
-                <p className="text-gray-600">Provide detailed information about the issue</p>
-              </div>
-            </div>
-            
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Title *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleInputChange}
-                    onBlur={() => handleFieldBlur('title')}
-                    required
-                    className={`w-full px-4 py-3 pr-10 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 ${
-                      isFieldValid('title') ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500' : 
-                      isFieldInvalid('title') ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 
-                      'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
-                    }`}
-                    placeholder="Brief description of the issue"
-                    maxLength="100"
-                  />
-                  {isFieldValid('title') && (
-                    <FiCheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500 w-5 h-5" />
-                  )}
-                  {isFieldInvalid('title') && (
-                    <FiX className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />
-                  )}
-                </div>
-                {isFieldInvalid('title') && (
-                  <p className="text-red-500 text-sm mt-1">{validationErrors.title}</p>
-                )}
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>Minimum 5 characters</span>
-                  <span>{formData.title.length}/100</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Description *
-                </label>
-                <div className="relative">
+                {/* Description */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className={`bg-white/90 backdrop-blur-sm rounded-2xl p-6 border ${
+                    errors.description && touched.description 
+                      ? 'border-red-300 error-field' 
+                      : 'border-[#84A98C]/30'
+                  }`}
+                >
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Description*
+                    {errors.description && touched.description && (
+                      <span className="text-red-500 text-sm font-normal ml-2">
+                        {errors.description}
+                      </span>
+                    )}
+                  </label>
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={handleInputChange}
-                    onBlur={() => handleFieldBlur('description')}
+                    onBlur={handleFieldBlur}
                     required
                     rows={4}
-                    className={`w-full px-4 py-3 pr-10 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 resize-none ${
-                      isFieldValid('description') ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500' : 
-                      isFieldInvalid('description') ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 
-                      'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
+                    maxLength={1000}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 resize-none transition-colors duration-200 ${
+                      errors.description && touched.description
+                        ? 'border-red-300 focus:ring-red-200 focus:border-red-500'
+                        : 'border-gray-300 focus:ring-[#52796F]/20 focus:border-[#52796F]'
                     }`}
-                    placeholder="Detailed description of the issue..."
-                    maxLength="1000"
+                    placeholder="Describe the issue in detail... (minimum 10 characters)"
                   />
-                  {isFieldValid('description') && (
-                    <FiCheckCircle className="absolute right-3 top-3 text-green-500 w-5 h-5" />
-                  )}
-                  {isFieldInvalid('description') && (
-                    <FiX className="absolute right-3 top-3 text-red-500 w-5 h-5" />
-                  )}
-                </div>
-                {isFieldInvalid('description') && (
-                  <p className="text-red-500 text-sm mt-1">{validationErrors.description}</p>
-                )}
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>Minimum 20 characters</span>
-                  <span>{formData.description.length}/1000</span>
-                </div>
-              </div>
-
-              {/* AI-Powered Automation Information */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
-                <div className="flex items-start space-x-4">
-                  <div className="flex-shrink-0">
-                    <div className="h-12 w-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                      <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="text-xs text-gray-500">
+                      Minimum 10 characters required
+                    </div>
+                    <div className={`text-xs ${
+                      formData.description.length > 900 
+                        ? 'text-red-500' 
+                        : formData.description.length > 800 
+                          ? 'text-yellow-600' 
+                          : 'text-gray-500'
+                    }`}>
+                      {formData.description.length}/1000
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">🤖 AI-Powered Automation</h3>
-                    <p className="text-gray-700 mb-3">
-                      Our intelligent system will automatically:
-                    </p>
-                    <ul className="space-y-2 text-sm text-gray-600">
-                      <li className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span><strong>Analyze your description and images</strong> to determine the issue category</span>
-                      </li>
-                      <li className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span><strong>Set appropriate priority level</strong> based on urgency keywords</span>
-                      </li>
-                      <li className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span><strong>Instantly assign to qualified field staff</strong> with matching expertise</span>
-                      </li>
-                      <li className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span><strong>Start resolution process immediately</strong> without manual delays</span>
-                      </li>
-                    </ul>
-                    <div className="mt-4 p-3 bg-blue-100 rounded-lg">
-                      <p className="text-sm text-blue-800">
-                        <strong>⚡ Fast Track:</strong> Clear descriptions and quality photos help our AI categorize and assign your complaint instantly to the right team!
-                      </p>
+                </motion.div>
+
+                {/* Submit Button */}
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  whileHover={{ scale: loading ? 1 : 1.02 }}
+                  whileTap={{ scale: loading ? 1 : 0.98 }}
+                  type="submit"
+                  disabled={loading}
+                  className={`w-full py-4 rounded-2xl font-semibold text-lg transition-all duration-200 ${
+                    loading
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-gradient-to-r from-[#52796F] to-[#354F52] text-white hover:shadow-lg cursor-pointer'
+                  }`}
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Submitting Report...
                     </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
+                  ) : (
+                    'SUBMIT REPORT'
+                  )}
+                </motion.button>
 
-          {/* Image Upload */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[#84A98C]/30 p-8"
-          >
-            <div className="flex items-center mb-6">
-              <div className="h-12 w-12 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-2xl flex items-center justify-center mr-4">
-                <FiCamera className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Photos</h2>
-                <p className="text-gray-600">Upload photos to help describe the issue</p>
-              </div>
-            </div>
-            
-            <div className="mb-6 space-y-3">
-              <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
-                <p className="text-gray-700">
-                  <strong>📸 For Better Review:</strong> Upload clear photos that show the issue from different angles. This helps our admin team understand and process your complaint more effectively.
-                </p>
-              </div>
-              <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <p className="text-gray-600">
-                  <strong>Guidelines:</strong> Maximum 5 images, 5MB each. Supported formats: JPG, PNG, GIF
-                </p>
-              </div>
-            </div>
 
-            <div className="space-y-6">
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center w-full px-6 py-4 border-2 border-dashed border-emerald-300 rounded-xl text-emerald-600 hover:bg-emerald-50 hover:border-emerald-400 transition-all duration-200"
-              >
-                <FiUpload className="h-6 w-6 mr-3" />
-                <span className="font-semibold">Choose Photos</span>
-              </motion.button>
 
-              <AnimatePresence>
-                {imagePreviews.length > 0 && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
+                {/* Validation Summary */}
+                {Object.keys(errors).length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4"
                   >
-                    {imagePreviews.map((preview, index) => (
-                      <motion.div 
-                        key={index} 
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        className="relative group"
-                      >
-                        <img
-                          src={preview.preview}
-                          alt={`Preview ${index + 1}`}
-                          className="w-full h-24 object-cover rounded-xl shadow-md group-hover:shadow-lg transition-shadow duration-200"
-                        />
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 shadow-lg"
-                        >
-                          <FiX className="h-4 w-4" />
-                        </motion.button>
-                      </motion.div>
-                    ))}
+                    <h4 className="text-red-800 font-semibold text-sm mb-2">Please fix the following errors:</h4>
+                    <ul className="text-red-700 text-sm space-y-1">
+                      {Object.entries(errors).map(([field, error]) => (
+                        <li key={field} className="flex items-center">
+                          <span className="w-2 h-2 bg-red-400 rounded-full mr-2 flex-shrink-0"></span>
+                          {error}
+                        </li>
+                      ))}
+                    </ul>
                   </motion.div>
                 )}
-              </AnimatePresence>
+              </form>
             </div>
-          </motion.div>
-
-          {/* Privacy Options */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[#84A98C]/30 p-8"
-          >
-            <div className="flex items-center mb-6">
-              <div className="h-12 w-12 bg-gradient-to-r from-[#84A98C] to-[#52796F] rounded-2xl flex items-center justify-center mr-4">
-                <FiShield className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Privacy Options</h2>
-                <p className="text-gray-600">Choose how your report will be displayed</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start space-x-4 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
-              <input
-                type="checkbox"
-                id="isAnonymous"
-                name="isAnonymous"
-                checked={formData.isAnonymous}
-                onChange={handleInputChange}
-                className="h-5 w-5 text-[#52796F] focus:ring-[#52796F] border-gray-300 rounded mt-0.5"
-              />
-              <div>
-                <label htmlFor="isAnonymous" className="text-sm font-semibold text-gray-700 block cursor-pointer">
-                  Submit anonymously {formData.isAnonymous ? '✓' : ''}
-                </label>
-                <p className="text-sm text-gray-600 mt-1">
-                  Your name will not be visible to other users or in public reports
-                  {formData.isAnonymous && (
-                    <span className="block text-emerald-600 font-medium mt-1">
-                      ✓ Anonymous submission enabled
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-
-
-
-          {/* Submit Button */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="flex flex-col sm:flex-row justify-end space-y-4 sm:space-y-0 sm:space-x-6"
-          >
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              type="button"
-              onClick={() => navigate('/citizen-dashboard')}
-              className="px-8 py-3 border-2 border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-semibold"
-            >
-              Cancel
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              type="submit"
-              disabled={loading || !getActiveLocation() || !isLocationValid || Object.keys(validationErrors).length > 0}
-              className="px-8 py-3 bg-gradient-to-r from-[#52796F] to-[#354F52] text-white rounded-xl hover:from-[#354F52] hover:to-[#2F3E46] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold shadow-lg"
-            >
-              {loading && (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-              )}
-              {loading ? 'Submitting Report...' : !isLocationValid && getActiveLocation() ? 'Location Outside Service Area' : 'Submit Report'}
-            </motion.button>
-          </motion.div>
-        </form>
-        </div>
-      </div>
-
-      {/* Map Location Picker Modal */}
-      <AnimatePresence>
-        {showMapPicker && (
-          <MapLocationPicker
-            isOpen={showMapPicker}
-            onClose={() => setShowMapPicker(false)}
-            onLocationSelect={handleMapLocationSelect}
-            initialLocation={selectedLocation}
-          />
+          </div>
         )}
-      </AnimatePresence>
+
+        {/* Global Nearby Reports Popup */}
+        <NearbyReportsDisplay
+          reports={nearbyReports}
+          loading={loadingNearbyReports}
+          isOpen={showNearbyReportsModal}
+          onClose={() => {
+            setShowNearbyReportsModal(false);
+            setCurrentStep('form');
+          }}
+          onChangeLocation={() => {
+            setShowNearbyReportsModal(false);
+            setCurrentStep('map');
+            setShowMapPicker(true);
+          }}
+          onProceedWithReport={() => {
+            setShowNearbyReportsModal(false);
+            setCurrentStep('form');
+          }}
+        />
       </div>
     </CitizenLayout>
   );

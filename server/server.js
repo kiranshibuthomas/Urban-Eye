@@ -14,12 +14,15 @@ const statsRoutes = require('./routes/stats');
 const servicesRoutes = require('./routes/services');
 const userRoutes = require('./routes/users');
 const fieldStaffRoutes = require('./routes/fieldStaff');
+const fieldWorkRoutes = require('./routes/fieldWork');
+const adminFieldWorkRoutes = require('./routes/adminFieldWork');
 const analyticsRoutes = require('./routes/analytics');
 const geofenceConfigRoutes = require('./routes/geofenceConfig');
 const publicFeedRoutes = require('./routes/publicFeed');
 const chatbotRoutes = require('./routes/chatbot');
 const fundraisingRoutes = require('./routes/fundraising');
 const donationRoutes = require('./routes/donations');
+const teamCollaborationRoutes = require('./routes/teamCollaboration');
 // const mlRoutes = require('./routes/ml'); // ML service removed
 
 // Import passport configuration
@@ -63,7 +66,9 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/urbaneye'
   maxPoolSize: 10,
   minPoolSize: 5,
 })
-.then(() => console.log('MongoDB connected successfully'))
+.then(() => {
+  // MongoDB connected successfully
+})
 .catch(err => console.error('MongoDB connection error:', err));
 
 // Routes
@@ -73,12 +78,15 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/services', servicesRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/field-staff', fieldStaffRoutes);
+app.use('/api/field-work', fieldWorkRoutes);
+app.use('/api/admin/field-work', adminFieldWorkRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/geofence-config', geofenceConfigRoutes);
 app.use('/api/public-feed', publicFeedRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/fundraising', fundraisingRoutes);
 app.use('/api/donations', donationRoutes);
+app.use('/api/teams', teamCollaborationRoutes);
 // app.use('/api/ml', mlRoutes); // ML service removed
 
 // Serve uploaded files

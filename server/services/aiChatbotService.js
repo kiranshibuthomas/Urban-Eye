@@ -35,7 +35,7 @@ class AIChatbotService {
           responseSource = 'local';
         }
       } catch (localError) {
-        console.log('Local AI service failed:', localError.message);
+        // Local AI service failed, continue to fallback
       }
 
       // Method 2: Try Hugging Face only if local failed and message is complex enough
@@ -47,7 +47,7 @@ class AIChatbotService {
             responseSource = 'huggingface';
           }
         } catch (hfError) {
-          console.log('Hugging Face API failed:', hfError.message);
+          // Hugging Face API failed, continue to fallback
         }
       }
 
@@ -210,7 +210,6 @@ class AIChatbotService {
             }
           }
         } catch (modelError) {
-          console.log(`Model ${model} failed:`, modelError.message);
           continue;
         }
       }
@@ -619,7 +618,6 @@ Response:`;
       
       return true;
     } catch (error) {
-      console.log('Hugging Face API not available, using enhanced local responses');
       // Even if HF API fails, we have enhanced local responses
       return true; // Always return true since we have fallback methods
     }

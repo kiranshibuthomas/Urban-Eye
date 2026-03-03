@@ -7,6 +7,8 @@ const Complaint = require('../models/Complaint');
 const AuditLog = require('../models/AuditLog');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { sendOTPVerificationEmail } = require('../services/emailService');
+const { isCloudinaryConfigured, deleteFromCloudinary, extractPublicId } = require('../services/cloudinaryService');
+const { cleanupUserAvatars } = require('../services/avatarService');
 
 const router = express.Router();
 
@@ -849,24 +851,34 @@ router.delete('/:id/hard-delete', async (req, res) => {
     // Get user's complaints to delete associated files
     const userComplaints = await Complaint.find({ citizen: user._id });
     
-    // Delete complaint images
+    // Delete complaint media from Cloudinary
     for (const complaint of userComplaints) {
       if (complaint.images && complaint.images.length > 0) {
         for (const image of complaint.images) {
           try {
-            const imagePath = path.join(__dirname, '../uploads/complaints', image.filename);
-            await fs.unlink(imagePath);
+            if (image.publicId) {
+              await deleteFromCloudinary(image.publicId, 'image');
+            }
           } catch (error) {
             console.error('Error deleting complaint image:', error);
           }
         }
       }
       
+      if (complaint.video && complaint.video.publicId) {
+        try {
+          await deleteFromCloudinary(complaint.video.publicId, 'video');
+        } catch (error) {
+          console.error('Error deleting complaint video:', error);
+        }
+      }
+      
       if (complaint.resolutionImages && complaint.resolutionImages.length > 0) {
         for (const image of complaint.resolutionImages) {
           try {
-            const imagePath = path.join(__dirname, '../uploads/complaints', image.filename);
-            await fs.unlink(imagePath);
+            if (image.publicId) {
+              await deleteFromCloudinary(image.publicId, 'image');
+            }
           } catch (error) {
             console.error('Error deleting resolution image:', error);
           }
@@ -877,10 +889,27 @@ router.delete('/:id/hard-delete', async (req, res) => {
     // Delete user's avatar if it exists
     if (user.customAvatar) {
       try {
-        const avatarPath = path.join(__dirname, '../uploads/avatars', path.basename(user.customAvatar));
-        await fs.unlink(avatarPath);
+        // Delete from Cloudinary
+        if (user.avatarPublicId) {
+          await deleteFromCloudinary(user.avatarPublicId, 'image');
+        } else {
+          // Fallback: extract public ID from URL
+          const publicId = extractPublicId(user.customAvatar);
+          if (publicId) {
+            await deleteFromCloudinary(publicId, 'image');
+          }
+        }
       } catch (error) {
         console.error('Error deleting user avatar:', error);
+      }
+    }
+
+    // Delete Google photo backup if it exists
+    if (user.googlePhotoCloudinary && user.googlePhotoPublicId) {
+      try {
+        await deleteFromCloudinary(user.googlePhotoPublicId, 'image');
+      } catch (error) {
+        console.error('Error deleting Google photo backup:', error);
       }
     }
 
