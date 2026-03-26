@@ -318,19 +318,34 @@ class TeamCollaborationService {
     try {
       const team = await WorkTeam.findById(teamId);
       if (!team) {
+        console.error('Team not found:', teamId);
         throw new Error('Team not found');
       }
       
       // Verify sender is team member
-      const member = team.members.find(
-        m => m.fieldStaff.toString() === senderId.toString() && 
-             (m.status === 'active' || m.status === 'accepted')
+      const memberIndex = team.members.findIndex(
+        m => m.fieldStaff.toString() === senderId.toString()
       );
       
-      if (!member) {
+      if (memberIndex === -1) {
+        console.error('User not a team member:', senderId, 'Team:', teamId);
         throw new Error('Not a team member');
       }
+
+      const member = team.members[memberIndex];
       
+      // Check if member has accepted or is active
+      if (member.status !== 'active' && member.status !== 'accepted') {
+        console.error('Member status not valid:', member.status);
+        throw new Error('You must accept the team invitation first');
+      }
+
+      // Auto-activate accepted members when they send their first message
+      if (member.status === 'accepted') {
+        team.members[memberIndex].status = 'active';
+      }
+      
+      console.log('Adding message to team:', teamId, 'from:', senderId);
       await team.addMessage(senderId, message);
       
       // TODO: Send push notifications to other team members
@@ -341,6 +356,7 @@ class TeamCollaborationService {
       };
       
     } catch (error) {
+      console.error('sendMessage error:', error);
       throw new Error(error.message);
     }
   }
@@ -348,16 +364,24 @@ class TeamCollaborationService {
   // Get team details
   static async getTeamDetails(teamId) {
     try {
+      console.log('Getting team details for teamId:', teamId);
+      
       const team = await WorkTeam.findById(teamId)
         .populate('complaint', 'title description location address category priority')
         .populate('teamLeader', 'name email department avatar')
         .populate('members.fieldStaff', 'name email department avatar skills')
         .populate('messages.sender', 'name avatar')
-        .populate('workSession');
+        .populate({
+          path: 'workSession',
+          select: 'sessionId status startTime endTime progressUpdates pauseHistory completionNotes completionImages totalDuration'
+        });
       
       if (!team) {
+        console.log('Team not found for teamId:', teamId);
         throw new Error('Team not found');
       }
+      
+      console.log('Team found:', team._id, 'Status:', team.status);
       
       return {
         success: true,
@@ -365,6 +389,7 @@ class TeamCollaborationService {
       };
       
     } catch (error) {
+      console.error('getTeamDetails error:', error);
       throw new Error(error.message);
     }
   }
@@ -380,11 +405,23 @@ class TeamCollaborationService {
         query.status = status;
       }
       
+      console.log('getMyTeams query:', JSON.stringify(query));
+      
       const teams = await WorkTeam.find(query)
         .populate('complaint', 'title description location address category priority')
         .populate('teamLeader', 'name email avatar')
         .populate('members.fieldStaff', 'name email avatar')
         .sort({ createdAt: -1 });
+      
+      console.log(`Found ${teams.length} teams for field staff ${fieldStaffId}`);
+      
+      // Log member details for debugging
+      teams.forEach(team => {
+        console.log(`Team ${team._id}:`, team.members.map(m => ({
+          id: m.fieldStaff._id,
+          status: m.status
+        })));
+      });
       
       return {
         success: true,
@@ -392,6 +429,7 @@ class TeamCollaborationService {
       };
       
     } catch (error) {
+      console.error('getMyTeams error:', error);
       throw new Error(error.message);
     }
   }

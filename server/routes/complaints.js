@@ -1165,6 +1165,61 @@ router.put('/:id/assign', authenticateToken, requireRole('admin'), async (req, r
   }
 });
 
+// @route   PUT /api/complaints/:id/reject-work
+// @desc    Reject completed work and re-assign back to the same field staff
+// @access  Private (Admin only)
+router.put('/:id/reject-work', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { rejectionReason } = req.body;
+    const adminId = req.user._id;
+
+    if (!rejectionReason || !rejectionReason.trim()) {
+      return res.status(400).json({ success: false, message: 'Rejection reason is required' });
+    }
+
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) {
+      return res.status(404).json({ success: false, message: 'Complaint not found' });
+    }
+
+    if (complaint.status !== 'work_completed') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot reject work: complaint is in '${complaint.status}' status, expected 'work_completed'`
+      });
+    }
+
+    // Use the model's rejectWork method which sets all the right fields
+    complaint.rejectWork(adminId, rejectionReason.trim());
+    await complaint.save();
+
+    try {
+      await AuditLog.logAction({
+        action: 'reject_work',
+        entityType: 'complaint',
+        entityId: complaint._id,
+        performedBy: req.user._id,
+        performedByEmail: req.user.email,
+        reason: rejectionReason,
+        details: { complaintTitle: complaint.title, fieldStaffId: complaint.assignedToFieldStaff },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+    } catch (auditError) {
+      console.error('Audit log error:', auditError);
+    }
+
+    res.json({
+      success: true,
+      message: 'Work rejected and re-assigned to field staff',
+      complaint
+    });
+  } catch (error) {
+    console.error('Reject work error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // @route   PUT /api/complaints/:id/approve-work
 // @desc    Approve completed work by admin and mark as resolved
 // @access  Private (Admin only)
@@ -1598,6 +1653,28 @@ router.delete('/:id', authenticateToken, requireRole('admin'), async (req, res) 
       });
     }
 
+    // CASCADE: Disband associated work teams (soft delete)
+    try {
+      const WorkTeam = require('../models/WorkTeam');
+      const teams = await WorkTeam.find({ complaint: req.params.id, status: { $ne: 'disbanded' } });
+      
+      for (const team of teams) {
+        team.status = 'disbanded';
+        team.disbandedAt = new Date();
+        team.activityLog.push({
+          action: 'disbanded',
+          performedBy: req.user._id,
+          description: 'Team disbanded due to complaint deletion',
+          timestamp: new Date()
+        });
+        await team.save();
+      }
+      
+      console.log(`Disbanded ${teams.length} work teams associated with complaint ${req.params.id}`);
+    } catch (error) {
+      console.error('Error disbanding associated work teams:', error);
+    }
+
     // Log the archive action before soft delete
     await AuditLog.logAction({
       action: 'archive',
@@ -1728,6 +1805,42 @@ router.delete('/:id/hard-delete', authenticateToken, requireRole('admin'), async
       }
     }
 
+    // CASCADE DELETE: Delete associated work teams
+    try {
+      const WorkTeam = require('../models/WorkTeam');
+      const deletedTeams = await WorkTeam.deleteMany({ complaint: req.params.id });
+      console.log(`Deleted ${deletedTeams.deletedCount} work teams associated with complaint ${req.params.id}`);
+    } catch (error) {
+      console.error('Error deleting associated work teams:', error);
+    }
+
+    // CASCADE DELETE: Delete associated work logs
+    try {
+      const WorkLog = require('../models/WorkLog');
+      const deletedLogs = await WorkLog.deleteMany({ complaint: req.params.id });
+      console.log(`Deleted ${deletedLogs.deletedCount} work logs associated with complaint ${req.params.id}`);
+    } catch (error) {
+      console.error('Error deleting associated work logs:', error);
+    }
+
+    // CASCADE DELETE: Delete associated complaint feedback
+    try {
+      const ComplaintFeedback = require('../models/ComplaintFeedback');
+      const deletedFeedback = await ComplaintFeedback.deleteMany({ complaint: req.params.id });
+      console.log(`Deleted ${deletedFeedback.deletedCount} feedback entries associated with complaint ${req.params.id}`);
+    } catch (error) {
+      console.error('Error deleting associated feedback:', error);
+    }
+
+    // CASCADE DELETE: Delete associated public feed interactions
+    try {
+      const PublicFeedInteraction = require('../models/PublicFeedInteraction');
+      const deletedInteractions = await PublicFeedInteraction.deleteMany({ complaint: req.params.id });
+      console.log(`Deleted ${deletedInteractions.deletedCount} public feed interactions associated with complaint ${req.params.id}`);
+    } catch (error) {
+      console.error('Error deleting associated public feed interactions:', error);
+    }
+
     // Log the hard delete action before deletion
     await AuditLog.logAction({
       action: 'hard_delete',
@@ -1753,7 +1866,7 @@ router.delete('/:id/hard-delete', authenticateToken, requireRole('admin'), async
 
     res.json({
       success: true,
-      message: 'Complaint permanently deleted'
+      message: 'Complaint and all associated data permanently deleted'
     });
 
   } catch (error) {

@@ -246,6 +246,17 @@ router.get('/:teamId', async (req, res) => {
   try {
     const { teamId } = req.params;
     
+    console.log('GET /api/teams/:teamId - teamId:', teamId);
+    
+    // Validate ObjectId format
+    if (!teamId.match(/^[0-9a-fA-F]{24}$/)) {
+      console.error('Invalid team ID format:', teamId);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid team ID format'
+      });
+    }
+    
     const result = await TeamCollaborationService.getTeamDetails(teamId);
     
     res.json(result);

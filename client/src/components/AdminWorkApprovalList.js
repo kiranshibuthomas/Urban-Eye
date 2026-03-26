@@ -87,30 +87,21 @@ const AdminWorkApprovalList = () => {
 
   const handleRejectWork = async (complaintId, rejectionReason) => {
     try {
-      const response = await fetch(`/api/complaints/${complaintId}/status`, {
+      const response = await fetch(`/api/complaints/${complaintId}/reject-work`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          status: 'in_progress',
-          rejectionReason
-        })
+        body: JSON.stringify({ rejectionReason })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          toast.success('Work rejected and returned to field staff');
-          setShowApprovalModal(false);
-          fetchWorkCompletedComplaints();
-          return data;
-        } else {
-          throw new Error(data.message || 'Failed to reject work');
-        }
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toast.success('Work rejected and returned to field staff');
+        setShowApprovalModal(false);
+        fetchWorkCompletedComplaints();
+        return data;
       } else {
-        throw new Error('Failed to reject work');
+        throw new Error(data.message || 'Failed to reject work');
       }
     } catch (error) {
       console.error('Reject work error:', error);

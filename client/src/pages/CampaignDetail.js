@@ -19,8 +19,14 @@ import {
   FiChevronLeft,
   FiTarget,
   FiTrendingUp,
-  FiUser
+  FiUser,
+  FiFileText,
+  FiCheckCircle,
+  FiExternalLink,
+  FiShield,
+  FiDownload
 } from 'react-icons/fi';
+import { FaFilePdf, FaFileImage, FaFileAlt } from 'react-icons/fa';
 
 const CampaignDetail = () => {
   const { id } = useParams();
@@ -31,6 +37,31 @@ const CampaignDetail = () => {
   const [loading, setLoading] = useState(true);
   const [showDonationModal, setShowDonationModal] = useState(false);
   const [activeTab, setActiveTab] = useState('about');
+  const [viewerDoc, setViewerDoc] = useState(null); // { url, name, isPdf }
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async (url, name) => {
+    try {
+      setDownloading(true);
+      const safeFilename = name.endsWith('.pdf') ? name : `${name}.pdf`;
+      // Local files served by Express — fetch as blob to force download with correct filename
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('File not found');
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = safeFilename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      toast.error('Download failed.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     fetchCampaignDetails();
@@ -94,6 +125,25 @@ const CampaignDetail = () => {
       other: 'bg-gray-100 text-gray-800'
     };
     return colors[category] || colors.other;
+  };
+
+  const getDocTypeLabel = (type) => {
+    const labels = {
+      authorization_letter: 'Authorization Letter',
+      budget_breakdown: 'Budget Breakdown',
+      project_proposal: 'Project Proposal',
+      ngo_registration: 'NGO / Organization Registration',
+      bank_details: 'Bank Account Proof',
+      other: 'Supporting Document',
+    };
+    return labels[type] || type;
+  };
+
+  const getDocIcon = (doc) => {
+    if (doc.url?.includes('.pdf') || doc.name?.toLowerCase().endsWith('.pdf')) {
+      return <FaFilePdf className="text-red-500 text-2xl flex-shrink-0" />;
+    }
+    return <FaFileImage className="text-blue-500 text-2xl flex-shrink-0" />;
   };
 
   const shareCampaign = async () => {
@@ -231,18 +281,30 @@ const CampaignDetail = () => {
 
                 {/* Tabs */}
                 <div className="border-b border-gray-200 mb-6">
-                  <nav className="-mb-px flex space-x-8">
-                    {['about', 'updates', 'donations'].map((tab) => (
+                  <nav className="-mb-px flex space-x-8 overflow-x-auto">
+                    {['about', 'documents', 'updates', 'donations'].map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
-                        className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                        className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 whitespace-nowrap ${
                           activeTab === tab
                             ? 'border-[#52796F] text-[#52796F]'
                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                         }`}
                       >
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                        {tab === 'documents' ? (
+                          <span className="flex items-center gap-1">
+                            <FiFileText className="h-3.5 w-3.5" />
+                            Documents
+                            {campaign.documents?.length > 0 && (
+                              <span className="ml-1 bg-[#52796F] text-white text-xs rounded-full px-1.5 py-0.5 leading-none">
+                                {campaign.documents.length}
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          tab.charAt(0).toUpperCase() + tab.slice(1)
+                        )}
                       </button>
                     ))}
                   </nav>
@@ -274,6 +336,106 @@ const CampaignDetail = () => {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {activeTab === 'documents' && (
+                  <div>
+                    {/* Verification badge */}
+                    <div className={`flex items-start gap-3 p-4 rounded-xl mb-6 border ${
+                      campaign.reviewStatus === 'approved'
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-amber-50 border-amber-200'
+                    }`}>
+                      <FiShield className={`mt-0.5 flex-shrink-0 ${campaign.reviewStatus === 'approved' ? 'text-green-600' : 'text-amber-500'}`} size={18} />
+                      <div>
+                        <p className={`font-semibold text-sm ${campaign.reviewStatus === 'approved' ? 'text-green-800' : 'text-amber-800'}`}>
+                          {campaign.reviewStatus === 'approved' ? 'Verified Campaign' : 'Verification Pending'}
+                        </p>
+                        <p className={`text-sm mt-0.5 ${campaign.reviewStatus === 'approved' ? 'text-green-700' : 'text-amber-700'}`}>
+                          {campaign.reviewStatus === 'approved'
+                            ? 'All submitted documents have been reviewed and verified by our admin team.'
+                            : 'Documents are currently under review by our admin team.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Official Documentation</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      These documents were submitted by the campaign organizer to establish legitimacy and transparency.
+                    </p>
+
+                    {campaign.documents && campaign.documents.length > 0 ? (
+                      <div className="space-y-3">
+                        {campaign.documents.map((doc, index) => {
+                          const isPdf = doc.url?.toLowerCase().includes('.pdf') || doc.name?.toLowerCase().endsWith('.pdf');
+                          return (
+                            <button
+                              key={index}
+                              onClick={() => setViewerDoc({ url: doc.url, name: doc.name, isPdf })}
+                              className="w-full flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 group text-left"
+                            >
+                              <div className="flex items-center gap-3">
+                                {isPdf
+                                  ? <FaFilePdf className="text-red-500 text-2xl flex-shrink-0" />
+                                  : <FaFileImage className="text-blue-500 text-2xl flex-shrink-0" />}
+                                <div>
+                                  <p className="font-medium text-gray-900 group-hover:text-blue-700 transition-colors">
+                                    {doc.name}
+                                  </p>
+                                  <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                                    <FiCheckCircle className="text-green-500" size={11} />
+                                    {getDocTypeLabel(doc.type)}
+                                    {doc.uploadedAt && (
+                                      <span className="ml-2 text-gray-400">
+                                        · Uploaded {formatDate(doc.uploadedAt)}
+                                      </span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                              <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded-lg group-hover:bg-blue-200 transition-colors flex-shrink-0">
+                                {isPdf ? 'View PDF' : 'View Image'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-10 bg-gray-50 rounded-xl border border-gray-200">
+                        <FaFileAlt className="mx-auto text-4xl text-gray-300 mb-3" />
+                        <p className="text-gray-500">No documents available for this campaign.</p>
+                      </div>
+                    )}
+
+                    {/* Campaign metadata */}
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Campaign Details</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <FiCalendar className="text-gray-400 flex-shrink-0" size={14} />
+                          <span>Start: <span className="font-medium text-gray-800">{formatDate(campaign.startDate)}</span></span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <FiCalendar className="text-gray-400 flex-shrink-0" size={14} />
+                          <span>End: <span className="font-medium text-gray-800">{formatDate(campaign.endDate)}</span></span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <FiTarget className="text-gray-400 flex-shrink-0" size={14} />
+                          <span>Target: <span className="font-medium text-gray-800">{formatCurrency(campaign.targetAmount)}</span></span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <FiUser className="text-gray-400 flex-shrink-0" size={14} />
+                          <span>Organizer: <span className="font-medium text-gray-800">{campaign.createdBy?.name}</span></span>
+                        </div>
+                        {campaign.location?.address && (
+                          <div className="flex items-center gap-2 text-gray-600 sm:col-span-2">
+                            <FiMapPin className="text-gray-400 flex-shrink-0" size={14} />
+                            <span>Location: <span className="font-medium text-gray-800">{campaign.location.address}</span></span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -404,6 +566,12 @@ const CampaignDetail = () => {
                     <span>Campaign ends:</span>
                     <span className="font-medium">{formatDate(campaign.endDate)}</span>
                   </div>
+                  {campaign.reviewStatus === 'approved' && (
+                    <div className="flex items-center gap-1.5 mt-3 text-green-700 text-xs font-medium">
+                      <FiShield size={13} />
+                      Verified by admin — documents reviewed
+                    </div>
+                  )}
                 </div>
               </motion.div>
 
@@ -438,6 +606,85 @@ const CampaignDetail = () => {
             onClose={() => setShowDonationModal(false)}
             onSuccess={handleDonationSuccess}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Document Viewer Modal */}
+      <AnimatePresence>
+        {viewerDoc && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-80 flex flex-col z-50"
+            onClick={() => setViewerDoc(null)}
+          >
+            {/* Toolbar */}
+            <div
+              className="flex items-center justify-between px-4 py-3 bg-gray-900 text-white flex-shrink-0"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {viewerDoc.isPdf
+                  ? <FaFilePdf className="text-red-400 flex-shrink-0" />
+                  : <FaFileImage className="text-blue-400 flex-shrink-0" />}
+                <span className="text-sm font-medium truncate">{viewerDoc.name}</span>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                {/* Blob-fetch download — bypasses CORS restriction on <a download> */}
+                {viewerDoc.isPdf && (
+                  <button
+                    onClick={() => handleDownload(viewerDoc.url, viewerDoc.name)}
+                    disabled={downloading}
+                    className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-60 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    {downloading
+                      ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : <FiDownload size={12} />}
+                    {downloading ? 'Downloading...' : 'Download PDF'}
+                  </button>
+                )}
+                <a
+                  href={viewerDoc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <FiExternalLink size={12} /> Open tab
+                </a>
+                <button
+                  onClick={() => setViewerDoc(null)}
+                  className="p-1.5 bg-gray-700 hover:bg-red-600 rounded-lg transition-colors"
+                  aria-label="Close viewer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Viewer body */}
+            <div
+              className="flex-1 overflow-auto flex items-center justify-center p-4"
+              onClick={e => e.stopPropagation()}
+            >
+              {viewerDoc.isPdf ? (
+                <iframe
+                  src={viewerDoc.url}
+                  title={viewerDoc.name}
+                  className="w-full rounded-lg bg-white border-0"
+                  style={{ height: '80vh' }}
+                />
+              ) : (
+                <img
+                  src={viewerDoc.url}
+                  alt={viewerDoc.name}
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                />
+              )}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

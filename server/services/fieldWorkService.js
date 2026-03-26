@@ -227,7 +227,8 @@ class FieldWorkService {
         throw new Error('Completion notes are required');
       }
 
-      if (!completionImages || completionImages.length === 0) {
+      // For team work, images are optional; for solo work, at least one is required
+      if (!workLog.isTeamWork && (!completionImages || completionImages.length === 0)) {
         throw new Error('At least one completion image is required');
       }
 
@@ -240,7 +241,7 @@ class FieldWorkService {
 
       await workLog.completeWork(
         completionNotes,
-        completionImages,
+        completionImages || [],
         {
           type: 'Point',
           coordinates: [location.longitude, location.latitude],
@@ -254,7 +255,7 @@ class FieldWorkService {
       complaint.status = 'work_completed';
       complaint.workCompletedAt = new Date();
       complaint.workCompletionNotes = completionNotes;
-      complaint.workProofImages = completionImages;
+      complaint.workProofImages = completionImages || [];
       await complaint.save();
 
       return {
@@ -323,10 +324,16 @@ class FieldWorkService {
       .skip(skip)
       .limit(limit);
 
-      const total = await WorkLog.countDocuments({ fieldStaff: fieldStaffId });
+      // Filter out orphaned logs where the complaint was deleted
+      const validLogs = workLogs.filter(log => log.complaint !== null);
+
+      const total = await WorkLog.countDocuments({
+        fieldStaff: fieldStaffId,
+        complaint: { $ne: null }
+      });
 
       return {
-        workLogs,
+        workLogs: validLogs,
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(total / limit),
@@ -364,7 +371,10 @@ class FieldWorkService {
   static async getWorkLogForReview(workLogId) {
     try {
       const workLog = await WorkLog.findById(workLogId)
-        .populate('complaint')
+        .populate({
+          path: 'complaint',
+          populate: { path: 'citizen', select: 'name email phone' }
+        })
         .populate('fieldStaff', 'name email department')
         .populate('reviewedBy', 'name email');
 
@@ -388,12 +398,13 @@ class FieldWorkService {
         throw new Error('Work log not found');
       }
 
-      if (workLog.status !== 'submitted') {
-        throw new Error('Work log must be submitted for review');
+      // Accept both 'submitted' and 'completed' to be safe
+      if (!['submitted', 'completed'].includes(workLog.status)) {
+        throw new Error(`Work log cannot be reviewed in its current status: ${workLog.status}`);
       }
 
       workLog.reviewStatus = reviewStatus;
-      workLog.reviewNotes = reviewNotes;
+      workLog.reviewNotes = reviewNotes || '';
       workLog.reviewedBy = adminId;
       workLog.reviewedAt = new Date();
       
@@ -406,11 +417,17 @@ class FieldWorkService {
       // Update complaint status based on review
       const complaint = await Complaint.findById(workLog.complaint._id);
       
+      if (!complaint) {
+        throw new Error('Associated complaint not found');
+      }
+
       if (reviewStatus === 'approved') {
         complaint.status = 'resolved';
         complaint.resolvedAt = new Date();
-      } else if (reviewStatus === 'rejected') {
-        complaint.status = 'assigned'; // Send back to field staff
+      } else if (reviewStatus === 'rejected' || reviewStatus === 'needs_revision') {
+        // Use the model's rejectWork method which handles all the fields
+        complaint.rejectWork(adminId, reviewNotes || `Work ${reviewStatus} by admin`);
+        // rejectWork already sets status = 'assigned', workRejectionReason, workRejectedAt, etc.
       }
       
       await complaint.save();
@@ -418,7 +435,8 @@ class FieldWorkService {
       return {
         success: true,
         message: `Work ${reviewStatus} successfully`,
-        workLog
+        workLog,
+        complaint
       };
 
     } catch (error) {

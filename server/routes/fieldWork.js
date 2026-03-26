@@ -345,21 +345,16 @@ router.post('/complete', complaintUpload.array('completionImages', 5), async (re
       });
     }
 
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'At least one completion image is required'
-      });
-    }
-
-    // Process uploaded images
+    // Process uploaded images (optional for team work)
     const completionImages = [];
-    for (const file of req.files) {
-      completionImages.push({
-        url: file.path,
-        filename: file.filename || file.public_id,
-        originalName: file.originalname
-      });
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        completionImages.push({
+          url: file.path,
+          filename: file.filename || file.public_id,
+          originalName: file.originalname
+        });
+      }
     }
 
     const locationData = JSON.parse(location);

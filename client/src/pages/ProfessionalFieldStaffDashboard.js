@@ -29,7 +29,9 @@ import {
   FiFilter,
   FiSearch,
   FiMoreVertical,
-  FiUsers
+  FiUsers,
+  FiX,
+  FiChevronDown
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -48,6 +50,7 @@ const ProfessionalFieldStaffDashboard = () => {
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [teamFormationComplaint, setTeamFormationComplaint] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -105,10 +108,9 @@ const ProfessionalFieldStaffDashboard = () => {
     await fetchDashboardData();
   };
 
-  // Handle complaint selection
+  // Handle complaint selection - Navigate to detail page
   const handleComplaintSelect = (complaint) => {
-    setSelectedComplaint(complaint);
-    setIsWorkModalOpen(true);
+    navigate(`/field-staff/task/${complaint._id}`);
   };
 
   // Handle team formation
@@ -116,6 +118,14 @@ const ProfessionalFieldStaffDashboard = () => {
     setTeamFormationComplaint(complaint);
     setIsTeamModalOpen(true);
   };
+
+  // Make team formation handler available globally for ComplaintCard
+  useEffect(() => {
+    window.handleTeamFormation = handleTeamFormation;
+    return () => {
+      delete window.handleTeamFormation;
+    };
+  }, []);
 
   // Handle team created
   const handleTeamCreated = (teamData) => {
@@ -421,18 +431,15 @@ const ProfessionalFieldStaffDashboard = () => {
               <div className="max-h-96 overflow-y-auto">
                 {filteredComplaints.length > 0 ? (
                   <div className="divide-y divide-gray-100">
-                    {filteredComplaints.map((complaint) => {
-                      // Set global handler for team formation
-                      window.handleTeamFormation = handleTeamFormation;
-                      return (
-                        <ProfessionalComplaintCard
-                          key={complaint._id}
-                          complaint={complaint}
-                          onSelect={handleComplaintSelect}
-                          isActive={activeSession?.complaint?._id === complaint._id}
-                        />
-                      );
-                    })}
+                    {filteredComplaints.map((complaint) => (
+                      <ProfessionalComplaintCard
+                        key={complaint._id}
+                        complaint={complaint}
+                        onSelect={handleComplaintSelect}
+                        onTeamFormation={handleTeamFormation}
+                        isActive={activeSession?.complaint?._id === complaint._id}
+                      />
+                    ))}
                   </div>
                 ) : (
                   <div className="text-center py-12">
@@ -463,7 +470,7 @@ const ProfessionalFieldStaffDashboard = () => {
                   icon={FiClock}
                   label="Work History"
                   description="View past assignments"
-                  onClick={() => navigate('/field-work/history')}
+                  onClick={() => setShowHistoryModal(true)}
                 />
                 <ProfessionalActionButton
                   icon={FiBarChart2}
@@ -556,6 +563,13 @@ const ProfessionalFieldStaffDashboard = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* Work History Modal */}
+      <AnimatePresence>
+        {showHistoryModal && (
+          <WorkHistoryModal onClose={() => setShowHistoryModal(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -590,7 +604,7 @@ const ProfessionalStatCard = ({ title, value, icon: Icon, color, trend }) => {
 };
 
 // Professional Complaint Card Component
-const ProfessionalComplaintCard = ({ complaint, onSelect, isActive }) => {
+const ProfessionalComplaintCard = ({ complaint, onSelect, onTeamFormation, isActive }) => {
   const getPriorityColor = (priority) => {
     const colors = {
       urgent: 'bg-red-100 text-red-800 border-red-200',
@@ -672,9 +686,8 @@ const ProfessionalComplaintCard = ({ complaint, onSelect, isActive }) => {
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              // Call team formation handler passed from parent
-              if (window.handleTeamFormation) {
-                window.handleTeamFormation(complaint);
+              if (onTeamFormation) {
+                onTeamFormation(complaint);
               }
             }}
             className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -710,5 +723,204 @@ const ProfessionalActionButton = ({ icon: Icon, label, description, onClick }) =
     <FiChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
   </button>
 );
+
+// Work History Modal
+const WorkHistoryModal = ({ onClose }) => {
+  const [workLogs, setWorkLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
+  const [expanded, setExpanded] = useState(null);
+
+  useEffect(() => { fetchHistory(1); }, []);
+
+  const fetchHistory = async (p) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/field-work/history?page=${p}&limit=10`, { credentials: 'include' });
+      const data = await res.json();
+      if (data.success) {
+        setWorkLogs(data.workLogs);
+        setPagination(data.pagination);
+        setPage(p);
+      }
+    } catch (err) {
+      console.error('History fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reviewColor = (r) => ({ approved: 'text-emerald-600', rejected: 'text-red-600', needs_revision: 'text-orange-500', pending: 'text-yellow-600' }[r] || 'text-gray-400');
+  const reviewBg = (r) => ({ approved: 'bg-emerald-50 border-emerald-200', rejected: 'bg-red-50 border-red-200', needs_revision: 'bg-orange-50 border-orange-200', pending: 'bg-yellow-50 border-yellow-200' }[r] || 'bg-gray-50 border-gray-200');
+  const reviewLabel = (r) => ({ approved: '✓ Approved', rejected: '✗ Rejected', needs_revision: '↩ Needs Revision', pending: '⏳ Pending Review' }[r] || r);
+
+  const formatDuration = (ms) => {
+    if (!ms) return '–';
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 20 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center">
+              <FiClock className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-900">Work History</h2>
+              {pagination && <p className="text-xs text-gray-500">{pagination.totalItems} sessions total</p>}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <FiX className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {loading ? (
+            <div className="flex justify-center py-12"><LoadingSpinner /></div>
+          ) : workLogs.length === 0 ? (
+            <div className="text-center py-16">
+              <FiList className="mx-auto h-12 w-12 text-gray-300 mb-3" />
+              <p className="text-sm font-medium text-gray-700">No work history yet</p>
+              <p className="text-xs text-gray-400 mt-1">Completed sessions will appear here</p>
+            </div>
+          ) : (
+            workLogs.map((log) => log.complaint && (
+              <div key={log._id} className="border border-gray-200 rounded-xl overflow-hidden">
+                {/* Row */}
+                <div
+                  className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => setExpanded(expanded === log._id ? null : log._id)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0 pr-3">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{log.complaint?.title || 'Unknown complaint'}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 capitalize truncate">
+                        {log.complaint?.category?.replace(/_/g, ' ')} · {log.complaint?.address}
+                      </p>
+                      <div className="flex items-center flex-wrap gap-2 mt-2">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${reviewBg(log.reviewStatus)} ${reviewColor(log.reviewStatus)}`}>
+                          {reviewLabel(log.reviewStatus)}
+                        </span>
+                        <span className="text-xs text-gray-400 flex items-center">
+                          <FiClock className="h-3 w-3 mr-1" />{formatDuration(log.totalDuration)}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {log.progressUpdates?.length || 0} updates
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end flex-shrink-0">
+                      <p className="text-xs text-gray-400">{new Date(log.startTime).toLocaleDateString()}</p>
+                      <FiChevronDown className={`h-4 w-4 text-gray-400 mt-2 transition-transform ${expanded === log._id ? 'rotate-180' : ''}`} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expanded */}
+                <AnimatePresence>
+                  {expanded === log._id && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="border-t border-gray-100 bg-gray-50 px-4 py-4 space-y-3 overflow-hidden"
+                    >
+                      {/* Stats */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: 'Duration', value: formatDuration(log.totalDuration) },
+                          { label: 'Updates', value: log.progressUpdates?.length || 0 },
+                          { label: 'Proof Photos', value: log.completionImages?.length || 0 },
+                        ].map(({ label, value }) => (
+                          <div key={label} className="bg-white rounded-lg p-2.5 text-center border border-gray-100">
+                            <p className="text-xs text-gray-500">{label}</p>
+                            <p className="text-sm font-bold text-gray-900">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Progress updates */}
+                      {log.progressUpdates?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 mb-1.5">Progress Updates</p>
+                          <div className="space-y-1">
+                            {log.progressUpdates.map((u, i) => (
+                              <div key={i} className="flex items-start space-x-2 text-xs text-gray-700">
+                                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5 flex-shrink-0" />
+                                <span>{u.description}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Completion notes */}
+                      {log.completionNotes && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 mb-1">Completion Notes</p>
+                          <p className="text-xs text-gray-700 bg-white rounded-lg p-2.5 border border-gray-100">{log.completionNotes}</p>
+                        </div>
+                      )}
+
+                      {/* Admin feedback */}
+                      {log.reviewNotes && (
+                        <div className={`rounded-lg p-2.5 border text-xs ${log.reviewStatus === 'rejected' || log.reviewStatus === 'needs_revision' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+                          <p className="font-semibold mb-0.5">Admin Feedback</p>
+                          <p>{log.reviewNotes}</p>
+                        </div>
+                      )}
+
+                      {/* Proof images */}
+                      {log.completionImages?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 mb-1.5">Proof Photos</p>
+                          <div className="flex space-x-2 overflow-x-auto pb-1">
+                            {log.completionImages.map((img, i) => (
+                              <img key={i} src={img.url} alt="" className="h-16 w-16 object-cover rounded-lg flex-shrink-0 border border-gray-200" />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="text-xs text-gray-400">
+                        {new Date(log.startTime).toLocaleString()}{log.endTime ? ` → ${new Date(log.endTime).toLocaleString()}` : ''}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Pagination */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100 flex-shrink-0">
+            <p className="text-xs text-gray-500">Page {page} of {pagination.totalPages}</p>
+            <div className="flex space-x-2">
+              <button onClick={() => fetchHistory(page - 1)} disabled={!pagination.hasPrev}
+                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">Previous</button>
+              <button onClick={() => fetchHistory(page + 1)} disabled={!pagination.hasNext}
+                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50">Next</button>
+            </div>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+};
 
 export default ProfessionalFieldStaffDashboard;

@@ -24,6 +24,9 @@ const AdminComplaintManagement = lazy(() => import('./pages/AdminComplaintManage
 const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
 const GeofenceConfigPage = lazy(() => import('./pages/GeofenceConfigPage'));
 const FieldStaffDashboard = lazy(() => import('./pages/ProfessionalFieldStaffDashboard'));
+const CleanFieldStaffDashboard = lazy(() => import('./pages/CleanFieldStaffDashboard'));
+const TeamWorkspace = lazy(() => import('./pages/TeamWorkspace'));
+const TaskDetailPage = lazy(() => import('./pages/TaskDetailPage'));
 const FieldStaffManagement = lazy(() => import('./pages/FieldStaffManagement'));
 const AdminFieldWorkReview = lazy(() => import('./pages/ComprehensiveAdminWorkReview'));
 const ReportIssue = lazy(() => import('./pages/ReportIssue'));
@@ -192,6 +195,30 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredRole="field_staff">
               <FieldStaffDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/field-staff/dashboard" 
+          element={
+            <ProtectedRoute requiredRole="field_staff">
+              <FieldStaffDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/field-staff/task/:taskId" 
+          element={
+            <ProtectedRoute requiredRole="field_staff">
+              <TaskDetailPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/field-staff/team/:teamId" 
+          element={
+            <ProtectedRoute requiredRole="field_staff">
+              <TeamWorkspace />
             </ProtectedRoute>
           } 
         />

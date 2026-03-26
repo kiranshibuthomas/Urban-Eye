@@ -18,7 +18,9 @@ router.get('/pending-reviews', async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const filter = { reviewStatus: 'pending' };
+    // Allow filtering by reviewStatus via ?status= param; default to 'pending'
+    const reviewStatus = req.query.status || 'pending';
+    const filter = { reviewStatus };
     
     // Add filters
     if (req.query.fieldStaff) {

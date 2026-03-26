@@ -12,7 +12,11 @@ import {
   FaExclamationTriangle,
   FaPlay,
   FaPause,
-  FaStop
+  FaStop,
+  FaFileAlt,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaHourglassHalf
 } from 'react-icons/fa';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CreateCampaignModal from '../components/CreateCampaignModal';
@@ -21,6 +25,9 @@ const AdminFundraisingManagement = () => {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [reviewModal, setReviewModal] = useState(null); // { campaign }
+  const [reviewNote, setReviewNote] = useState('');
+  const [reviewLoading, setReviewLoading] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -105,6 +112,26 @@ const AdminFundraisingManagement = () => {
     }
   };
 
+  const handleReview = async (action) => {
+    if (!reviewModal) return;
+    try {
+      setReviewLoading(true);
+      await axios.post(`/fundraising/campaigns/${reviewModal._id}/review`, {
+        action,
+        note: reviewNote
+      });
+      toast.success(`Campaign ${action === 'approve' ? 'approved and activated' : 'rejected'}`);
+      setReviewModal(null);
+      setReviewNote('');
+      fetchCampaigns();
+      fetchStats();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to review campaign');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -143,6 +170,21 @@ const AdminFundraisingManagement = () => {
       other: 'bg-gray-100 text-gray-800'
     };
     return colors[category] || colors.other;
+  };
+
+  const getReviewStatusBadge = (reviewStatus) => {
+    const map = {
+      pending_review: { icon: <FaHourglassHalf className="inline mr-1" />, cls: 'bg-yellow-100 text-yellow-800', label: 'Pending Review' },
+      approved: { icon: <FaCheckCircle className="inline mr-1" />, cls: 'bg-green-100 text-green-800', label: 'Approved' },
+      rejected: { icon: <FaTimesCircle className="inline mr-1" />, cls: 'bg-red-100 text-red-800', label: 'Rejected' },
+    };
+    const item = map[reviewStatus];
+    if (!item) return null;
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full ${item.cls}`}>
+        {item.icon}{item.label}
+      </span>
+    );
   };
 
   if (loading && campaigns.length === 0) {
@@ -309,6 +351,9 @@ const AdminFundraisingManagement = () => {
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(campaign.status)}`}>
                           {campaign.status.toUpperCase()}
                         </span>
+                        <div className="mt-1">
+                          {getReviewStatusBadge(campaign.reviewStatus)}
+                        </div>
                       </td>
                       
                       <td className="px-6 py-4">
@@ -358,9 +403,20 @@ const AdminFundraisingManagement = () => {
                           >
                             <FaEdit />
                           </Link>
+
+                          {/* Review button for pending campaigns */}
+                          {campaign.reviewStatus === 'pending_review' && (
+                            <button
+                              onClick={() => { setReviewModal(campaign); setReviewNote(''); }}
+                              className="text-amber-600 hover:text-amber-900 p-1"
+                              title="Review Documents"
+                            >
+                              <FaFileAlt />
+                            </button>
+                          )}
                           
                           {/* Status Actions */}
-                          {campaign.status === 'draft' && (
+                          {campaign.status === 'draft' && campaign.reviewStatus === 'approved' && (
                             <button
                               onClick={() => updateCampaignStatus(campaign._id, 'active')}
                               className="text-green-600 hover:text-green-900 p-1"
@@ -451,6 +507,77 @@ const AdminFundraisingManagement = () => {
             fetchStats();
           }}
         />
+      )}
+
+      {/* Document Review Modal */}
+      {reviewModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <FaFileAlt className="text-amber-500" /> Review Campaign Documents
+              </h3>
+              <button onClick={() => setReviewModal(null)} className="text-gray-400 hover:text-gray-600">
+                <FaTimesCircle size={20} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500">Campaign</p>
+                <p className="font-semibold text-gray-900">{reviewModal.title}</p>
+                <p className="text-sm text-gray-600 mt-1">{reviewModal.description?.substring(0, 120)}...</p>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Submitted Documents ({(reviewModal.documents || []).length})</p>
+                {(reviewModal.documents || []).length === 0 ? (
+                  <p className="text-sm text-red-500">No documents submitted</p>
+                ) : (
+                  <div className="space-y-2">
+                    {(reviewModal.documents || []).map((doc, i) => (
+                      <a key={i} href={doc.url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-200 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <FaFileAlt className="text-blue-500" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{doc.name}</p>
+                            <p className="text-xs text-gray-500 capitalize">{doc.type?.replace('_', ' ')}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-blue-600">View</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Review Note (optional)</label>
+                <textarea
+                  value={reviewNote}
+                  onChange={e => setReviewNote(e.target.value)}
+                  placeholder="Add a note for approval or reason for rejection..."
+                  rows={3} maxLength={500}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 p-5 border-t border-gray-200">
+              <button onClick={() => handleReview('reject')} disabled={reviewLoading}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 text-sm font-medium">
+                <FaTimesCircle size={14} /> Reject
+              </button>
+              <button onClick={() => handleReview('approve')} disabled={reviewLoading}
+                className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 text-sm font-medium">
+                {reviewLoading
+                  ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <><FaCheckCircle size={14} /> Approve & Activate</>}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -79,6 +79,50 @@ const workTeamSchema = new mongoose.Schema({
     trim: true
   }],
   
+  // Team Type & Specialization
+  teamType: {
+    type: String,
+    enum: ['standard', 'emergency', 'specialized', 'training'],
+    default: 'standard'
+  },
+  
+  specialization: {
+    type: String,
+    enum: ['general', 'electrical', 'plumbing', 'road_work', 'sanitation', 'emergency_response'],
+    default: 'general'
+  },
+  
+  // Task Complexity
+  taskComplexity: {
+    type: String,
+    enum: ['simple', 'moderate', 'complex', 'critical'],
+    default: 'moderate'
+  },
+  
+  estimatedDuration: {
+    type: Number, // in minutes
+    default: 120
+  },
+  
+  // Resource Requirements
+  requiredEquipment: [{
+    equipment: String,
+    quantity: Number,
+    critical: Boolean
+  }],
+  
+  requiredMaterials: [{
+    material: String,
+    quantity: Number,
+    unit: String,
+    estimated: Boolean
+  }],
+  
+  estimatedBudget: {
+    type: Number,
+    default: 0
+  },
+  
   // Location Tracking
   lastKnownLocations: [{
     fieldStaff: {
@@ -164,7 +208,82 @@ const workTeamSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
-    averageResponseTime: Number
+    averageResponseTime: Number,
+    tasksCompleted: {
+      type: Number,
+      default: 0
+    },
+    successRate: {
+      type: Number,
+      default: 0
+    }
+  },
+  
+  // Team Performance Metrics
+  performance: {
+    efficiency: Number, // 0-100
+    quality: Number, // 0-100
+    collaboration: Number, // 0-100
+    communication: Number, // 0-100
+    overallScore: Number // 0-100
+  },
+  
+  // Team Roles & Responsibilities
+  roleAssignments: [{
+    member: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    role: String,
+    responsibilities: [String],
+    assignedAt: Date
+  }],
+  
+  // Decision Making
+  decisions: [{
+    decision: String,
+    madeBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    votedBy: [{
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      vote: String, // approve/reject
+      timestamp: Date
+    }],
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
+    },
+    timestamp: Date
+  }],
+  
+  // Resource Allocation
+  allocatedResources: {
+    equipment: [{
+      equipmentId: String,
+      name: String,
+      assignedTo: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      assignedAt: Date
+    }],
+    materials: [{
+      material: String,
+      quantity: Number,
+      unit: String,
+      allocatedAt: Date
+    }],
+    budget: {
+      allocated: Number,
+      spent: Number,
+      remaining: Number
+    }
   },
   
   // Timestamps

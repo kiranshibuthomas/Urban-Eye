@@ -8,6 +8,30 @@ const { authenticateToken: auth } = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+// Local disk storage for campaign documents
+const docsDir = path.join(__dirname, '../uploads/campaign_docs');
+if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
+
+const campaignDocStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, docsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.pdf';
+    cb(null, `doc_${Date.now()}_${Math.round(Math.random() * 1e9)}${ext}`);
+  }
+});
+
+const campaignDocumentUpload = multer({
+  storage: campaignDocStorage,
+  fileFilter: (req, file, cb) => {
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only PDF, JPG, PNG, WebP files are allowed'));
+  },
+  limits: { fileSize: 10 * 1024 * 1024, files: 10 } // 10MB per file
+});
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -124,56 +148,69 @@ router.get('/campaigns/:id', [
 });
 
 // @route   POST /api/fundraising/campaigns
-// @desc    Create new fundraising campaign (Admin only)
+// @desc    Create new fundraising campaign with documentation (Admin only)
 // @access  Private (Admin)
-router.post('/campaigns', [
-  auth,
-  adminAuth,
-  body('title').trim().isLength({ min: 5, max: 200 }),
-  body('description').trim().isLength({ min: 20, max: 2000 }),
-  body('targetAmount').isFloat({ min: 1000 }),
-  body('category').isIn(['infrastructure', 'education', 'healthcare', 'environment', 'social_welfare', 'emergency', 'other']),
-  body('startDate').isISO8601(),
-  body('endDate').isISO8601(),
-  body('images').optional().isArray(),
-  body('location.coordinates').optional().isArray({ min: 2, max: 2 }),
-  body('location.address').optional().trim().isLength({ max: 500 }),
-  body('tags').optional().isArray(),
-  body('isUrgent').optional().isBoolean()
-], async (req, res) => {
+router.post('/campaigns', auth, adminAuth, campaignDocumentUpload.array('documents', 10), async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    const { title, description, targetAmount, category, startDate, endDate, location, tags, isUrgent, documentTypes, documentNames } = req.body;
+
+    // Basic validation
+    const errors = [];
+    if (!title || title.trim().length < 5) errors.push('Title must be at least 5 characters');
+    if (!description || description.trim().length < 20) errors.push('Description must be at least 20 characters');
+    if (!targetAmount || parseFloat(targetAmount) < 1000) errors.push('Target amount must be at least ₹1,000');
+    if (!category) errors.push('Category is required');
+    if (!startDate || !endDate) errors.push('Start and end dates are required');
+
+    // Require at least 2 documents
+    const uploadedFiles = req.files || [];
+    if (uploadedFiles.length < 2) {
+      errors.push('At least 2 supporting documents are required (e.g., authorization letter and budget breakdown)');
     }
 
-    const { title, description, targetAmount, category, startDate, endDate, images, location, tags, isUrgent } = req.body;
+    if (errors.length > 0) {
+      return res.status(400).json({ message: errors[0], errors });
+    }
 
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
     const now = new Date();
 
-    if (start < now) {
-      return res.status(400).json({ message: 'Start date cannot be in the past' });
-    }
+    if (start < now) return res.status(400).json({ message: 'Start date cannot be in the past' });
+    if (end <= start) return res.status(400).json({ message: 'End date must be after start date' });
 
-    if (end <= start) {
-      return res.status(400).json({ message: 'End date must be after start date' });
-    }
+    // Build documents array from uploaded files
+    const typesArray = Array.isArray(documentTypes) ? documentTypes : (documentTypes ? [documentTypes] : []);
+    const namesArray = Array.isArray(documentNames) ? documentNames : (documentNames ? [documentNames] : []);
+
+    const documents = uploadedFiles.map((file, index) => {
+      // Local file — build a server-relative URL served by Express static
+      const url = `/uploads/campaign_docs/${file.filename}`;
+      return {
+        type: typesArray[index] || 'other',
+        name: namesArray[index] || file.originalname,
+        url,
+      };
+    });
+
+    const parsedLocation = location ? (typeof location === 'string' ? JSON.parse(location) : location) : { coordinates: [0, 0] };
+    const parsedTags = tags ? (typeof tags === 'string' ? tags.split(',').map(t => t.trim()).filter(Boolean) : tags) : [];
 
     const campaign = new FundraisingCampaign({
-      title,
-      description,
-      targetAmount,
+      title: title.trim(),
+      description: description.trim(),
+      targetAmount: parseFloat(targetAmount),
       category,
       startDate: start,
       endDate: end,
       createdBy: req.user.id,
-      images: images || [],
-      location: location || { coordinates: [0, 0] },
-      tags: tags || [],
-      isUrgent: isUrgent || false
+      location: parsedLocation,
+      tags: parsedTags,
+      isUrgent: isUrgent === 'true' || isUrgent === true,
+      documents,
+      status: 'draft',
+      reviewStatus: 'pending_review'
     });
 
     await campaign.save();
@@ -182,6 +219,50 @@ router.post('/campaigns', [
     res.status(201).json(campaign);
   } catch (error) {
     console.error('Error creating campaign:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/fundraising/campaigns/:id/review
+// @desc    Approve or reject a campaign after document review (Admin only)
+// @access  Private (Admin)
+router.post('/campaigns/:id/review', [
+  auth,
+  adminAuth,
+  param('id').isMongoId(),
+  body('action').isIn(['approve', 'reject']),
+  body('note').optional().trim().isLength({ max: 500 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const campaign = await FundraisingCampaign.findById(req.params.id);
+    if (!campaign) return res.status(404).json({ message: 'Campaign not found' });
+
+    if (campaign.reviewStatus !== 'pending_review') {
+      return res.status(400).json({ message: 'Campaign has already been reviewed' });
+    }
+
+    const { action, note } = req.body;
+    campaign.reviewStatus = action === 'approve' ? 'approved' : 'rejected';
+    campaign.reviewNote = note || '';
+    campaign.reviewedBy = req.user.id;
+    campaign.reviewedAt = new Date();
+
+    if (action === 'approve') {
+      campaign.status = 'active';
+    } else {
+      campaign.status = 'cancelled';
+    }
+
+    await campaign.save();
+    await campaign.populate('createdBy', 'name email');
+    await campaign.populate('reviewedBy', 'name');
+
+    res.json(campaign);
+  } catch (error) {
+    console.error('Error reviewing campaign:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -263,5 +344,6 @@ router.post('/campaigns/:id/updates', [
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 module.exports = router;

@@ -71,6 +71,22 @@ const campaignStorage = new CloudinaryStorage({
   },
 });
 
+// Campaign document storage (PDFs, images for proofs)
+const campaignDocumentStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (req, file) => {
+    const isPdf = file.mimetype === 'application/pdf';
+    const timestamp = Date.now();
+    const randomId = Math.round(Math.random() * 1E9);
+    return {
+      folder: 'urbaneye/campaign_documents',
+      resource_type: isPdf ? 'raw' : 'image',
+      allowed_formats: isPdf ? ['pdf'] : ['jpg', 'jpeg', 'png', 'webp'],
+      public_id: `campaign_doc_${timestamp}_${randomId}`,
+    };
+  },
+});
+
 // File filters
 const imageFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
@@ -85,6 +101,14 @@ const mediaFilter = (req, file, cb) => {
     cb(null, true);
   } else {
     cb(new Error('Only image and video files are allowed!'), false);
+  }
+};
+
+const documentFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image and PDF files are allowed for documents!'), false);
   }
 };
 
@@ -119,6 +143,15 @@ const campaignUpload = multer({
   fileFilter: imageFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB for images
+  }
+});
+
+const campaignDocumentUpload = multer({
+  storage: campaignDocumentStorage,
+  fileFilter: documentFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB per document
+    files: 10
   }
 });
 
@@ -195,6 +228,7 @@ module.exports = {
   avatarUpload,
   complaintUpload,
   campaignUpload,
+  campaignDocumentUpload,
   deleteFromCloudinary,
   extractPublicId,
   getResourceType,

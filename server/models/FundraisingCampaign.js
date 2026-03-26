@@ -85,7 +85,31 @@ const fundraisingCampaignSchema = new mongoose.Schema({
     type: String,
     enum: ['public', 'private'],
     default: 'public'
-  }
+  },
+  documents: [{
+    type: {
+      type: String,
+      enum: ['authorization_letter', 'budget_breakdown', 'project_proposal', 'ngo_registration', 'bank_details', 'other'],
+      required: true
+    },
+    name: { type: String, required: true },
+    url: { type: String, required: true },
+    uploadedAt: { type: Date, default: Date.now }
+  }],
+  reviewStatus: {
+    type: String,
+    enum: ['pending_review', 'approved', 'rejected'],
+    default: 'pending_review'
+  },
+  reviewNote: {
+    type: String,
+    maxlength: 500
+  },
+  reviewedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  reviewedAt: Date
 }, {
   timestamps: true
 });
